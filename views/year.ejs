@@ -1,0 +1,36 @@
+<%- include('partials/head.ejs') %>
+<!-- <section class="text-center"> -->
+    <section class="d-flex justify-content-center align-items-center flex-fill h-100 flex-column">
+  <h1><%= data.date %></h1>
+    <div class="year text-center">
+        <% for (let month = 0; month < data.days.length; month++) { %>
+            <div class="month">
+                <% for (let day = 0; day < data.days[month][0]; day++) { %>
+                    <div class="passed"></div>
+                <% } %>
+                <% for (let day = 0; day < data.days[month][1]; day++) { %>
+                    <div></div>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</section>
+<style>
+    .month {
+        display: inline-flex;
+        margin-bottom: 8px;
+    }
+    .month div {
+        --size: 25px;
+        width: var(--size);
+        height: var(--size);
+        margin-right: 8px;
+        border-radius: 5px;
+        border: 2px solid black;
+    }
+
+    .month .passed, .month .current {
+        background: black;
+    }
+</style>
+<%- include('partials/footer.ejs') %>

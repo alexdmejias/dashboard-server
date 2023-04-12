@@ -1,0 +1,14 @@
+<%- include('partials/head.ejs') %>
+<section class="d-flex justify-content-center align-items-center flex-fill h-100">
+  <div class="w-75">
+    <figure class="text-center">
+      <blockquote class="blockquote fs-4">
+        <p><%= data.content %></p>
+      </blockquote>
+      <figcaption class="blockquote-footer fs-6">
+        <p><%= data.author %></p>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+<%- include('partials/footer.ejs') %>
