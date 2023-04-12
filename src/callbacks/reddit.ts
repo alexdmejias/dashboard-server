@@ -1,5 +1,5 @@
-import CallbackBase from "./base.js";
-import base64Encode from "../utils/base64Encode.js";
+import CallbackBase from "./base";
+import base64Encode from "../utils/base64Encode";
 
 class CallbackReddit extends CallbackBase {
   constructor() {
@@ -11,6 +11,10 @@ class CallbackReddit extends CallbackBase {
     const password = process.env.REDDIT_PASSWORD;
     const clientId = process.env.REDDIT_CLIENTID;
     const secret = process.env.REDDIT_SECRET;
+
+    if (!username || !password) {
+      throw new Error("missing reddit username or password");
+    }
 
     const data = new URLSearchParams({
       grant_type: "password",
@@ -47,17 +51,18 @@ class CallbackReddit extends CallbackBase {
         { headers }
       );
 
-      const json = await dataRes.json();
+      // TODO clean this TS up
+      const json = (await dataRes.json()) as {
+        data: { children: { data: { title: string } }[] };
+      };
 
-      const posts = json.data.children.map((p) => ({
+      const posts: { title: string }[] = json.data.children.map((p) => ({
         title: p.data.title,
       }));
 
       return posts;
     } catch (e) {
-      return {
-        error: e.message || e,
-      };
+      return { error: e instanceof Error ? e.message : e };
     }
   }
 }

@@ -1,7 +1,7 @@
-import imagesPath from "./imagesPath.js";
 import { webkit } from "playwright";
+import imagesPath from "./imagesPath";
 
-async function getScreenshot({ url, name, data }) {
+async function getScreenshot({ url, name}: {url: string, name: string}) {
   const browser = await webkit.launch();
   const context = await browser.newContext();
   const page = await context.newPage();

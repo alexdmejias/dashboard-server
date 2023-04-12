@@ -1,6 +1,11 @@
-import CallbackBase from "./base.js";
+import CallbackBase from "./base";
+
+type Quote = {author: string, content: string};
 
 class CallbackQuote extends CallbackBase {
+  allQuotes: Quote[] = [];
+  availableQuoteIndexes: number[] = []
+
   constructor() {
     super("quote");
 

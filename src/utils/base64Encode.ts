@@ -1,4 +1,4 @@
-function base64Encode(string) {
+function base64Encode(string: string) {
   return Buffer.from(string).toString("base64");
 }
 

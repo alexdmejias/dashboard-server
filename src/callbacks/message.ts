@@ -1,6 +1,8 @@
-import CallbackBase from "./base.js";
+import CallbackBase from "./base";
 
 class CallbackMessage extends CallbackBase {
+  lastMessage: string;
+
   constructor() {
     super("message");
     this.lastMessage = "";
@@ -11,7 +13,7 @@ class CallbackMessage extends CallbackBase {
     return this.lastMessage;
   }
 
-  setMessage(message) {
+  setMessage(message: string) {
     this.lastMessage = message;
   }
 }

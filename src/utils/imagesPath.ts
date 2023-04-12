@@ -1,9 +1,6 @@
 import path from "path";
-import { fileURLToPath } from "url";
 
-function imagesPath(fileName) {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
+function imagesPath(fileName: string) {
   const screenshotPath = path.join(
     __dirname,
     "..",
