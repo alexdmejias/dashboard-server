@@ -3,8 +3,7 @@ import path from "path";
 function imagesPath(fileName: string) {
   const screenshotPath = path.join(
     __dirname,
-    "..",
-    "public",
+    "../../public",
     "images",
     `${fileName}.png`
   );

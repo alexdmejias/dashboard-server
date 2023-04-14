@@ -1,7 +1,14 @@
 import { webkit } from "playwright";
 import imagesPath from "./imagesPath";
+import getRenderedTemplate from "./getRenderedTemplate";
 
-async function getScreenshot({ url, name}: {url: string, name: string}) {
+async function getScreenshot({
+  name,
+  data,
+}: {
+  name: string;
+  data: Record<string, any> | any[];
+}) {
   const browser = await webkit.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -11,14 +18,16 @@ async function getScreenshot({ url, name}: {url: string, name: string}) {
     height: 825,
   });
 
-  await page.goto(url);
+  const renderedTemplate = getRenderedTemplate({ name, data });
+
+  await page.setContent(renderedTemplate);
 
   const screenshotPath = imagesPath(name);
 
   await page.screenshot({ path: screenshotPath });
   await browser.close();
 
-  return screenshotPath;
+  return `/public/images/${name}.png`;
 }
 
 export default getScreenshot;

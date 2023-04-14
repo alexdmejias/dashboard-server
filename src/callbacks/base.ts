@@ -1,7 +1,6 @@
 import getScreenshot from "../utils/getScreenshot";
-import base64Encode from "../utils/base64Encode";
 
-class CallbackBase {
+abstract class CallbackBase {
   name: string;
   callbackUrl: string;
   inRotation: boolean;
@@ -12,19 +11,15 @@ class CallbackBase {
     this.inRotation = true;
   }
 
-  async getData(): Promise<any> {
-    return undefined;
-  }
+  abstract getData(): Promise<any>;
 
-  async render(state: Record<string, string | number>, setState: Function) {
+  async render() {
     const lastUpdated = Date.now();
     const data = await this.getData();
-    const data64 = encodeURIComponent(base64Encode(JSON.stringify(data)));
 
     return {
       path: await getScreenshot({
-        url: `${this.callbackUrl}/${data64}`,
-        // data: data64,
+        data: data,
         name: this.name,
       }),
       lastUpdated,

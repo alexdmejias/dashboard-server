@@ -1,11 +1,9 @@
 import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 dotenv.config();
-import express from "express";
-import path, { join } from "path";
-import bodyParser from "body-parser";
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
+import { join } from "path";
+import fastify, { errorCodes } from "fastify";
+import fastifyStatic from "@fastify/static";
+import fastifyView from "@fastify/view";
 
 import {
   CallbackReddit,
@@ -15,11 +13,10 @@ import {
 } from "./callbacks/index.js";
 import StateMachine from "./stateMachine.js";
 
-const app = express();
-
+const app = fastify({ logger: false });
 const messageHandler = new CallbackMessage();
-
 const machine = new StateMachine();
+
 machine.addCallback(new CallbackReddit());
 machine.addCallback(new CallbackQuote());
 machine.addCallback(new CallbackYearProgress());
@@ -32,13 +29,16 @@ const config = {
   message: "initial message",
 };
 
-// parse application/x-www-form-urlencoded
-app.use(bodyParser.urlencoded({ extended: false }));
+app.register(fastifyStatic, {
+  root: join(__dirname, "../public"),
+  prefix: "/public/",
+});
 
-// parse application/json
-app.use(bodyParser.json());
-
-app.set("view engine", "ejs");
+app.register(fastifyView, {
+  engine: {
+    ejs: require("ejs"),
+  },
+});
 
 app.get("/", async (req, res) => {
   if (config.status === "play") {
@@ -48,10 +48,7 @@ app.get("/", async (req, res) => {
     });
   } else if (config.status === "message" && config.message) {
     messageHandler.setMessage(config.message);
-    const dataFromRender = await messageHandler.render(
-      machine.getState(),
-      machine.setState
-    );
+    const dataFromRender = await messageHandler.render();
 
     res.send({
       data: dataFromRender,
@@ -59,23 +56,13 @@ app.get("/", async (req, res) => {
   }
 });
 
-app.get("/callbacks/:name/:data?", async (req, res) => {
-  const { name, data } = req.params;
-  const buff = Buffer.from(decodeURIComponent(data || ""), "base64");
-  const text = buff.toString("utf8");
-
-  const parsedData = JSON.parse(text || "{}");
-
-  // TODO
-  res.render(data ? name : "index", {
-    name: req.params.name,
-    data: parsedData,
-  });
-});
-
 const quote = new CallbackQuote();
 
-app.get("/test/:name/:viewType?", async (req, res) => {
+type TestParams = {
+  name: string;
+  viewType: "json" | "html";
+};
+app.get<{ Params: TestParams }>("/test/:name/:viewType?", async (req, res) => {
   const { name, viewType = "json" } = req.params;
 
   let data = {};
@@ -96,12 +83,12 @@ app.get("/test/:name/:viewType?", async (req, res) => {
 
   // TODO add an image viewType to see the rendered image
   if (viewType === "html") {
-    res.render(name, {
+    return res.view(`/views/${name}.ejs`, {
       name,
       data,
     });
   } else {
-    res.send(data);
+    return res.send(data);
   }
 });
 
@@ -109,7 +96,13 @@ app.get("/config", (req, res) => {
   res.send(config);
 });
 
-app.post("/config", (req, res) => {
+type ConfigBody = {
+  command: "play" | "message";
+  message: string;
+  until?: number;
+};
+
+app.post<{ Body: ConfigBody }>("/config", (req, res) => {
   const { command, message, until } = req.body;
 
   if (command === "message") {
@@ -128,10 +121,16 @@ app.post("/config", (req, res) => {
   res.send({ status: "ok" });
 });
 
-app.use("/public", express.static(join(__dirname, "public")));
-
-app.use((req, res, next) => {
-  res.send("<h1> Page not found </h1>");
+app.setErrorHandler(function (error, request, reply) {
+  if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+    // Log error
+    this.log.error(error);
+    // Send error response
+    reply.status(404).send({ ok: false });
+  } else {
+    // fastify will use parent error handler to handle this
+    reply.send(error);
+  }
 });
 
 export default app;

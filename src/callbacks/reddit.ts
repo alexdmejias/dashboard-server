@@ -16,6 +16,10 @@ class CallbackReddit extends CallbackBase {
       throw new Error("missing reddit username or password");
     }
 
+    if (!clientId || !secret) {
+      throw new Error("missing reddit clientId or secret");
+    }
+
     const data = new URLSearchParams({
       grant_type: "password",
       username,

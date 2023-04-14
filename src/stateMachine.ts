@@ -1,4 +1,4 @@
-import CallbackBase from './callbacks/base';
+import CallbackBase from "./callbacks/base";
 
 class StateMachine {
   currCallbackIndex: number;
@@ -26,10 +26,10 @@ class StateMachine {
 
   addCallback(callbackInstance: CallbackBase) {
     console.log(
-      '@@@@@@@@',
-      'adding callback',
+      "@@@@@@@@",
+      "adding callback",
       callbackInstance.name,
-      'in rotation?',
+      "in rotation?",
       callbackInstance.inRotation
     );
     this.callbacks[callbackInstance.name] = callbackInstance;
@@ -43,16 +43,13 @@ class StateMachine {
   }
 
   async tick() {
-    console.log('@@@@@@@@', 'rotation:', this.rotation);
+    console.log("@@@@@@@@", "rotation:", this.rotation);
     const selectedInstance =
       this.callbacks[this.rotation[this.currCallbackIndex]];
-    console.log('!!!!!!!!', 'tick', this.currCallbackIndex, selectedInstance);
+    console.log("!!!!!!!!", "tick", this.currCallbackIndex, selectedInstance);
     //TODO follow a custom rotation, ie: quote, quote, year, reddit
 
-    const output = await selectedInstance.render(
-      this.getState(),
-      this.setState
-    );
+    const output = await selectedInstance.render();
 
     return output;
   }
