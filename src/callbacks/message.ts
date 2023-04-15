@@ -4,7 +4,7 @@ class CallbackMessage extends CallbackBase {
   lastMessage: string;
 
   constructor() {
-    super("message");
+    super("message", "message");
     this.lastMessage = "";
     this.inRotation = false;
   }

@@ -2,13 +2,15 @@ import getScreenshot from "../utils/getScreenshot";
 
 abstract class CallbackBase {
   name: string;
+  template: string;
   callbackUrl: string;
   inRotation: boolean;
 
-  constructor(name: string) {
+  constructor(name: string, template?: string) {
     this.name = name;
     this.callbackUrl = `http://localhost:3000/callbacks/${name}`;
     this.inRotation = true;
+    this.template = template || name;
   }
 
   abstract getData(): Promise<any>;
@@ -20,7 +22,7 @@ abstract class CallbackBase {
     return {
       path: await getScreenshot({
         data: data,
-        name: this.name,
+        template: this.template,
       }),
       lastUpdated,
     };

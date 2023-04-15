@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 dotenv.config();
 import { join } from "path";
+import fs from "node:fs";
 import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
@@ -10,8 +11,10 @@ import {
   CallbackQuote,
   CallbackYearProgress,
   CallbackMessage,
+  CallbackJoke,
 } from "./callbacks/index.js";
 import StateMachine from "./stateMachine.js";
+import CallbackBase from "./callbacks/base.js";
 
 const app = fastify({ logger: false });
 const messageHandler = new CallbackMessage();
@@ -19,6 +22,7 @@ const machine = new StateMachine();
 
 machine.addCallback(new CallbackReddit());
 machine.addCallback(new CallbackQuote());
+machine.addCallback(new CallbackJoke());
 machine.addCallback(new CallbackYearProgress());
 machine.addCallback(messageHandler);
 
@@ -60,35 +64,48 @@ const quote = new CallbackQuote();
 
 type TestParams = {
   name: string;
-  viewType: "json" | "html";
+  viewType: "json" | "html" | "image";
 };
 app.get<{ Params: TestParams }>("/test/:name/:viewType?", async (req, res) => {
   const { name, viewType = "json" } = req.params;
 
-  let data = {};
+  let callback!: CallbackBase;
 
   if (name === "reddit") {
-    data = await new CallbackReddit().getData();
+    callback = new CallbackReddit();
+  } else if (name === "joke") {
+    callback = new CallbackJoke();
   } else if (name === "year") {
-    data = await new CallbackYearProgress().getData();
+    callback = new CallbackYearProgress();
   } else if (name === "quote") {
-    data = await quote.getData();
+    callback = quote;
   } else if (name === "message") {
     messageHandler.setMessage(
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
     );
 
-    data = await messageHandler.getData();
+    callback = messageHandler;
   }
 
-  // TODO add an image viewType to see the rendered image
-  if (viewType === "html") {
-    return res.view(`/views/${name}.ejs`, {
-      name,
-      data,
-    });
+  if (viewType === "image") {
+    const rendered = await callback.render();
+    const buffer = fs.readFileSync(join(__dirname, "..", rendered.path));
+
+    res.type("image/png");
+
+    return res.send(buffer);
   } else {
-    return res.send(data);
+    const data = await callback.getData();
+    const template = callback.template;
+
+    if (viewType === "html") {
+      return res.view(`/views/${template}.ejs`, {
+        template,
+        data,
+      });
+    } else {
+      return res.send(data);
+    }
   }
 });
 

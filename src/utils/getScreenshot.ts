@@ -3,10 +3,10 @@ import imagesPath from "./imagesPath";
 import getRenderedTemplate from "./getRenderedTemplate";
 
 async function getScreenshot({
-  name,
+  template,
   data,
 }: {
-  name: string;
+  template: string;
   data: Record<string, any> | any[];
 }) {
   const browser = await webkit.launch();
@@ -18,16 +18,16 @@ async function getScreenshot({
     height: 825,
   });
 
-  const renderedTemplate = getRenderedTemplate({ name, data });
+  const renderedTemplate = getRenderedTemplate({ template, data });
 
   await page.setContent(renderedTemplate);
 
-  const screenshotPath = imagesPath(name);
+  const screenshotPath = imagesPath(template);
 
   await page.screenshot({ path: screenshotPath });
   await browser.close();
 
-  return `/public/images/${name}.png`;
+  return `/public/images/${template}.png`;
 }
 
 export default getScreenshot;

@@ -1,14 +1,14 @@
 import ejs from "ejs";
 
 function getRenderedTemplate({
-  name,
+  template,
   data,
 }: {
-  name: string;
+  template: string;
   data: Record<string, any> | any[];
 }) {
   let rendered = "";
-  ejs.renderFile(`./views/${name}.ejs`, { data }, {}, function (err, str) {
+  ejs.renderFile(`./views/${template}.ejs`, { data }, {}, function (err, str) {
     if (err) throw err;
     rendered = str;
   });
