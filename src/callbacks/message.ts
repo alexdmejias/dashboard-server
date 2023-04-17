@@ -1,11 +1,11 @@
 import CallbackBase from "./base";
 
 class CallbackMessage extends CallbackBase {
-  lastMessage: string;
+  lastMessage: string[];
 
   constructor() {
     super("message", "message");
-    this.lastMessage = "";
+    this.lastMessage = [];
     this.inRotation = false;
   }
 
@@ -14,7 +14,7 @@ class CallbackMessage extends CallbackBase {
   }
 
   setMessage(message: string) {
-    this.lastMessage = message;
+    this.lastMessage = [message];
   }
 }
 
