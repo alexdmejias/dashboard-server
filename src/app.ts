@@ -1,7 +1,6 @@
 import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 dotenv.config();
 import { join } from "path";
-import fs from "node:fs";
 import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
@@ -13,10 +12,11 @@ import {
   CallbackMessage,
   CallbackJoke,
 } from "./callbacks/index.js";
-import StateMachine from "./stateMachine.js";
-import CallbackBase from "./callbacks/base.js";
+import StateMachine from "./stateMachine";
+import CallbackBase from "./callbacks/base";
+import { SupportedViewTypes } from "./types";
 
-const app = fastify({ logger: false });
+const app = fastify({ logger: true });
 const messageHandler = new CallbackMessage();
 const machine = new StateMachine();
 
@@ -28,8 +28,13 @@ machine.addCallback(messageHandler);
 
 machine.start();
 
-const config = {
-  status: "play",
+type Config = {
+  status: "play" | "message";
+  message?: string;
+};
+
+const config: Config = {
+  status: "message",
   message: "initial message",
 };
 
@@ -44,18 +49,25 @@ app.register(fastifyView, {
   },
 });
 
-app.get("/", async (req, res) => {
+type IndexQuery = {
+  message?: string;
+};
+
+app.get<{ Querystring: IndexQuery }>("/", async (req, res) => {
+  const { message } = req.query;
+
   if (config.status === "play") {
     const dataFromTick = await machine.tick();
-    res.send({
-      data: dataFromTick,
-    });
-  } else if (config.status === "message" && config.message) {
-    messageHandler.setMessage(config.message);
-    const dataFromRender = await messageHandler.render();
 
     res.send({
-      data: dataFromRender,
+      path: dataFromTick,
+    });
+  } else if (config.status === "message" && (message || config.message)) {
+    messageHandler.setMessage(message || config.message || "");
+    const dataFromRender = await messageHandler.render("png");
+
+    res.send({
+      path: dataFromRender,
     });
   }
 });
@@ -64,10 +76,15 @@ const quote = new CallbackQuote();
 
 type TestParams = {
   name: string;
-  viewType: "json" | "html" | "image";
+  viewType: SupportedViewTypes;
 };
-app.get<{ Params: TestParams }>("/test/:name/:viewType?", async (req, res) => {
+
+app.get<{
+  Params: TestParams;
+  Querystring: Record<string, string | undefined>;
+}>("/test/:name/:viewType?", async (req, res) => {
   const { name, viewType = "json" } = req.params;
+  const { message = "" } = req.query;
 
   let callback!: CallbackBase;
 
@@ -81,32 +98,22 @@ app.get<{ Params: TestParams }>("/test/:name/:viewType?", async (req, res) => {
     callback = quote;
   } else if (name === "message") {
     messageHandler.setMessage(
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
+      message ||
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
     );
 
     callback = messageHandler;
   }
 
-  if (viewType === "image") {
-    const rendered = await callback.render();
-    const buffer = fs.readFileSync(join(__dirname, "..", rendered.path));
+  const renderResult = await callback.render(viewType);
 
+  if (viewType === "png") {
     res.type("image/png");
-
-    return res.send(buffer);
-  } else {
-    const data = await callback.getData();
-    const template = callback.template;
-
-    if (viewType === "html") {
-      return res.view(`/views/${template}.ejs`, {
-        template,
-        data,
-      });
-    } else {
-      return res.send(data);
-    }
+  } else if (viewType === "html") {
+    res.type("text/html");
   }
+
+  return res.send(renderResult);
 });
 
 app.get("/config", (req, res) => {

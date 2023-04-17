@@ -1,13 +1,14 @@
 import { webkit } from "playwright";
 import imagesPath from "./imagesPath";
 import getRenderedTemplate from "./getRenderedTemplate";
+import { DataFromCallback } from "../types";
 
 async function getScreenshot({
   template,
   data,
 }: {
   template: string;
-  data: Record<string, any> | any[];
+  data: DataFromCallback;
 }) {
   const browser = await webkit.launch();
   const context = await browser.newContext();
@@ -23,11 +24,11 @@ async function getScreenshot({
   await page.setContent(renderedTemplate);
 
   const screenshotPath = imagesPath(template);
+  const buffer = await page.screenshot({ path: screenshotPath });
 
-  await page.screenshot({ path: screenshotPath });
   await browser.close();
 
-  return `/public/images/${template}.png`;
+  return { path: `/public/images/${template}.png`, buffer };
 }
 
 export default getScreenshot;

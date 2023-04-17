@@ -38,6 +38,22 @@ class StateMachine {
     }
   }
 
+  setRotation(newRotation: string[]) {
+    if (this.validateRotation(newRotation)) {
+      this.rotation = newRotation;
+    }
+  }
+
+  validateRotation(newRotation: string[]) {
+    for (let i = 0; i < newRotation.length; i++) {
+      if (!this.callbacks[newRotation[i]]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   getCallbackInstance(callbackName: string) {
     return this.callbacks[callbackName];
   }
@@ -49,7 +65,7 @@ class StateMachine {
     console.log("!!!!!!!!", "tick", this.currCallbackIndex, selectedInstance);
     //TODO follow a custom rotation, ie: quote, quote, year, reddit
 
-    const output = await selectedInstance.render();
+    const output = await selectedInstance.render("png");
 
     return output;
   }
