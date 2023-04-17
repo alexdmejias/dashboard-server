@@ -32,10 +32,18 @@ class StateMachine {
       "in rotation?",
       callbackInstance.inRotation
     );
-    this.callbacks[callbackInstance.name] = callbackInstance;
-    if (callbackInstance.inRotation) {
-      this.rotation.push(callbackInstance.name);
+    if (!this.callbacks[callbackInstance.name]) {
+      this.callbacks[callbackInstance.name] = callbackInstance;
+      if (callbackInstance.inRotation) {
+        this.rotation.push(callbackInstance.name);
+      }
+    } else {
+      console.log("!!!!!!!!", callbackInstance.name, "was already added");
     }
+  }
+
+  addCallbacks(callbackInstances: CallbackBase[]) {
+    callbackInstances.forEach((cb) => this.addCallback(cb));
   }
 
   setRotation(newRotation: string[]) {
