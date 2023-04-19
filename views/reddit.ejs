@@ -4,7 +4,7 @@
     <h1 class="text-center">reddit posts:</h1>
     <% if (data.length) { %>
       <ul>
-        <% for(var i=0; i<data.length; i++) { %>
+        <% for(let i = 0; i < data.length; i++) { %>
           <li>
             <%= data[i].title %>
           </li>

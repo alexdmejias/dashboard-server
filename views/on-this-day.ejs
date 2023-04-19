@@ -1,0 +1,18 @@
+<%- include('partials/head.ejs') %>
+<section class="d-flex justify-content-center align-items-center flex-fill h-100 flex-column">
+  <div class="w-75 text-center">
+    <img class="pb-5" src="<%= data.image %>" alt="" srcset="">
+    <h1><%= data.title %></h1>
+    <p><%= data.description %></p>
+    <% if (data.links) { %>
+      <ul>
+        <% for(let i = 0; i < data.links.length; i++) { %>
+          <li>
+            <%= data.links[i].title %>
+          </li>
+        <% } %>
+      </ul>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/footer.ejs') %>

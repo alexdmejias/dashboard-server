@@ -1,5 +1,6 @@
-import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
+import * as dotenv from "dotenv";
 dotenv.config();
+
 import fs from "node:fs";
 import { join } from "path";
 import fastify, { errorCodes } from "fastify";
@@ -13,6 +14,7 @@ import {
   CallbackMessage,
   CallbackJoke,
   CallbackWord,
+  CallbackOnThisDay,
 } from "./callbacks/index.js";
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
@@ -27,6 +29,7 @@ machine.addCallback(new CallbackQuote());
 machine.addCallback(new CallbackJoke());
 machine.addCallback(new CallbackWord());
 machine.addCallback(new CallbackYearProgress());
+machine.addCallback(new CallbackOnThisDay());
 machine.addCallback(messageHandler);
 
 machine.start();
@@ -37,7 +40,7 @@ type Config = {
 };
 
 const config: Config = {
-  status: "message",
+  status: "play",
   message: "initial message",
 };
 
@@ -75,8 +78,6 @@ app.get<{ Querystring: IndexQuery }>("/", async (req, res) => {
   }
 });
 
-const quote = new CallbackQuote();
-
 type TestParams = {
   name: string;
   viewType: SupportedViewTypes;
@@ -100,7 +101,9 @@ app.get<{
   } else if (name === "year") {
     callback = new CallbackYearProgress();
   } else if (name === "quote") {
-    callback = quote;
+    callback = new CallbackQuote();
+  } else if (name === "on-this-day") {
+    callback = new CallbackOnThisDay();
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||
@@ -125,7 +128,7 @@ app.get<{
   if (viewType === "png") {
     return fs.readFileSync(join(__dirname, "..", renderResult as string));
   } else {
-  return res.send(renderResult);
+    return res.send(renderResult);
   }
 });
 
@@ -156,6 +159,10 @@ app.post<{ Body: ConfigBody }>("/config", (req, res) => {
   }
 
   res.send({ status: "ok" });
+});
+
+app.post("/remove-item/:type/:index", (req, res) => {
+  return res.status(200);
 });
 
 app.setErrorHandler(function (error, request, reply) {
