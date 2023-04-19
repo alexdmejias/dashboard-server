@@ -3,3 +3,6 @@ node_modules
 public/images
 dist
 .DS_Store
+keys/*.json
+data/*.json
+!data/*.sample.json

@@ -1,0 +1,20 @@
+<%- include('partials/head.ejs') %>
+<section class="d-flex justify-content-center align-items-center flex-fill h-100 flex-column">
+  <div class="w-75">
+
+    <h1 class="text-center"><%= data.index %>. <%= data.item.word.toUpperCase() %></h1>
+    <hr />
+    <ol>
+      <% data.item.definitions.forEach((line) => { %>
+        <li class="text-left"><%= line %></li>
+      <% }); %>
+    </ol>
+    <hr />
+    <ol>
+      <% data.item.sentences.forEach((line) => { %>
+        <li class="text-left fst-italic"><%= line %></li>
+      <% }); %>
+    </ol>
+  </div>
+</section>
+<%- include('partials/footer.ejs') %>

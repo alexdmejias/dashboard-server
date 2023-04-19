@@ -11,6 +11,7 @@ import {
   CallbackYearProgress,
   CallbackMessage,
   CallbackJoke,
+  CallbackWord,
 } from "./callbacks/index.js";
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
@@ -23,6 +24,7 @@ const machine = new StateMachine();
 machine.addCallback(new CallbackReddit());
 machine.addCallback(new CallbackQuote());
 machine.addCallback(new CallbackJoke());
+machine.addCallback(new CallbackWord());
 machine.addCallback(new CallbackYearProgress());
 machine.addCallback(messageHandler);
 
@@ -92,6 +94,8 @@ app.get<{
     callback = new CallbackReddit();
   } else if (name === "joke") {
     callback = new CallbackJoke();
+  } else if (name === "word") {
+    callback = new CallbackWord();
   } else if (name === "year") {
     callback = new CallbackYearProgress();
   } else if (name === "quote") {

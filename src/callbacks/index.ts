@@ -3,6 +3,7 @@ import CallbackQuote from "./quote";
 import CallbackMessage from "./message";
 import CallbackYearProgress from "./year-progress";
 import CallbackJoke from "./joke";
+import CallbackWord from "./word";
 
 export {
   CallbackReddit,
@@ -10,4 +11,5 @@ export {
   CallbackYearProgress,
   CallbackMessage,
   CallbackJoke,
+  CallbackWord,
 };

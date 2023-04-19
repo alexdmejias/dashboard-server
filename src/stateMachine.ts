@@ -62,7 +62,7 @@ class StateMachine {
     return true;
   }
 
-  getCallbackInstance(callbackName: string) {
+  getCallbackInstance(callbackName: string): CallbackBase | undefined {
     return this.callbacks[callbackName];
   }
 
