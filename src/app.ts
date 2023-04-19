@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv"; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 dotenv.config();
+import fs from "node:fs";
 import { join } from "path";
 import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -109,6 +110,10 @@ app.get<{
     callback = messageHandler;
   }
 
+  if (!callback) {
+    throw new Error("this callback has not been added to the test route");
+  }
+
   const renderResult = await callback.render(viewType);
 
   if (viewType === "png") {
@@ -117,7 +122,11 @@ app.get<{
     res.type("text/html");
   }
 
+  if (viewType === "png") {
+    return fs.readFileSync(join(__dirname, "..", renderResult as string));
+  } else {
   return res.send(renderResult);
+  }
 });
 
 app.get("/config", (req, res) => {
