@@ -36,9 +36,9 @@ class CallbackQuote extends CallbackBase {
 
   async getData() {
     try {
-      const { index, item } = await this.getItemFromFile<Quote>();
+      const data = await this.getItemFromFile<Quote>();
 
-      return { index, item };
+      return data;
     } catch (e) {
       if (e instanceof Error) {
         return { error: e.message };
