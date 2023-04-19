@@ -51,6 +51,37 @@ function getAndAddDummyCallbacks(
 }
 
 describe("StateMachine", () => {
+  it("#addCallback", () => {
+    const stateMachine = new StateMachine();
+    const samples: (DummyCallbackConstructor | string)[] = [
+      "abc",
+      "def",
+      { name: "ghi", inRotation: false },
+    ];
+    const [cb1, cb2, cb3] = getDummyCallbacks(...samples);
+    stateMachine.addCallback(cb1);
+    stateMachine.addCallback(cb2);
+    stateMachine.addCallback(cb3);
+
+    const callbacksKeys = Object.keys(stateMachine.callbacks);
+    expect(callbacksKeys.length).toEqual(3);
+
+    expect(callbacksKeys).toEqual(["abc", "def", "ghi"]);
+    expect(stateMachine.rotation.length).toEqual(2);
+    expect(stateMachine.rotation).toEqual(["abc", "def"]);
+  });
+
+  it("#addCallbacks", () => {
+    const stateMachine = new StateMachine();
+    const samples: (DummyCallbackConstructor | string)[] = ["abc", "def"];
+    const [cb1, cb2] = getDummyCallbacks(...samples);
+    stateMachine.addCallbacks([cb1, cb2]);
+
+    const callbacks = Object.keys(stateMachine.callbacks);
+    expect(callbacks.length).toEqual(2);
+    expect(callbacks).toEqual(samples);
+  });
+
   it("#validateRotation", () => {
     const stateMachine = new StateMachine();
     const cbs = getAndAddDummyCallbacks(stateMachine, "a", "b", "c");
@@ -77,4 +108,25 @@ describe("StateMachine", () => {
     stateMachine.setRotation(["a", "a"]);
     expect(stateMachine.rotation).toEqual(["a", "a"]);
   });
+
+  // it("#getCAllbackInstance", () => {
+  //   const stateMachine = new StateMachine();
+  //   const cbs = getAndAddDummyCallbacks(stateMachine, "a", "b", "c");
+
+  //   expect(stateMachine.getCallbackInstance("a")!.name).toEqual("a");
+  //   expect(stateMachine.getCallbackInstance("z")).toBeUndefined();
+  // });
+
+  // it("#advanceCallbackIndex", () => {
+  //   const stateMachine = new StateMachine();
+  //   const cbs = getAndAddDummyCallbacks(stateMachine, "a", "b", "c");
+
+  //   expect(stateMachine.currCallbackIndex).toEqual(0);
+  //   stateMachine.advanceCallbackIndex();
+  //   expect(stateMachine.currCallbackIndex).toEqual(1);
+  //   stateMachine.advanceCallbackIndex();
+  //   expect(stateMachine.currCallbackIndex).toEqual(2);
+  //   stateMachine.advanceCallbackIndex();
+  //   expect(stateMachine.currCallbackIndex).toEqual(0);
+  // });
 });

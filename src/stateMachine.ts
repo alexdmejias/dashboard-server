@@ -78,6 +78,14 @@ class StateMachine {
     return output;
   }
 
+  // advanceCallbackIndex() {
+  //   this.currCallbackIndex++;
+
+  //   if (this.currCallbackIndex + 1 > this.rotation.length) {
+  //     this.currCallbackIndex = 0;
+  //   }
+  // }
+
   start() {
     this.timer = setInterval(() => {
       this.currCallbackIndex++;
