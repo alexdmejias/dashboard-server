@@ -6,7 +6,7 @@ class CallbackQuote extends CallbackBase {
   availableQuoteIndexes: number[] = [];
 
   constructor() {
-    super("quote", "quote", "quotes");
+    super({ name: "quote", dataFile: "quotes" });
 
     // this.resetPickedQuotes();
   }

@@ -4,6 +4,13 @@ import getScreenshot from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import { DataFromCallback, SupportedViewTypes } from "../types";
 
+export type CallbackConstructor = {
+  name: string;
+  template?: string;
+  dataFile?: string;
+  inRotation?: boolean;
+};
+
 abstract class CallbackBase {
   name: string;
   template: string;
@@ -11,10 +18,15 @@ abstract class CallbackBase {
   callbackUrl: string;
   inRotation: boolean;
 
-  constructor(name: string, template?: string, dataFile?: string) {
+  constructor({
+    name,
+    template,
+    dataFile,
+    inRotation = true,
+  }: CallbackConstructor) {
     this.name = name;
     this.callbackUrl = `http://localhost:3000/callbacks/${name}`;
-    this.inRotation = true;
+    this.inRotation = inRotation;
     this.template = template || name;
     this.dataFile = dataFile;
   }

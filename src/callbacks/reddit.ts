@@ -3,7 +3,7 @@ import base64Encode from "../utils/base64Encode";
 
 class CallbackReddit extends CallbackBase {
   constructor() {
-    super("reddit");
+    super({ name: "reddit" });
   }
 
   async auth() {

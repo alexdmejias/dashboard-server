@@ -8,7 +8,7 @@ type Word = {
 
 class CallbackWord extends CallbackBase {
   constructor() {
-    super("word", "word", "words");
+    super({ name: "word", dataFile: "words" });
   }
 
   async getData() {

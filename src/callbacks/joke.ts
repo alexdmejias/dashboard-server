@@ -259,7 +259,7 @@ const jokes = [
 
 class CallbackJoke extends CallbackBase {
   constructor() {
-    super("joke", "message");
+    super({ name: "joke", template: "message" });
   }
 
   async getData() {

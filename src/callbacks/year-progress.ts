@@ -6,10 +6,10 @@ function getDaysInMonth(month: number, year: number) {
 
 class CallbackYearProgress extends CallbackBase {
   constructor() {
-    super("year");
+    super({ name: "year" });
   }
 
-  async getData(): Promise<{days: [number, number][], date: string}> {
+  async getData(): Promise<{ days: [number, number][]; date: string }> {
     const date = new Date();
     const currMonth = date.getMonth();
     const currDate = date.getDate();

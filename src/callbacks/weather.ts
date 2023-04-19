@@ -2,7 +2,7 @@ import CallbackBase from "./base";
 
 class CallbackWeather extends CallbackBase {
   constructor() {
-    super("weather", "weather");
+    super({ name: "weather" });
   }
 
   async getData() {

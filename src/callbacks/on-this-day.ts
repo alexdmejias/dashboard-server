@@ -2,7 +2,7 @@ import CallbackBase from "./base";
 
 class CallbackOnThisDay extends CallbackBase {
   constructor() {
-    super("onThisDay", "onThisDay");
+    super({ name: "onThisDay", template: "onThisDay" });
   }
 
   async getData() {
