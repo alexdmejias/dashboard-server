@@ -1,4 +1,5 @@
 import CallbackBase from "./callbacks/base";
+import logger from "./logger";
 
 class StateMachine {
   currCallbackIndex: number;
@@ -25,12 +26,8 @@ class StateMachine {
   }
 
   addCallback(callbackInstance: CallbackBase) {
-    console.log(
-      "@@@@@@@@",
-      "adding callback",
-      callbackInstance.name,
-      "in rotation?",
-      callbackInstance.inRotation
+    logger.debug(
+      `adding callback ${callbackInstance.name} in rotation?", ${callbackInstance.inRotation}`
     );
     if (!this.callbacks[callbackInstance.name]) {
       this.callbacks[callbackInstance.name] = callbackInstance;
@@ -38,7 +35,9 @@ class StateMachine {
         this.rotation.push(callbackInstance.name);
       }
     } else {
-      console.log("!!!!!!!!", callbackInstance.name, "was already added");
+      logger.warn(
+        `attempting to adding callback that already exists: ${callbackInstance.name}`
+      );
     }
   }
 
@@ -67,10 +66,9 @@ class StateMachine {
   }
 
   async tick() {
-    console.log("@@@@@@@@", "rotation:", this.rotation);
     const selectedInstance =
       this.callbacks[this.rotation[this.currCallbackIndex]];
-    console.log("!!!!!!!!", "tick", this.currCallbackIndex, selectedInstance);
+    logger.trace("tick");
     //TODO follow a custom rotation, ie: quote, quote, year, reddit
 
     const output = await selectedInstance.render("png");

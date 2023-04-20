@@ -20,8 +20,10 @@ import {
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
+import logger from "./logger";
 
-const app = fastify({ logger: true });
+const app = fastify({ logger });
+
 const messageHandler = new CallbackMessage();
 const machine = new StateMachine();
 
