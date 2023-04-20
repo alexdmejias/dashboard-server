@@ -15,7 +15,8 @@ import {
   CallbackJoke,
   CallbackWord,
   CallbackOnThisDay,
-} from "./callbacks/index.js";
+  CallbackWeather,
+} from "./callbacks";
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
@@ -30,6 +31,7 @@ machine.addCallback(new CallbackJoke());
 machine.addCallback(new CallbackWord());
 machine.addCallback(new CallbackYearProgress());
 machine.addCallback(new CallbackOnThisDay());
+machine.addCallback(new CallbackWeather());
 machine.addCallback(messageHandler);
 
 machine.start();
@@ -104,6 +106,8 @@ app.get<{
     callback = new CallbackQuote();
   } else if (name === "on-this-day") {
     callback = new CallbackOnThisDay();
+  } else if (name === "weather") {
+    callback = new CallbackWeather();
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||

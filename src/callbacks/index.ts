@@ -5,6 +5,7 @@ import CallbackYearProgress from "./year-progress";
 import CallbackJoke from "./joke";
 import CallbackWord from "./word";
 import CallbackOnThisDay from "./on-this-day";
+import CallbackWeather from "./weather";
 
 export {
   CallbackReddit,
@@ -14,4 +15,5 @@ export {
   CallbackJoke,
   CallbackWord,
   CallbackOnThisDay,
+  CallbackWeather,
 };

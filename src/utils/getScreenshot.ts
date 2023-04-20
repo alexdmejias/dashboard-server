@@ -14,6 +14,7 @@ async function getScreenshot({
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // TODO should be params
   page.setViewportSize({
     width: 1200,
     height: 825,
