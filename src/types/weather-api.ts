@@ -1,7 +1,4 @@
-export type SupportedViewTypes = "html" | "json" | "png";
-export type DataFromCallback = any[] | Record<string, any>;
-
-export type WeatherApiResponse = {
+export type WeatherApiResponseRoot = {
   current: Current;
   forecast: Forecast;
 };

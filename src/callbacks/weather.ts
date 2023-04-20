@@ -1,4 +1,4 @@
-import { WeatherApiResponse } from "../types";
+import { WeatherApiResponseRoot } from "../types";
 import CallbackBase from "./base";
 
 type ForecastWeather = {
@@ -18,7 +18,7 @@ class CallbackWeather extends CallbackBase {
     super({ name: "weather" });
   }
 
-  async getWeather(): Promise<WeatherApiResponse> {
+  async getWeather(): Promise<WeatherApiResponseRoot> {
     const key = process.env.WEATHER_APIKEY;
     const zipcode = process.env.WEATHER_ZIPCODE;
 
@@ -28,7 +28,7 @@ class CallbackWeather extends CallbackBase {
     return data.json();
   }
 
-  getToday(payload: WeatherApiResponse): TodayWeather {
+  getToday(payload: WeatherApiResponseRoot): TodayWeather {
     return {
       max: payload.forecast.forecastday[0].day.maxtemp_f,
       low: payload.forecast.forecastday[0].day.mintemp_f,
@@ -41,7 +41,7 @@ class CallbackWeather extends CallbackBase {
     };
   }
 
-  getForecast(payload: WeatherApiResponse): ForecastWeather[] {
+  getForecast(payload: WeatherApiResponseRoot): ForecastWeather[] {
     const forecast = payload.forecast.forecastday.slice(1).map((dayData) => {
       const {
         day: { maxtemp_f, mintemp_f, condition },

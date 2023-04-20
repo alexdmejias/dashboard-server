@@ -1,5 +1,6 @@
 import CallbackBase from "./base";
 import base64Encode from "../utils/base64Encode";
+import { RedditResponseRoot } from "../types";
 
 class CallbackReddit extends CallbackBase {
   constructor() {
@@ -46,21 +47,24 @@ class CallbackReddit extends CallbackBase {
   async getData() {
     try {
       const authJSON = await this.auth();
+      const subreddit = process.env.REDDIT_SUBREDDIT;
+      const qty = process.env.REDDIT_POST_QTY;
 
-      const headers = {
-        Authorization: `bearer ${authJSON.access_token}`,
-      };
+      if (!qty || !subreddit) {
+        throw new Error("missing reddit subreddit or reddit post qty");
+      }
+
       const dataRes = await fetch(
-        `https://oauth.reddit.com/r/astoria/new?limit=10`,
-        { headers }
+        `https://oauth.reddit.com/r/${subreddit}/new?limit=${qty}`,
+        {
+          headers: {
+            Authorization: `bearer ${authJSON.access_token}`,
+          },
+        }
       );
 
-      // TODO clean this TS up
-      const json = (await dataRes.json()) as {
-        data: { children: { data: { title: string } }[] };
-      };
-
-      const posts: { title: string }[] = json.data.children.map((p) => ({
+      const json: RedditResponseRoot = await dataRes.json();
+      const posts = json.data.children.map((p) => ({
         title: p.data.title,
       }));
 
