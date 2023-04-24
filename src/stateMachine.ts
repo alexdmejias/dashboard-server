@@ -26,7 +26,7 @@ class StateMachine {
   }
 
   addCallback(callbackInstance: CallbackBase) {
-    logger.debug(
+    logger.info(
       `adding callback ${callbackInstance.name} in rotation?", ${callbackInstance.inRotation}`
     );
     if (!this.callbacks[callbackInstance.name]) {
@@ -71,18 +71,22 @@ class StateMachine {
     logger.trace("tick");
     //TODO follow a custom rotation, ie: quote, quote, year, reddit
 
+    console.log("@@@@@@@@", "#tick", this.rotation);
     const output = await selectedInstance.render("png");
 
     return output;
   }
 
-  // advanceCallbackIndex() {
-  //   this.currCallbackIndex++;
+  advanceCallbackIndex() {
+    this.currCallbackIndex++;
 
-  //   if (this.currCallbackIndex + 1 > this.rotation.length) {
-  //     this.currCallbackIndex = 0;
-  //   }
-  // }
+    console.log("^^^^^^^^", "increasing index");
+
+    if (this.currCallbackIndex + 1 > this.rotation.length) {
+      this.currCallbackIndex = 0;
+      console.log("&&&&&&&&", "resetting index");
+    }
+  }
 
   start() {
     this.timer = setInterval(() => {

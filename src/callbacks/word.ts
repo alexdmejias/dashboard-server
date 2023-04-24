@@ -1,3 +1,4 @@
+import { Logger } from "pino";
 import CallbackBase from "./base";
 
 type Word = {
@@ -7,8 +8,8 @@ type Word = {
 };
 
 class CallbackWord extends CallbackBase {
-  constructor() {
-    super({ name: "word", dataFile: "words" });
+  constructor(logger: Logger) {
+    super({ name: "word", dataFile: "words", logger });
   }
 
   async getData() {

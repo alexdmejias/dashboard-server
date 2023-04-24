@@ -1,9 +1,10 @@
+import { Logger } from "pino";
 import CallbackBase from "./base";
 import * as cheerio from "cheerio";
 
 class CallbackOnThisDay extends CallbackBase {
-  constructor() {
-    super({ name: "onThisDay", template: "on-this-day" });
+  constructor(logger: Logger) {
+    super({ name: "onThisDay", template: "on-this-day", logger });
   }
 
   async getHTML() {

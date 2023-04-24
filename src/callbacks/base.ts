@@ -3,32 +3,35 @@ import { join } from "path";
 import getScreenshot from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import { DataFromCallback, SupportedViewTypes } from "../types";
+import { Logger } from "pino";
 
 export type CallbackConstructor = {
   name: string;
   template?: string;
   dataFile?: string;
   inRotation?: boolean;
+  logger: Logger;
 };
 
 abstract class CallbackBase {
   name: string;
   template: string;
   dataFile?: string;
-  callbackUrl: string;
   inRotation: boolean;
+  logger: Logger;
 
   constructor({
     name,
     template,
     dataFile,
     inRotation = true,
+    logger,
   }: CallbackConstructor) {
     this.name = name;
-    this.callbackUrl = `http://localhost:3000/callbacks/${name}`;
     this.inRotation = inRotation;
     this.template = template || name;
     this.dataFile = dataFile;
+    this.logger = logger;
   }
 
   abstract getData(): Promise<DataFromCallback>;
@@ -70,6 +73,8 @@ abstract class CallbackBase {
   }
 
   async render(viewType: SupportedViewTypes) {
+    this.logger.warn(`rendering: ${this.name}`);
+
     const lastUpdated = Date.now();
     const data = await this.getData();
 
@@ -95,7 +100,7 @@ abstract class CallbackBase {
 
   #renderAsHTML(data: DataFromCallback) {
     const a = getRenderedTemplate({ template: this.template, data });
-    // console.log("$$$$$$$$", a);
+
     return a;
   }
 }

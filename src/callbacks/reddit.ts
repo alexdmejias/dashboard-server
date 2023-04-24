@@ -1,10 +1,11 @@
 import CallbackBase from "./base";
 import base64Encode from "../utils/base64Encode";
 import { RedditResponseRoot } from "../types";
+import { Logger } from "pino";
 
 class CallbackReddit extends CallbackBase {
-  constructor() {
-    super({ name: "reddit" });
+  constructor(logger: Logger) {
+    super({ name: "reddit", logger });
   }
 
   async auth() {

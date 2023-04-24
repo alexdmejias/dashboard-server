@@ -21,22 +21,21 @@ import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
 import logger from "./logger";
+import imagesPath from "./utils/imagesPath";
 
 const app = fastify({ logger });
 
-const messageHandler = new CallbackMessage();
+const messageHandler = new CallbackMessage(logger);
 const machine = new StateMachine();
 
-machine.addCallback(new CallbackReddit());
-machine.addCallback(new CallbackQuote());
-machine.addCallback(new CallbackJoke());
-machine.addCallback(new CallbackWord());
-machine.addCallback(new CallbackYearProgress());
-machine.addCallback(new CallbackOnThisDay());
-machine.addCallback(new CallbackWeather());
+machine.addCallback(new CallbackReddit(logger));
+machine.addCallback(new CallbackQuote(logger));
+machine.addCallback(new CallbackJoke(logger));
+machine.addCallback(new CallbackWord(logger));
+machine.addCallback(new CallbackYearProgress(logger));
+machine.addCallback(new CallbackOnThisDay(logger));
+machine.addCallback(new CallbackWeather(logger));
 machine.addCallback(messageHandler);
-
-machine.start();
 
 type Config = {
   status: "play" | "message";
@@ -59,28 +58,34 @@ app.register(fastifyView, {
   },
 });
 
-type IndexQuery = {
-  message?: string;
-};
+function getMainImage() {
+  return fs.readFileSync(join(__dirname, "../", imagesPath()));
+}
 
-app.get<{ Querystring: IndexQuery }>("/", async (req, res) => {
-  const { message } = req.query;
+app.get("/", async (req, res) => {
+  res.type("image/png");
 
-  if (config.status === "play") {
-    const dataFromTick = await machine.tick();
+  await machine.tick();
 
-    res.send({
-      path: dataFromTick,
-    });
-  } else if (config.status === "message" && (message || config.message)) {
-    messageHandler.setMessage(message || config.message || "");
-    const dataFromRender = await messageHandler.render("png");
+  machine.advanceCallbackIndex();
 
-    res.send({
-      path: dataFromRender,
-    });
-  }
+  return getMainImage();
 });
+
+// app.get<{ Querystring: IndexQuery }>("/set-message", async (req, res) => {
+//   const { message } = req.query;
+
+//   if (message) {
+//     messageHandler.setMessage(message);
+
+//     // deal with machine mode
+//     await messageHandler.render("png");
+
+//     return getMainImage();
+//   } else {
+//     res.send("failed to set message, empty message query string");
+//   }
+// });
 
 type TestParams = {
   name: string;
@@ -97,19 +102,19 @@ app.get<{
   let callback!: CallbackBase;
 
   if (name === "reddit") {
-    callback = new CallbackReddit();
+    callback = new CallbackReddit(logger);
   } else if (name === "joke") {
-    callback = new CallbackJoke();
+    callback = new CallbackJoke(logger);
   } else if (name === "word") {
-    callback = new CallbackWord();
+    callback = new CallbackWord(logger);
   } else if (name === "year") {
-    callback = new CallbackYearProgress();
+    callback = new CallbackYearProgress(logger);
   } else if (name === "quote") {
-    callback = new CallbackQuote();
+    callback = new CallbackQuote(logger);
   } else if (name === "on-this-day") {
-    callback = new CallbackOnThisDay();
+    callback = new CallbackOnThisDay(logger);
   } else if (name === "weather") {
-    callback = new CallbackWeather();
+    callback = new CallbackWeather(logger);
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||

@@ -1,10 +1,11 @@
+import { Logger } from "pino";
 import CallbackBase from "./base";
 
 class CallbackMessage extends CallbackBase {
   lastMessage: string[];
 
-  constructor() {
-    super({ name: "message", inRotation: false });
+  constructor(logger: Logger) {
+    super({ name: "message", inRotation: false, logger });
     this.lastMessage = [];
   }
 

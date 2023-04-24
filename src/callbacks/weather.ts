@@ -1,3 +1,4 @@
+import { Logger } from "pino";
 import { WeatherApiResponseRoot } from "../types";
 import CallbackBase from "./base";
 
@@ -14,8 +15,8 @@ type ForecastWeather = {
 type TodayWeather = ForecastWeather & { current: number };
 
 class CallbackWeather extends CallbackBase {
-  constructor() {
-    super({ name: "weather" });
+  constructor(logger: Logger) {
+    super({ name: "weather", logger });
   }
 
   async getWeather(): Promise<WeatherApiResponseRoot> {
