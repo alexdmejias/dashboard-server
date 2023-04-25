@@ -1,4 +1,3 @@
-import { Logger } from "pino";
 import CallbackBase from "./base";
 
 function getDaysInMonth(month: number, year: number) {
@@ -6,8 +5,8 @@ function getDaysInMonth(month: number, year: number) {
 }
 
 class CallbackYearProgress extends CallbackBase {
-  constructor(logger: Logger) {
-    super({ name: "year", logger });
+  constructor() {
+    super({ name: "year" });
   }
 
   async getData(): Promise<{ days: [number, number][]; date: string }> {

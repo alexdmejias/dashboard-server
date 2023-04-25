@@ -1,11 +1,10 @@
-import { Logger } from "pino";
 import CallbackBase from "./base";
 
 type Joke = string[];
 
 class CallbackJoke extends CallbackBase {
-  constructor(logger: Logger) {
-    super({ name: "joke", template: "message", dataFile: "jokes", logger });
+  constructor() {
+    super({ name: "joke", template: "message", dataFile: "jokes" });
   }
 
   async getData() {

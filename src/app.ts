@@ -25,16 +25,16 @@ import imagesPath from "./utils/imagesPath";
 
 const app = fastify({ logger });
 
-const messageHandler = new CallbackMessage(logger);
+const messageHandler = new CallbackMessage();
 const machine = new StateMachine();
 
-machine.addCallback(new CallbackReddit(logger));
-machine.addCallback(new CallbackQuote(logger));
-machine.addCallback(new CallbackJoke(logger));
-machine.addCallback(new CallbackWord(logger));
-machine.addCallback(new CallbackYearProgress(logger));
-machine.addCallback(new CallbackOnThisDay(logger));
-machine.addCallback(new CallbackWeather(logger));
+machine.addCallback(new CallbackReddit());
+machine.addCallback(new CallbackQuote());
+machine.addCallback(new CallbackJoke());
+machine.addCallback(new CallbackWord());
+machine.addCallback(new CallbackYearProgress());
+machine.addCallback(new CallbackOnThisDay());
+machine.addCallback(new CallbackWeather());
 machine.addCallback(messageHandler);
 
 type Config = {
@@ -102,19 +102,19 @@ app.get<{
   let callback!: CallbackBase;
 
   if (name === "reddit") {
-    callback = new CallbackReddit(logger);
+    callback = new CallbackReddit();
   } else if (name === "joke") {
-    callback = new CallbackJoke(logger);
+    callback = new CallbackJoke();
   } else if (name === "word") {
-    callback = new CallbackWord(logger);
+    callback = new CallbackWord();
   } else if (name === "year") {
-    callback = new CallbackYearProgress(logger);
+    callback = new CallbackYearProgress();
   } else if (name === "quote") {
-    callback = new CallbackQuote(logger);
+    callback = new CallbackQuote();
   } else if (name === "on-this-day") {
-    callback = new CallbackOnThisDay(logger);
+    callback = new CallbackOnThisDay();
   } else if (name === "weather") {
-    callback = new CallbackWeather(logger);
+    callback = new CallbackWeather();
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||

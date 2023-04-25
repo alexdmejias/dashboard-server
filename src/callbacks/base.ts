@@ -4,13 +4,13 @@ import getScreenshot from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import { DataFromCallback, SupportedViewTypes } from "../types";
 import { Logger } from "pino";
+import logger from "../logger";
 
 export type CallbackConstructor = {
   name: string;
   template?: string;
   dataFile?: string;
   inRotation?: boolean;
-  logger: Logger;
 };
 
 abstract class CallbackBase {
@@ -25,7 +25,6 @@ abstract class CallbackBase {
     template,
     dataFile,
     inRotation = true,
-    logger,
   }: CallbackConstructor) {
     this.name = name;
     this.inRotation = inRotation;

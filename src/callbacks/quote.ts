@@ -1,4 +1,3 @@
-import { Logger } from "pino";
 import CallbackBase from "./base";
 
 type Quote = { author: string; content: string };
@@ -6,8 +5,8 @@ type Quote = { author: string; content: string };
 class CallbackQuote extends CallbackBase {
   availableQuoteIndexes: number[] = [];
 
-  constructor(logger: Logger) {
-    super({ name: "quote", dataFile: "quotes", logger });
+  constructor() {
+    super({ name: "quote", dataFile: "quotes" });
 
     // this.resetPickedQuotes();
   }
