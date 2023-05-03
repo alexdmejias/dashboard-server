@@ -44,7 +44,6 @@ type Config = {
 
 const config: Config = {
   status: "play",
-  message: "initial message",
 };
 
 app.register(fastifyStatic, {
@@ -63,29 +62,23 @@ function getMainImage() {
 }
 
 app.get("/", async (req, res) => {
+  logger.error(`config.status: ${config.status}`);
+  if (config.status === "message") {
+    if (config.message) {
+      await messageHandler.render("png");
+    } else {
+      logger.error("tried to render a message but a message has not been set");
+    }
+  } else {
+    await machine.tick();
+
+    machine.advanceCallbackIndex();
+  }
+
   res.type("image/png");
-
-  await machine.tick();
-
-  machine.advanceCallbackIndex();
 
   return getMainImage();
 });
-
-// app.get<{ Querystring: IndexQuery }>("/set-message", async (req, res) => {
-//   const { message } = req.query;
-
-//   if (message) {
-//     messageHandler.setMessage(message);
-
-//     // deal with machine mode
-//     await messageHandler.render("png");
-
-//     return getMainImage();
-//   } else {
-//     res.send("failed to set message, empty message query string");
-//   }
-// });
 
 type TestParams = {
   name: string;
@@ -161,6 +154,7 @@ app.post<{ Body: ConfigBody }>("/config", (req, res) => {
       return res.send({ status: "error", message: "empty message" });
     }
     config.message = message;
+    messageHandler.setMessage(message);
     config.status = command;
   } else if (command === "play") {
     config.message = "";
