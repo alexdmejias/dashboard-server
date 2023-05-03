@@ -16,6 +16,7 @@ import {
   CallbackWord,
   CallbackOnThisDay,
   CallbackWeather,
+  CallbackFact,
 } from "./callbacks";
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
@@ -35,6 +36,7 @@ machine.addCallback(new CallbackWord());
 machine.addCallback(new CallbackYearProgress());
 machine.addCallback(new CallbackOnThisDay());
 machine.addCallback(new CallbackWeather());
+machine.addCallback(new CallbackFact());
 machine.addCallback(messageHandler);
 
 type Config = {
@@ -108,6 +110,8 @@ app.get<{
     callback = new CallbackOnThisDay();
   } else if (name === "weather") {
     callback = new CallbackWeather();
+  } else if (name === "fact") {
+    callback = new CallbackFact();
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||

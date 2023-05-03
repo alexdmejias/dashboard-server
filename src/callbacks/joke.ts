@@ -4,7 +4,7 @@ type Joke = string[];
 
 class CallbackJoke extends CallbackBaseDB<Joke> {
   constructor() {
-    super({ name: "joke", dataFile: "jokes" });
+    super({ name: "joke", dataFile: "jokes", template: "generic" });
   }
 }
 

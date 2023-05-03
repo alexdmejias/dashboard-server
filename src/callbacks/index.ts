@@ -6,6 +6,7 @@ import CallbackJoke from "./joke";
 import CallbackWord from "./word";
 import CallbackOnThisDay from "./on-this-day";
 import CallbackWeather from "./weather";
+import CallbackFact from "./fact";
 
 export {
   CallbackReddit,
@@ -16,4 +17,5 @@ export {
   CallbackWord,
   CallbackOnThisDay,
   CallbackWeather,
+  CallbackFact,
 };

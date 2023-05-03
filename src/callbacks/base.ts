@@ -32,7 +32,7 @@ abstract class CallbackBase<TemplateData = any> {
   }: CallbackConstructor) {
     this.name = name;
     this.inRotation = inRotation;
-    this.template = template || name;
+    this.template = template || name || "generic";
     this.dataFile = dataFile;
     this.logger = logger;
   }
@@ -102,9 +102,7 @@ abstract class CallbackBase<TemplateData = any> {
   }
 
   #renderAsHTML(data: TemplateDataError | Awaited<TemplateData>) {
-    const a = getRenderedTemplate({ template: this.template, data });
-
-    return a;
+    return getRenderedTemplate({ template: this.template, data });
   }
 }
 
