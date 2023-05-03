@@ -2,7 +2,9 @@ import CallbackBase from "./base";
 import base64Encode from "../utils/base64Encode";
 import { RedditResponseRoot } from "../types";
 
-class CallbackReddit extends CallbackBase {
+type RedditPost = { title: string }[];
+
+class CallbackReddit extends CallbackBase<RedditPost> {
   constructor() {
     super({ name: "reddit" });
   }
@@ -70,7 +72,7 @@ class CallbackReddit extends CallbackBase {
 
       return posts;
     } catch (e) {
-      return { error: e instanceof Error ? e.message : e };
+      return { error: e instanceof Error ? e.message : (e as string) };
     }
   }
 }

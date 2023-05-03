@@ -1,25 +1,10 @@
-import CallbackBase from "./base";
+import CallbackBaseDB from "./base-db";
 
 type Joke = string[];
 
-class CallbackJoke extends CallbackBase {
+class CallbackJoke extends CallbackBaseDB<Joke> {
   constructor() {
-    super({ name: "joke", template: "message", dataFile: "jokes" });
-  }
-
-  async getData() {
-    try {
-      const data = await this.getItemFromFile<Joke>();
-
-      return data;
-    } catch (e) {
-      if (e instanceof Error) {
-        return { error: e.message };
-      } else if (typeof e === "string") {
-        return { error: e };
-      }
-      return {};
-    }
+    super({ name: "joke", dataFile: "jokes" });
   }
 }
 

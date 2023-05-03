@@ -1,15 +1,14 @@
 import { webkit } from "playwright";
 import imagesPath from "./imagesPath";
 import getRenderedTemplate from "./getRenderedTemplate";
-import { DataFromCallback } from "../types";
 import { join } from "node:path";
 
-async function getScreenshot({
+async function getScreenshot<T>({
   template,
   data,
 }: {
   template: string;
-  data: DataFromCallback;
+  data: T;
 }) {
   const browser = await webkit.launch();
   const context = await browser.newContext();

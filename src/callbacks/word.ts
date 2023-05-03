@@ -1,4 +1,4 @@
-import CallbackBase from "./base";
+import CallbackBaseDB from "./base-db";
 
 type Word = {
   word: string;
@@ -6,24 +6,9 @@ type Word = {
   sentences: string[];
 };
 
-class CallbackWord extends CallbackBase {
+class CallbackWord extends CallbackBaseDB<Word> {
   constructor() {
     super({ name: "word", dataFile: "words" });
-  }
-
-  async getData() {
-    try {
-      const { index, item } = await this.getItemFromFile<Word>();
-
-      return { index, item };
-    } catch (e) {
-      if (e instanceof Error) {
-        return { error: e.message };
-      } else if (typeof e === "string") {
-        return { error: e };
-      }
-      return {};
-    }
   }
 }
 

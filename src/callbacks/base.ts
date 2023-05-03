@@ -2,7 +2,11 @@ import { readFile } from "node:fs/promises";
 import { join } from "path";
 import getScreenshot from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
-import { DataFromCallback, SupportedViewTypes } from "../types";
+import {
+  PossibleTemplateData,
+  SupportedViewTypes,
+  TemplateDataError,
+} from "../types";
 import { Logger } from "pino";
 import logger from "../logger";
 
@@ -13,7 +17,7 @@ export type CallbackConstructor = {
   inRotation?: boolean;
 };
 
-abstract class CallbackBase {
+abstract class CallbackBase<TemplateData = any> {
   name: string;
   template: string;
   dataFile?: string;
@@ -33,7 +37,7 @@ abstract class CallbackBase {
     this.logger = logger;
   }
 
-  abstract getData(): Promise<DataFromCallback>;
+  abstract getData(): PossibleTemplateData<TemplateData>;
 
   async readDataFile() {
     if (this.dataFile) {
@@ -88,16 +92,16 @@ abstract class CallbackBase {
     return data;
   }
 
-  async #renderAsPNG(data: DataFromCallback) {
+  async #renderAsPNG(data: TemplateDataError | Awaited<TemplateData>) {
     const screenshot = await getScreenshot({
-      data: data,
+      data,
       template: this.template,
     });
 
     return screenshot.path;
   }
 
-  #renderAsHTML(data: DataFromCallback) {
+  #renderAsHTML(data: TemplateDataError | Awaited<TemplateData>) {
     const a = getRenderedTemplate({ template: this.template, data });
 
     return a;

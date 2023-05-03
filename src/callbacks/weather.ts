@@ -13,7 +13,12 @@ type ForecastWeather = {
 
 type TodayWeather = ForecastWeather & { current: number };
 
-class CallbackWeather extends CallbackBase {
+type TemplateDataWeather = {
+  today: TodayWeather;
+  forecast: ForecastWeather[];
+};
+
+class CallbackWeather extends CallbackBase<TemplateDataWeather> {
   constructor() {
     super({ name: "weather" });
   }

@@ -1,5 +1,17 @@
 export type SupportedViewTypes = "html" | "json" | "png";
-export type DataFromCallback = any[] | Record<string, any>;
+
+export type TemplateDataError = {
+  error: string;
+};
+
+export type TemplateGeneric<T> = {
+  index: number;
+  item: T;
+};
+
+export type PossibleTemplateData<T> = Promise<T | TemplateDataError>;
+
+export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
 
 export * from "./reddit-api";
 export * from "./weather-api";

@@ -1,20 +1,24 @@
 import CallbackBase from "./base";
 
+type Day = [number, number];
+type Days = Day[];
+type YearProgressData = { days: Days; date: string };
+
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate();
 }
 
-class CallbackYearProgress extends CallbackBase {
+class CallbackYearProgress extends CallbackBase<YearProgressData> {
   constructor() {
     super({ name: "year" });
   }
 
-  async getData(): Promise<{ days: [number, number][]; date: string }> {
+  getData() {
     const date = new Date();
     const currMonth = date.getMonth();
     const currDate = date.getDate();
     const currYear = date.getFullYear();
-    const result: [number, number][] = [];
+    const result: Days = [];
 
     for (let m = 0; m < 12; m++) {
       const daysInMonth = getDaysInMonth(m + 1, currYear);
@@ -27,10 +31,10 @@ class CallbackYearProgress extends CallbackBase {
       }
     }
 
-    return {
+    return Promise.resolve({
       date: date.toDateString(),
       days: result,
-    };
+    });
   }
 }
 

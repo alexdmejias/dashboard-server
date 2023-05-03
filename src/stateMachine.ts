@@ -69,22 +69,15 @@ class StateMachine {
     const selectedInstance =
       this.callbacks[this.rotation[this.currCallbackIndex]];
     logger.trace("tick");
-    //TODO follow a custom rotation, ie: quote, quote, year, reddit
 
-    console.log("@@@@@@@@", "#tick", this.rotation);
-    const output = await selectedInstance.render("png");
-
-    return output;
+    return selectedInstance.render("png");
   }
 
   advanceCallbackIndex() {
     this.currCallbackIndex++;
 
-    console.log("^^^^^^^^", "increasing index");
-
     if (this.currCallbackIndex + 1 > this.rotation.length) {
       this.currCallbackIndex = 0;
-      console.log("&&&&&&&&", "resetting index");
     }
   }
 

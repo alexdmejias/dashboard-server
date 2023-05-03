@@ -1,12 +1,11 @@
 import ejs from "ejs";
-import { DataFromCallback } from "../types";
 
-function getRenderedTemplate({
+function getRenderedTemplate<T>({
   template,
   data,
 }: {
   template: string;
-  data: DataFromCallback;
+  data: T;
 }) {
   let rendered = "";
   ejs.renderFile(`./views/${template}.ejs`, { data }, {}, function (err, str) {
