@@ -29,15 +29,19 @@ const app = fastify({ logger });
 const messageHandler = new CallbackMessage();
 const machine = new StateMachine();
 
-machine.addCallback(new CallbackReddit());
-machine.addCallback(new CallbackQuote());
-machine.addCallback(new CallbackJoke());
-machine.addCallback(new CallbackWord());
-machine.addCallback(new CallbackYearProgress());
-machine.addCallback(new CallbackOnThisDay());
-machine.addCallback(new CallbackWeather());
-machine.addCallback(new CallbackFact());
-machine.addCallback(messageHandler);
+const availableCallbacks = {
+  reddit: new CallbackReddit(),
+  quote: new CallbackQuote(),
+  joke: new CallbackJoke(),
+  word: new CallbackWord(),
+  year: new CallbackYearProgress(),
+  "on-this-day": new CallbackOnThisDay(),
+  weather: new CallbackWeather(),
+  fact: new CallbackFact(),
+  message: messageHandler,
+};
+
+machine.addCallbacks(Object.values(availableCallbacks));
 
 type Config = {
   status: "play" | "message";
@@ -66,6 +70,7 @@ function getMainImage() {
 app.get("/", async (req, res) => {
   logger.error(`config.status: ${config.status}`);
   if (config.status === "message") {
+    // TODO this should part of the message class
     if (config.message) {
       await messageHandler.render("png");
     } else {
@@ -83,7 +88,7 @@ app.get("/", async (req, res) => {
 });
 
 type TestParams = {
-  name: string;
+  name: keyof typeof availableCallbacks;
   viewType: SupportedViewTypes;
 };
 
@@ -96,22 +101,8 @@ app.get<{
 
   let callback!: CallbackBase;
 
-  if (name === "reddit") {
-    callback = new CallbackReddit();
-  } else if (name === "joke") {
-    callback = new CallbackJoke();
-  } else if (name === "word") {
-    callback = new CallbackWord();
-  } else if (name === "year") {
-    callback = new CallbackYearProgress();
-  } else if (name === "quote") {
-    callback = new CallbackQuote();
-  } else if (name === "on-this-day") {
-    callback = new CallbackOnThisDay();
-  } else if (name === "weather") {
-    callback = new CallbackWeather();
-  } else if (name === "fact") {
-    callback = new CallbackFact();
+  if (availableCallbacks[name]) {
+    callback = availableCallbacks[name];
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||
