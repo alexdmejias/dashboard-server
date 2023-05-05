@@ -20,6 +20,15 @@ class DB {
       );
     });
   }
+
+  async deleteItem(type: SupportedDBCallbacks, id: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.db.run(`DELETE FROM ${type} WHERE id = ${id}`, (err) => {
+        if (err) reject(err);
+        resolve();
+      });
+    });
+  }
 }
 
 const db = new DB();

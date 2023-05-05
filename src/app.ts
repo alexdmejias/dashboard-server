@@ -23,6 +23,7 @@ import CallbackBase from "./callbacks/base";
 import { SupportedDBCallbacks, SupportedViewTypes } from "./types";
 import logger from "./logger";
 import imagesPath from "./utils/imagesPath";
+import db from "./db";
 
 const app = fastify({ logger });
 
@@ -166,8 +167,11 @@ type RemoveItemBody = {
   id: string;
 };
 
-app.post<{ Body: RemoveItemBody }>("/remove-item", (req, res) => {
-  return res.status(200);
+app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
+  const { type, id } = req.body;
+  await db.deleteItem(type, id);
+
+  return res.status(200).send("ok");
 });
 
 app.setErrorHandler(function (error, request, reply) {
