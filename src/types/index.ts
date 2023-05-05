@@ -1,4 +1,5 @@
 export type SupportedViewTypes = "html" | "json" | "png";
+export type SupportedDBCallbacks = "jokes" | "words" | "facts" | "quotes";
 
 export type TemplateDataError = {
   error: string;

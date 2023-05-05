@@ -1,6 +1,6 @@
 import CallbackBaseDB from "./base-db";
 
-type Fact = string;
+type Fact = { id: string; content: string };
 
 class CallbackFact extends CallbackBaseDB<Fact> {
   constructor() {

@@ -1,17 +1,18 @@
 <%- include('partials/head.ejs') %>
+<%- include('partials/id.ejs') %>
+
 <section class="d-flex justify-content-center align-items-center flex-fill h-100 flex-column">
   <div class="w-75">
-
-    <h1 class="text-center"><%= data.index %>. <%= data.item.word.toUpperCase() %></h1>
+    <h1 class="text-center"><%= data.word.toUpperCase() %></h1>
     <hr />
     <ol>
-      <% data.item.definitions.forEach((line) => { %>
+      <% data.definitions.forEach((line) => { %>
         <li class="text-left"><%= line %></li>
       <% }); %>
     </ol>
     <hr />
     <ol>
-      <% data.item.sentences.forEach((line) => { %>
+      <% data.sentences.forEach((line) => { %>
         <li class="text-left fst-italic"><%= line %></li>
       <% }); %>
     </ol>

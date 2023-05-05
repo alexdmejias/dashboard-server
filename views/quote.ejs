@@ -1,12 +1,14 @@
 <%- include('partials/head.ejs') %>
+<%- include('partials/id.ejs') %>
+
 <section class="d-flex justify-content-center align-items-center flex-fill h-100">
   <div class="w-75">
     <figure class="text-center">
       <blockquote class="blockquote fs-1">
-        <p><%= data.item.content %></p>
+        <p><%= data.content %></p>
       </blockquote>
       <figcaption class="blockquote-footer fs-6">
-        <p><%= data.item.author %></p>
+        <p><%= data.author %></p>
       </figcaption>
     </figure>
   </div>

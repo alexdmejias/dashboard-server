@@ -20,7 +20,7 @@ import {
 } from "./callbacks";
 import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
-import { SupportedViewTypes } from "./types";
+import { SupportedDBCallbacks, SupportedViewTypes } from "./types";
 import logger from "./logger";
 import imagesPath from "./utils/imagesPath";
 
@@ -161,7 +161,12 @@ app.post<{ Body: ConfigBody }>("/config", (req, res) => {
   res.send({ status: "ok" });
 });
 
-app.post("/remove-item/:type/:index", (req, res) => {
+type RemoveItemBody = {
+  type: SupportedDBCallbacks;
+  id: string;
+};
+
+app.post<{ Body: RemoveItemBody }>("/remove-item", (req, res) => {
   return res.status(200);
 });
 
