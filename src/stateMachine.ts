@@ -1,28 +1,46 @@
 import CallbackBase from "./callbacks/base";
 import logger from "./logger";
 
+type ConfigPlay = {
+  status: "play";
+};
+
+type ConfigMessage = {
+  status: "message";
+  message: string;
+};
+
+type ConfigSleep = {
+  status: "sleep";
+  wakeupTime: number;
+};
+
+export type Config = ConfigPlay | ConfigMessage | ConfigSleep;
+
 class StateMachine {
   currCallbackIndex: number;
   callbacks: Record<string, CallbackBase>;
-  state: Record<string, string | number>;
+  config: Config;
   rotation: string[];
   timer: NodeJS.Timer | undefined;
 
   constructor() {
     this.currCallbackIndex = 0;
     this.callbacks = {};
-    this.state = {};
+    this.config = {
+      status: "play",
+    };
 
     this.setState = this.setState.bind(this);
     this.rotation = [];
   }
 
   getState() {
-    return this.state;
+    return this.config;
   }
 
-  setState(newState: Record<string, string | number>) {
-    this.state = newState;
+  setState(newState: Config) {
+    this.config = newState;
   }
 
   addCallback(callbackInstance: CallbackBase) {

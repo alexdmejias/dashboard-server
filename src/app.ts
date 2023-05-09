@@ -18,7 +18,7 @@ import {
   CallbackWeather,
   CallbackFact,
 } from "./callbacks";
-import StateMachine from "./stateMachine";
+import StateMachine, { Config } from "./stateMachine";
 import CallbackBase from "./callbacks/base";
 import { SupportedDBCallbacks, SupportedViewTypes } from "./types";
 import logger from "./logger";
@@ -44,15 +44,6 @@ const availableCallbacks = {
 
 machine.addCallbacks(Object.values(availableCallbacks));
 
-type Config = {
-  status: "play" | "message";
-  message?: string;
-};
-
-const config: Config = {
-  status: "play",
-};
-
 app.register(fastifyStatic, {
   root: join(__dirname, "../public"),
   prefix: "/public/",
@@ -69,10 +60,12 @@ function getMainImage() {
 }
 
 app.get("/", async (req, res) => {
-  logger.error(`config.status: ${config.status}`);
-  if (config.status === "message") {
+  const state = machine.getState();
+  logger.error(`config.status: ${state.status}`);
+
+  if (state.status === "message") {
     // TODO this should part of the message class
-    if (config.message) {
+    if (state.message) {
       await messageHandler.render("png");
     } else {
       logger.error("tried to render a message but a message has not been set");
@@ -83,7 +76,10 @@ app.get("/", async (req, res) => {
     machine.advanceCallbackIndex();
   }
 
-  res.type("image/png");
+  res.headers({
+    "Content-Type": "image/png",
+    "x-server-command": "image",
+  });
 
   return getMainImage();
 });
@@ -133,28 +129,24 @@ app.get<{
 });
 
 app.get("/config", (req, res) => {
-  res.send(config);
+  res.send(machine.getState());
 });
 
-type ConfigBody = {
-  command: "play" | "message";
-  message: string;
-  until?: number;
-};
+type ConfigBody = Config;
 
 app.post<{ Body: ConfigBody }>("/config", (req, res) => {
-  const { command, message, until } = req.body;
+  const { status } = req.body;
 
-  if (command === "message") {
-    if (!message) {
-      return res.send({ status: "error", message: "empty message" });
-    }
-    config.message = message;
-    messageHandler.setMessage(message);
-    config.status = command;
-  } else if (command === "play") {
-    config.message = "";
-    config.status = command;
+  if (status === "message") {
+    machine.setState({
+      status: "message",
+      message: req.body.message,
+    });
+    messageHandler.setMessage(req.body.message);
+  } else if (status === "play") {
+    machine.setState({
+      status: "play",
+    });
   } else {
     return res.send({ status: "error", message: "unknown command" });
   }
