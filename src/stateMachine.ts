@@ -1,4 +1,5 @@
 import CallbackBase from "./callbacks/base";
+import CallbackBaseDB from "./callbacks/base-db";
 import logger from "./logger";
 
 type ConfigPlay = {
@@ -59,8 +60,19 @@ class StateMachine {
     }
   }
 
-  addCallbacks(callbackInstances: CallbackBase[]) {
-    callbackInstances.forEach((cb) => this.addCallback(cb));
+  async addCallbacks(callbackInstances: (CallbackBase | CallbackBaseDB)[]) {
+    for await (const cb of callbackInstances) {
+      if ('runMigration' in cb) {
+        logger.info(`found migration in ${cb.name}`)
+        await cb.runMigration()
+        // console.log(result)
+      }
+      this.addCallback(cb)
+    }
+  }
+
+  hasCallback(cbName: string) {
+    return cbName in this.callbacks
   }
 
   setRotation(newRotation: string[]) {
@@ -88,7 +100,12 @@ class StateMachine {
       this.callbacks[this.rotation[this.currCallbackIndex]];
     logger.trace("tick");
 
+    // try {
     return selectedInstance.render("png");
+    // } catch (e) {
+    //   // TODO should render error instance
+    //   return selectedInstance.render("png", e);
+    // }
   }
 
   advanceCallbackIndex() {

@@ -14,6 +14,12 @@ class CallbackJoke extends CallbackBaseDB<DBTableShape, Joke> {
       content: data.content.split("\\n"),
     };
   }
+
+  get migration() {
+    return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
+        id INTEGER PRIMARY KEY,
+        content TEXT NOT NULL)`
+  }
 }
 
 export default CallbackJoke;

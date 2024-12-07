@@ -24,25 +24,13 @@ import { SupportedDBCallbacks, SupportedViewTypes } from "./types";
 import logger from "./logger";
 import imagesPath from "./utils/imagesPath";
 import db from "./db";
+import CallbackBaseDB from "./callbacks/base-db";
 
 const app = fastify({ logger });
 
 const messageHandler = new CallbackMessage();
-const machine = new StateMachine();
 
-const availableCallbacks = {
-  reddit: new CallbackReddit(),
-  quote: new CallbackQuote(),
-  joke: new CallbackJoke(),
-  word: new CallbackWord(),
-  year: new CallbackYearProgress(),
-  "on-this-day": new CallbackOnThisDay(),
-  weather: new CallbackWeather(),
-  fact: new CallbackFact(),
-  message: messageHandler,
-};
-
-machine.addCallbacks(Object.values(availableCallbacks));
+app.decorate('stateMachine', new StateMachine())
 
 app.register(fastifyStatic, {
   root: join(__dirname, "../public"),
@@ -55,12 +43,34 @@ app.register(fastifyView, {
   },
 });
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    stateMachine: StateMachine
+  }
+}
+
 function getMainImage() {
   return fs.readFileSync(join(__dirname, "../", imagesPath()));
 }
 
+app.addHook('onReady', async (done) => {
+  const availableCallbacks: (CallbackBase | CallbackBaseDB<any>)[] = [
+    new CallbackReddit(),
+    new CallbackQuote(),
+    new CallbackJoke(),
+    new CallbackWord(),
+    new CallbackYearProgress(),
+    new CallbackOnThisDay(),
+    new CallbackWeather(),
+    new CallbackFact(),
+    // messageHandler,
+  ];
+  await app.stateMachine.addCallbacks(availableCallbacks)
+  done()
+})
+
 app.get("/", async (req, res) => {
-  const state = machine.getState();
+  const state = app.stateMachine.getState();
   logger.error(`config.status: ${state.status}`);
 
   if (state.status === "message") {
@@ -71,9 +81,9 @@ app.get("/", async (req, res) => {
       logger.error("tried to render a message but a message has not been set");
     }
   } else {
-    await machine.tick();
+    await app.stateMachine.tick();
 
-    machine.advanceCallbackIndex();
+    app.stateMachine.advanceCallbackIndex();
   }
 
   res.headers({
@@ -85,7 +95,7 @@ app.get("/", async (req, res) => {
 });
 
 type TestParams = {
-  name: keyof typeof availableCallbacks;
+  name: string;
   viewType: SupportedViewTypes;
 };
 
@@ -96,10 +106,10 @@ app.get<{
   const { name, viewType = "json" } = req.params;
   const { message = "" } = req.query;
 
-  let callback!: CallbackBase;
+  let callback: CallbackBase | undefined;
 
-  if (availableCallbacks[name]) {
-    callback = availableCallbacks[name];
+  if (app.stateMachine.hasCallback(name)) {
+    callback = app.stateMachine.getCallbackInstance(name);
   } else if (name === "message") {
     messageHandler.setMessage(
       message ||
@@ -128,54 +138,54 @@ app.get<{
   }
 });
 
-app.get("/config", (req, res) => {
-  res.send(machine.getState());
-});
+// app.get("/config", (req, res) => {
+//   res.send(machine.getState());
+// });
 
-type ConfigBody = Config;
+// type ConfigBody = Config;
 
-app.post<{ Body: ConfigBody }>("/config", (req, res) => {
-  const { status } = req.body;
+// app.post<{ Body: ConfigBody }>("/config", (req, res) => {
+//   const { status } = req.body;
 
-  if (status === "message") {
-    machine.setState({
-      status: "message",
-      message: req.body.message,
-    });
-    messageHandler.setMessage(req.body.message);
-  } else if (status === "play") {
-    machine.setState({
-      status: "play",
-    });
-  } else {
-    return res.send({ status: "error", message: "unknown command" });
-  }
+//   if (status === "message") {
+//     machine.setState({
+//       status: "message",
+//       message: req.body.message,
+//     });
+//     messageHandler.setMessage(req.body.message);
+//   } else if (status === "play") {
+//     machine.setState({
+//       status: "play",
+//     });
+//   } else {
+//     return res.send({ status: "error", message: "unknown command" });
+//   }
 
-  res.send({ status: "ok" });
-});
+//   res.send({ status: "ok" });
+// });
 
-type RemoveItemBody = {
-  type: SupportedDBCallbacks;
-  id: string;
-};
+// type RemoveItemBody = {
+//   type: SupportedDBCallbacks;
+//   id: string;
+// };
 
-app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
-  const { type, id } = req.body;
-  await db.deleteItem(type, id);
+// app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
+//   const { type, id } = req.body;
+//   await db.deleteItem(type, id);
 
-  return res.status(200).send("ok");
-});
+//   return res.status(200).send("ok");
+// });
 
-app.setErrorHandler(function (error, request, reply) {
-  if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-    // Log error
-    this.log.error(error);
-    // Send error response
-    reply.status(404).send({ ok: false });
-  } else {
-    // fastify will use parent error handler to handle this
-    reply.send(error);
-  }
-});
+// app.setErrorHandler(function (error, request, reply) {
+//   if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+//     // Log error
+//     this.log.error(error);
+//     // Send error response
+//     reply.status(404).send({ ok: false });
+//   } else {
+//     // fastify will use parent error handler to handle this
+//     reply.send(error);
+//   }
+// });
 
 export default app;

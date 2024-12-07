@@ -14,7 +14,7 @@ export type CallbackConstructor = {
   inRotation?: boolean;
 };
 
-abstract class CallbackBase<TemplateData = any> {
+abstract class CallbackBase<TemplateData extends object = object> {
   name: string;
   template: string;
   dataFile?: string;
@@ -33,30 +33,36 @@ abstract class CallbackBase<TemplateData = any> {
   async render(viewType: SupportedViewTypes) {
     this.logger.info(`rendering: ${this.name}`);
 
-    const data = await this.getData();
+    const data = await this.getData()
+
+    let templateOverride: string | undefined;
+    
+    if ('error' in data) {
+      templateOverride = 'error'
+    }
 
     if (viewType === "png") {
-      return this.#renderAsPNG(data);
+      return this.#renderAsPNG(data, templateOverride);
     }
 
     if (viewType === "html") {
-      return this.#renderAsHTML(data);
+      return this.#renderAsHTML(data, templateOverride);
     }
 
     return data;
   }
 
-  async #renderAsPNG(data: TemplateDataError | Awaited<TemplateData>) {
+  async #renderAsPNG(data: TemplateDataError | TemplateData, template?: string): Promise<string> {
     const screenshot = await getScreenshot({
       data,
-      template: this.template,
+      template: template ? template : this.template,
     });
 
     return screenshot.path;
   }
 
-  #renderAsHTML(data: TemplateDataError | Awaited<TemplateData>) {
-    return getRenderedTemplate({ template: this.template, data });
+  #renderAsHTML(data: TemplateDataError | TemplateData, template?: string) {
+    return getRenderedTemplate({ template: template ? template : this.template, data });
   }
 }
 

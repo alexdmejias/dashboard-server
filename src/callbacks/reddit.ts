@@ -1,6 +1,7 @@
 import CallbackBase from "./base";
 import base64Encode from "../utils/base64Encode";
 import { RedditResponseRoot } from "../types";
+import logger from "../logger";
 
 type RedditPost = { title: string }[];
 
@@ -16,7 +17,9 @@ class CallbackReddit extends CallbackBase<RedditPost> {
     const secret = process.env.REDDIT_SECRET;
 
     if (!username || !password) {
-      throw new Error("missing reddit username or password");
+      const msg = 'missing reddit username or password'
+      logger.error(msg)
+      throw new Error(msg);
     }
 
     if (!clientId || !secret) {

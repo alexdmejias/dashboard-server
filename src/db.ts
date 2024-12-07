@@ -1,11 +1,26 @@
-import { Database } from "sqlite3";
+import { Database, RunResult } from "sqlite3";
 import { SupportedDBCallbacks } from "./types";
+import logger from "./logger";
 
 class DB {
   db: Database;
 
   constructor() {
     this.db = new Database("db.sqlite");
+  }
+
+  runMigration(script: string) {
+    return new Promise((resolve, reject) => {
+      this.db.run(script, (error: Error) => {
+        if (error) {
+          logger.error('failed to run migration')
+          reject(error)
+        }
+
+        return resolve(true)
+      })
+
+    })
   }
 
   async getRecord<T>(type: SupportedDBCallbacks): Promise<T> {

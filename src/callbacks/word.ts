@@ -27,6 +27,14 @@ class CallbackWord extends CallbackBaseDB<DBTableShape, Word> {
       sentences: sentences.split("\\n"),
     };
   }
+
+  get migration() {
+    return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
+      id INTEGER PRIMARY KEY,
+      word TEXT NOT NULL,
+      definitions TEXT NOT NULL,
+      sentences TEXT NOT NULL)`
+  }
 }
 
 export default CallbackWord;

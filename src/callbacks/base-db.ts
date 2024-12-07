@@ -6,11 +6,9 @@ export type CallbackBaseDBConstrutor = {
   dataFile: SupportedDBCallbacks;
 } & CallbackConstructor;
 
-abstract class CallbackBaseDB<
-  DBTableShape,
-  Transformed = DBTableShape
-> extends CallbackBase<Transformed> {
+abstract class CallbackBaseDB< DBTableShape extends object = object, Transformed extends object = DBTableShape > extends CallbackBase<Transformed> {
   dataFile: SupportedDBCallbacks;
+  abstract migration: string;
 
   constructor(args: CallbackBaseDBConstrutor) {
     super(args);
@@ -21,10 +19,20 @@ abstract class CallbackBaseDB<
     return data as unknown as Transformed;
   }
 
+  async runMigration() {
+    return DB.runMigration(this.migration)
+  }
+
+  // exportData() {}
+
   async getData() {
     try {
       const data = await DB.getRecord<DBTableShape>(this.dataFile);
 
+      if (!data) {
+        throw new Error('no data received')
+      }
+      
       return this.transformer(data);
     } catch (e) {
       return { error: e instanceof Error ? e.message : (e as string) };
