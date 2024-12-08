@@ -36,7 +36,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
     const data = await this.getData()
 
     let templateOverride: string | undefined;
-    
+
     if ('error' in data) {
       templateOverride = 'error'
     }

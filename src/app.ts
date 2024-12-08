@@ -3,7 +3,7 @@ dotenv.config();
 
 import fs from "node:fs";
 import { join } from "path";
-import fastify, { errorCodes } from "fastify";
+import fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
 
@@ -18,19 +18,25 @@ import {
   CallbackWeather,
   CallbackFact,
 } from "./callbacks";
-import StateMachine, { Config } from "./stateMachine";
+import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
-import { SupportedDBCallbacks, SupportedViewTypes } from "./types";
-import logger from "./logger";
+import { SupportedViewTypes } from "./types";
+import logger, { loggingOptions } from "./logger";
 import imagesPath from "./utils/imagesPath";
-import db from "./db";
 import CallbackBaseDB from "./callbacks/base-db";
 
-const app = fastify({ logger });
+import * as Sentry from "@sentry/node";
+import "./instrument";
+
+const app = fastify({ logger: loggingOptions });
+
+if (process.env.SENTRY_DSN) {
+  Sentry.setupFastifyErrorHandler(app);
+}
 
 const messageHandler = new CallbackMessage();
 
-app.decorate('stateMachine', new StateMachine())
+app.decorate("stateMachine", new StateMachine());
 
 app.register(fastifyStatic, {
   root: join(__dirname, "../public"),
@@ -43,18 +49,12 @@ app.register(fastifyView, {
   },
 });
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    stateMachine: StateMachine
-  }
-}
-
 function getMainImage() {
   return fs.readFileSync(join(__dirname, "../", imagesPath()));
 }
 
-app.addHook('onReady', async (done) => {
-  const availableCallbacks: (CallbackBase | CallbackBaseDB<any>)[] = [
+app.addHook("onReady", async () => {
+  const availableCallbacks: (CallbackBase | CallbackBaseDB)[] = [
     new CallbackReddit(),
     new CallbackQuote(),
     new CallbackJoke(),
@@ -65,9 +65,8 @@ app.addHook('onReady', async (done) => {
     new CallbackFact(),
     // messageHandler,
   ];
-  await app.stateMachine.addCallbacks(availableCallbacks)
-  done()
-})
+  await app.stateMachine.addCallbacks(availableCallbacks);
+});
 
 app.get("/", async (req, res) => {
   const state = app.stateMachine.getState();

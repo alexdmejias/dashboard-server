@@ -1,6 +1,6 @@
 import pino from "pino";
 
-const logger = pino({
+export const loggingOptions = {
   level: "debug",
   transport: {
     target: "pino-pretty",
@@ -8,6 +8,8 @@ const logger = pino({
       colorize: true,
     },
   },
-});
+};
+
+const logger = pino(loggingOptions);
 
 export default logger;
