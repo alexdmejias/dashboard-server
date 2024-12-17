@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import fs from "node:fs";
-import { join } from "path";
+import { join, resolve } from "node:path";
 import fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
@@ -38,8 +38,13 @@ const messageHandler = new CallbackMessage();
 
 app.decorate("stateMachine", new StateMachine());
 
+const publicPath = resolve("./public");
+if (!fs.existsSync(publicPath)) {
+  fs.mkdirSync(publicPath);
+}
+
 app.register(fastifyStatic, {
-  root: join(__dirname, "../public"),
+  root: resolve("./public"),
   prefix: "/public/",
 });
 
