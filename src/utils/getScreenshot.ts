@@ -1,4 +1,4 @@
-import { webkit } from "playwright";
+import { chromium } from "playwright";
 import imagesPath from "./imagesPath";
 import getRenderedTemplate from "./getRenderedTemplate";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ async function getScreenshot<T>({
   template: string;
   data: T;
 }) {
-  const browser = await webkit.launch();
+  const browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
 
