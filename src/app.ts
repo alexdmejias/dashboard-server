@@ -181,16 +181,19 @@ app.get<{
 // });
 
 app.setErrorHandler(function (error, request, reply) {
-  if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-    // Log error
-    this.log.error(error);
-    // Send error response
-    reply.status(404).send({ ok: false });
-  } else {
-    // fastify will use parent error handler to handle this
-    Sentry.captureException(error);
-    reply.send(error);
-  }
+  // TODO temp disabling because errorCodes is undefined in raspberry
+  // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+  //   // Log error
+  //   this.log.error(error);
+  //   // Send error response
+  //   reply.status(404).send({ ok: false });
+  // } else {
+  //   // fastify will use parent error handler to handle this
+  //   Sentry.captureException(error);
+  //   reply.send(error);
+  // }
+  Sentry.captureException(error);
+  reply.send(error);
 });
 
 export default app;
