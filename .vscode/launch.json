@@ -2,21 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
-      "request": "launch",
-      "name": "Run ts-node",
-      "runtimeExecutable": "ts-node",
-      "cwd": "${workspaceFolder}",
-      "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}/index.ts",
-      "args": []
-    },
-    {
       "name": "Launch Program",
       "program": "${workspaceFolder}/dist/index.js",
       "request": "launch",
       "skipFiles": ["<node_internals>/**"],
-      "type": "node"
+      "type": "node",
+      "preLaunchTask": "npm: build",
+      "internalConsoleOptions": "openOnSessionStart"
     }
   ]
 }
