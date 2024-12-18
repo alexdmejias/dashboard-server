@@ -10,7 +10,9 @@ async function getScreenshot<T>({
   template: string;
   data: T;
 }) {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    executablePath: process.env.CHROMIUM_BIN || undefined,
+  });
   const page = await browser.newPage();
 
   // TODO should be params
