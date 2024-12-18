@@ -1,9 +1,10 @@
 import * as dotenv from "dotenv";
 dotenv.config();
+import "./instrument";
 
 import fs from "node:fs";
 import { join, resolve } from "node:path";
-import fastify from "fastify";
+import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
 
@@ -26,7 +27,6 @@ import imagesPath from "./utils/imagesPath";
 import CallbackBaseDB from "./callbacks/base-db";
 
 import * as Sentry from "@sentry/node";
-import "./instrument";
 
 const app = fastify({ logger: loggingOptions });
 
@@ -180,16 +180,17 @@ app.get<{
 //   return res.status(200).send("ok");
 // });
 
-// app.setErrorHandler(function (error, request, reply) {
-//   if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-//     // Log error
-//     this.log.error(error);
-//     // Send error response
-//     reply.status(404).send({ ok: false });
-//   } else {
-//     // fastify will use parent error handler to handle this
-//     reply.send(error);
-//   }
-// });
+app.setErrorHandler(function (error, request, reply) {
+  if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+    // Log error
+    this.log.error(error);
+    // Send error response
+    reply.status(404).send({ ok: false });
+  } else {
+    // fastify will use parent error handler to handle this
+    Sentry.captureException(error);
+    reply.send(error);
+  }
+});
 
 export default app;
