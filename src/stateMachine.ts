@@ -1,48 +1,75 @@
+import { CallbackMessage } from "./callbacks";
 import CallbackBase from "./callbacks/base";
 import CallbackBaseDB from "./callbacks/base-db";
 import logger from "./logger";
+import { SupportedViewTypes } from "./types";
 
-type ConfigPlay = {
-  status: "play";
-};
+// type ConfigPlay = {
+//   status: "play";
+// };
 
-type ConfigMessage = {
-  status: "message";
+// type ConfigMessage = {
+//   status: "message";
+//   message: string;
+// };
+
+// type ConfigSleep = {
+//   status: "sleep";
+//   wakeupTime: number;
+// };
+
+export type Config = {
+  status: "play" | "sleep" | "message";
+  rotation: string[];
   message: string;
+  currCallbackIndex: number;
 };
-
-type ConfigSleep = {
-  status: "sleep";
-  wakeupTime: number;
-};
-
-export type Config = ConfigPlay | ConfigMessage | ConfigSleep;
 
 class StateMachine {
-  currCallbackIndex: number;
+  // currCallbackIndex: number;
   callbacks: Record<string, CallbackBase>;
-  config: Config;
-  rotation: string[];
-  timer: NodeJS.Timer | undefined;
+  #config: Config;
+  // rotation: string[];
+  timer: NodeJS.Timeout | undefined;
 
   constructor() {
-    this.currCallbackIndex = 0;
+    // this.currCallbackIndex = 0;
     this.callbacks = {};
-    this.config = {
+    this.#config = {
       status: "play",
+      message: "",
+      rotation: [],
+      currCallbackIndex: 0,
     };
 
-    this.setState = this.setState.bind(this);
-    this.rotation = [];
+    // this.setState = this.setState.bind(this);
+    // this.rotation = [];
   }
 
-  getState() {
-    return this.config;
+  setMessage(message: string) {
+    this.#config.message = message;
   }
 
-  setState(newState: Config) {
-    this.config = newState;
+  setState(newConfig: Config["status"]) {
+    this.#config.status = newConfig;
   }
+
+  getConfig() {
+    return this.#config;
+  }
+
+  setConfigOption<T extends keyof Config>(
+    configKey: T,
+    configValue: Config[T]
+  ) {
+    this.#config[configKey] = configValue;
+  }
+  // setConfig(newState: Partial<Config>) {
+  //   // TODO validate config
+  //   this.#config = {...this.#config, ...newState};
+  // }
+
+  // add method to get logs
 
   addCallback(callbackInstance: CallbackBase) {
     logger.info(
@@ -51,40 +78,43 @@ class StateMachine {
     if (!this.callbacks[callbackInstance.name]) {
       this.callbacks[callbackInstance.name] = callbackInstance;
       if (callbackInstance.inRotation) {
-        this.rotation.push(callbackInstance.name);
+        this.#config.rotation.push(callbackInstance.name);
       }
     } else {
       logger.warn(
-        `attempting to adding callback that already exists: ${callbackInstance.name}`
+        `attempting to add callback that already exists: ${callbackInstance.name}`
       );
     }
   }
 
   async addCallbacks(callbackInstances: (CallbackBase | CallbackBaseDB)[]) {
     for await (const cb of callbackInstances) {
-      if ('runMigration' in cb) {
-        logger.info(`found migration in ${cb.name}`)
-        await cb.runMigration()
+      if ("runMigration" in cb) {
+        logger.info(`found migration in ${cb.name}`);
+        await cb.runMigration();
         // console.log(result)
       }
-      this.addCallback(cb)
+      this.addCallback(cb);
     }
   }
 
   hasCallback(cbName: string) {
-    return cbName in this.callbacks
+    return cbName in this.callbacks;
   }
 
   setRotation(newRotation: string[]) {
-    if (this.validateRotation(newRotation)) {
-      this.rotation = newRotation;
+    const output = this.validateRotation(newRotation);
+    if (typeof output === "string") {
+      throw new Error("invalid rotation value:" + output);
     }
+
+    this.setConfigOption("rotation", newRotation);
   }
 
   validateRotation(newRotation: string[]) {
     for (let i = 0; i < newRotation.length; i++) {
       if (!this.callbacks[newRotation[i]]) {
-        return false;
+        return newRotation[i];
       }
     }
 
@@ -95,9 +125,15 @@ class StateMachine {
     return this.callbacks[callbackName];
   }
 
+  getCurrCallbackInstance(): CallbackBase | undefined {
+    return this.callbacks[
+      this.#config.rotation[this.#config.currCallbackIndex]
+    ];
+  }
+
   async tick() {
     const selectedInstance =
-      this.callbacks[this.rotation[this.currCallbackIndex]];
+      this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
     logger.trace("tick");
 
     // try {
@@ -109,19 +145,19 @@ class StateMachine {
   }
 
   advanceCallbackIndex() {
-    this.currCallbackIndex++;
+    this.#config.currCallbackIndex++;
 
-    if (this.currCallbackIndex + 1 > this.rotation.length) {
-      this.currCallbackIndex = 0;
+    if (this.#config.currCallbackIndex + 1 > this.#config.rotation.length) {
+      this.#config.currCallbackIndex = 0;
     }
   }
 
   start() {
     this.timer = setInterval(() => {
-      this.currCallbackIndex++;
+      this.#config.currCallbackIndex++;
 
-      if (this.currCallbackIndex + 1 > this.rotation.length) {
-        this.currCallbackIndex = 0;
+      if (this.#config.currCallbackIndex + 1 > this.#config.rotation.length) {
+        this.#config.currCallbackIndex = 0;
       }
     }, 1000);
   }
@@ -130,6 +166,12 @@ class StateMachine {
     if (this.timer) {
       clearInterval(this.timer);
     }
+  }
+
+  renderError(errorMessage: string, viewType: SupportedViewTypes) {
+    const cb = new CallbackMessage();
+    cb.setMessage(errorMessage);
+    return cb.render(viewType);
   }
 }
 

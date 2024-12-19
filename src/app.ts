@@ -1,13 +1,13 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 import "./instrument";
+import * as Sentry from "@sentry/node";
 
 import fs from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
-
 import {
   CallbackReddit,
   CallbackQuote,
@@ -25,8 +25,6 @@ import { SupportedViewTypes } from "./types";
 import logger, { loggingOptions } from "./logger";
 import CallbackBaseDB from "./callbacks/base-db";
 
-import * as Sentry from "@sentry/node";
-
 const app = fastify({ logger: loggingOptions });
 
 if (process.env.SENTRY_DSN) {
@@ -36,11 +34,6 @@ if (process.env.SENTRY_DSN) {
 const messageHandler = new CallbackMessage();
 
 app.decorate("stateMachine", new StateMachine());
-
-const publicPath = resolve("./public");
-if (!fs.existsSync(publicPath)) {
-  fs.mkdirSync(publicPath);
-}
 
 app.register(fastifyStatic, {
   root: resolve("./public"),
@@ -53,27 +46,40 @@ app.register(fastifyView, {
   },
 });
 
-function getMainImage() {
-  return fs.readFileSync(join(__dirname, "../", imagesPath()));
+declare module "fastify" {
+  interface FastifyInstance {
+    stateMachine: StateMachine;
+  }
 }
 
 app.addHook("onReady", async () => {
-  const availableCallbacks: (CallbackBase | CallbackBaseDB)[] = [
-    new CallbackReddit(),
-    new CallbackQuote(),
-    new CallbackJoke(),
-    new CallbackWord(),
-    new CallbackYearProgress(),
-    new CallbackOnThisDay(),
-    new CallbackWeather(),
-    new CallbackFact(),
-    // messageHandler,
+  const possibleCallbacks = [
+    CallbackReddit,
+    CallbackQuote,
+    CallbackJoke,
+    CallbackWord,
+    CallbackYearProgress,
+    CallbackOnThisDay,
+    CallbackWeather,
+    CallbackFact,
   ];
-  await app.stateMachine.addCallbacks(availableCallbacks);
+
+  const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
+  possibleCallbacks.forEach((callback) => {
+    try {
+      const ins = new callback();
+      validCallbacks.push(ins);
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error(e);
+      }
+    }
+  });
+  await app.stateMachine.addCallbacks(validCallbacks);
 });
 
 app.get("/", async (req, res) => {
-  const state = app.stateMachine.getState();
+  const state = app.stateMachine.getConfig();
   logger.error(`config.status: ${state.status}`);
 
   let imagePath;
@@ -91,11 +97,7 @@ app.get("/", async (req, res) => {
   }
 
   if (typeof imagePath === "string") {
-  res.headers({
-    "Content-Type": "image/png",
-    "x-server-command": "image",
-  });
-    return fs.readFile(imagePath);
+    return res.type("image/png").send(await fs.readFile(imagePath));
   } else {
     return res.send(imagePath);
   }
@@ -127,65 +129,94 @@ app.get<{
   }
 
   if (!callback) {
-    throw new Error("this callback has not been added to the test route");
+    const errorMessage = `"${name}" callback has not been added to the test route, available callbacks are ${Object.keys(
+      app.stateMachine.callbacks
+    )}`;
+
+    const output = await app.stateMachine.renderError(errorMessage, viewType);
+    if (viewType === "html") {
+      return fs.readFile(output as string);
+    } else if (viewType === "png") {
+      return res.type("image/png").send(await fs.readFile(output as string));
+    } else {
+      return res.send(errorMessage);
+    }
   }
 
   const renderResult = await callback.render(viewType);
 
-  if (viewType === "png") {
-    res.type("image/png");
-  } else if (viewType === "html") {
-    res.type("text/html");
-  }
-
   if (viewType === "png" && typeof renderResult === "string") {
-    res.headers({
-      "Content-Type": "image/png",
-      "x-server-command": "image",
-    });
-    return fs.readFile(renderResult);
+    return res.type("image/png").send(await fs.readFile(renderResult));
   } else {
     return res.send(renderResult);
   }
 });
 
+// app.get("/control", (req, res) => {
+//   res.view("./views/control.html");
+// });
+
 // app.get("/config", (req, res) => {
-//   res.send(machine.getState());
+//   res.send(app.stateMachine.getConfig());
 // });
 
-// type ConfigBody = Config;
+// // app.post<{ Body: Config["rotation"] }>("/set-rotation", (req, res) => {
+// //   try {
+// //     app.stateMachine.setRotation(req.body);
 
-// app.post<{ Body: ConfigBody }>("/config", (req, res) => {
-//   const { status } = req.body;
+// //     return res.send({
+// //       status: "ok",
+// //       body: req.body,
+// //       machineState: app.stateMachine.getConfig(),
+// //     });
+// //   } catch (e) {
+// //     return res.code(500).send(e);
+// //   }
+// // });
 
-//   if (status === "message") {
-//     machine.setState({
-//       status: "message",
-//       message: req.body.message,
-//     });
-//     messageHandler.setMessage(req.body.message);
-//   } else if (status === "play") {
-//     machine.setState({
-//       status: "play",
-//     });
-//   } else {
-//     return res.send({ status: "error", message: "unknown command" });
-//   }
+// // type ConfigBody = Config;
 
-//   res.send({ status: "ok" });
-// });
+// // app.post<{ Body: ConfigBody }>("/config", (req, res) => {
+// //   const { status } = req.body;
 
-// type RemoveItemBody = {
-//   type: SupportedDBCallbacks;
-//   id: string;
-// };
+// //   if (!status) {
+// //     return res.send(req.body);
+// //   }
 
-// app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
-//   const { type, id } = req.body;
-//   await db.deleteItem(type, id);
+// //   if (status === "message") {
+// //     if (!req.body.message) {
+// //       return res.code(400).send({
+// //         status: "error",
+// //         message: "invalid message body param",
+// //         machineState: app.stateMachine.getConfig(),
+// //       });
+// //     }
+// //     app.stateMachine.setMessage(req.body.message);
+// //     messageHandler.setMessage(req.body.message);
+// //   } else if (status === "play") {
+// //     app.stateMachine.setState("play");
+// //   } else {
+// //     return res.send({
+// //       status: "error",
+// //       message: "unknown command",
+// //       machineState: app.stateMachine.getConfig(),
+// //     });
+// //   }
 
-//   return res.status(200).send("ok");
-// });
+// //   return res.send({ status: "ok", machineState: app.stateMachine.getConfig() });
+// // });
+
+// // type RemoveItemBody = {
+// //   type: SupportedDBCallbacks;
+// //   id: string;
+// // };
+
+// // app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
+// //   const { type, id } = req.body;
+// //   await app.db.deleteItem(type, id);
+
+// //   return res.status(200).send("ok");
+// // });
 
 app.setErrorHandler(function (error, request, reply) {
   // TODO temp disabling because errorCodes is undefined in raspberry
