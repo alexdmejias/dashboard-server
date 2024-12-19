@@ -7,29 +7,38 @@ type RedditPost = { title: string }[];
 
 class CallbackReddit extends CallbackBase<RedditPost> {
   constructor() {
-    super({ name: "reddit" });
+    super({
+      name: "reddit",
+      envVariablesNeeded: [
+        "REDDIT_USERNAME",
+        "REDDIT_PASSWORD",
+        "REDDIT_CLIENTID",
+        "REDDIT_SECRET",
+      ],
+    });
   }
 
-  async auth() {
+  getEnvVariables() {
     const username = process.env.REDDIT_USERNAME;
     const password = process.env.REDDIT_PASSWORD;
     const clientId = process.env.REDDIT_CLIENTID;
     const secret = process.env.REDDIT_SECRET;
 
-    if (!username || !password) {
-      const msg = 'missing reddit username or password'
-      logger.error(msg)
-      throw new Error(msg);
-    }
+    return {
+      username,
+      password,
+      clientId,
+      secret,
+    };
+  }
 
-    if (!clientId || !secret) {
-      throw new Error("missing reddit clientId or secret");
-    }
+  async auth() {
+    const { username, password, clientId, secret } = this.getEnvVariables();
 
     const data = new URLSearchParams({
       grant_type: "password",
-      username,
-      password,
+      username: username as string,
+      password: password as string,
     });
 
     const res = await fetch("https://www.reddit.com/api/v1/access_token", {

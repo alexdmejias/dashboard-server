@@ -16,6 +16,7 @@ export type CallbackConstructor = {
   inRotation?: boolean;
   screenshotSize?: ScreenshotSizeOption;
   cacheable?: boolean;
+  envVariablesNeeded?: string[];
 };
 
 abstract class CallbackBase<TemplateData extends object = object> {
@@ -27,6 +28,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
   screenshotSize: ScreenshotSizeOption;
   cacheable = false;
   oldDataCache = "";
+  envVariablesNeeded: string[] = [];
 
   constructor({
     name,
@@ -34,6 +36,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
     inRotation = true,
     screenshotSize,
     cacheable = false,
+    envVariablesNeeded = [],
   }: CallbackConstructor) {
     this.name = name;
     this.inRotation = inRotation;
@@ -44,9 +47,37 @@ abstract class CallbackBase<TemplateData extends object = object> {
       height: 825,
     };
     this.cacheable = cacheable;
+    this.envVariablesNeeded = envVariablesNeeded;
+
+    this.checkEnvVariables();
   }
 
   abstract getData(): PossibleTemplateData<TemplateData>;
+
+  getEnvVariables(): Record<string, string | undefined> {
+    return {};
+  }
+
+  checkEnvVariables() {
+    const missingKeys: string[] = [];
+    this.envVariablesNeeded.forEach((key) => {
+      if (!process.env[key]) {
+        missingKeys.push(key);
+      }
+    });
+
+    if (missingKeys.length) {
+      const message = `${
+        this.name
+      } callback requires the following environment variable(s): ${missingKeys.join(
+        ", "
+      )}`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
+
+    return true;
+  }
 
   async render(viewType: SupportedViewTypes) {
     this.logger.info(`rendering: ${this.name}`);

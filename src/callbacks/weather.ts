@@ -20,7 +20,10 @@ type TemplateDataWeather = {
 
 class CallbackWeather extends CallbackBase<TemplateDataWeather> {
   constructor() {
-    super({ name: "weather" });
+    super({
+      name: "weather",
+      envVariablesNeeded: ["WEATHER_APIKEY", "WEATHER_ZIPCODE"],
+    });
   }
 
   async getWeather(): Promise<WeatherApiResponseRoot> {
