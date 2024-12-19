@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 import "./instrument";
 
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import { join, resolve } from "node:path";
 import fastify, { errorCodes } from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -23,7 +23,6 @@ import StateMachine from "./stateMachine";
 import CallbackBase from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
 import logger, { loggingOptions } from "./logger";
-import imagesPath from "./utils/imagesPath";
 import CallbackBaseDB from "./callbacks/base-db";
 
 import * as Sentry from "@sentry/node";
@@ -77,25 +76,29 @@ app.get("/", async (req, res) => {
   const state = app.stateMachine.getState();
   logger.error(`config.status: ${state.status}`);
 
+  let imagePath;
   if (state.status === "message") {
     // TODO this should part of the message class
     if (state.message) {
-      await messageHandler.render("png");
+      imagePath = await messageHandler.render("png");
     } else {
       logger.error("tried to render a message but a message has not been set");
     }
   } else {
-    await app.stateMachine.tick();
+    imagePath = await app.stateMachine.tick();
 
     app.stateMachine.advanceCallbackIndex();
   }
 
+  if (typeof imagePath === "string") {
   res.headers({
     "Content-Type": "image/png",
     "x-server-command": "image",
   });
-
-  return getMainImage();
+    return fs.readFile(imagePath);
+  } else {
+    return res.send(imagePath);
+  }
 });
 
 type TestParams = {
@@ -135,8 +138,12 @@ app.get<{
     res.type("text/html");
   }
 
-  if (viewType === "png") {
-    return fs.readFileSync(join(__dirname, "..", renderResult as string));
+  if (viewType === "png" && typeof renderResult === "string") {
+    res.headers({
+      "Content-Type": "image/png",
+      "x-server-command": "image",
+    });
+    return fs.readFile(renderResult);
   } else {
     return res.send(renderResult);
   }
