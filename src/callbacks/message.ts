@@ -4,12 +4,12 @@ class CallbackMessage extends CallbackBase {
   lastMessage: string[];
 
   constructor() {
-    super({ name: "message", inRotation: false });
+    super({ name: "message", inRotation: false, template: "generic" });
     this.lastMessage = [];
   }
 
   async getData() {
-    return { index: 0, item: this.lastMessage };
+    return { content: this.lastMessage };
   }
 
   setMessage(message: string) {
