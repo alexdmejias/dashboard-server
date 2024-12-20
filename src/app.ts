@@ -147,6 +147,8 @@ app.get<{
 
   if (viewType === "png" && typeof renderResult === "string") {
     return res.type("image/png").send(await fs.readFile(renderResult));
+  } else if (viewType === "html") {
+    return res.type("text/html").send(renderResult);
   } else {
     return res.send(renderResult);
   }
