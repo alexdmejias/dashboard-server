@@ -1,6 +1,7 @@
 import ejs from "ejs";
+import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
-function getRenderedTemplate<T>({
+function getRenderedTemplate<T extends object & { markdown: string }>({
   template,
   data,
 }: {
@@ -8,10 +9,26 @@ function getRenderedTemplate<T>({
   data: T;
 }) {
   let rendered = "";
-  ejs.renderFile(`./views/${template}.ejs`, { data }, {}, function (err, str) {
-    if (err) throw err;
-    rendered = str;
-  });
+  if (
+    template === "markdown" &&
+    "markdown" in data &&
+    typeof data.markdown !== "string"
+  ) {
+    throw new Error(
+      "attempted to render the markdown template, but the data.markdown argument is present or not a string"
+    );
+  }
+
+  ejs.renderFile(
+    `./views/${template}.ejs`,
+    {
+      data: template === "markdown" ? getHTMLFromMarkdown(data.markdown) : data,
+    },
+    (err, str) => {
+      if (err) throw err;
+      rendered = str;
+    }
+  );
 
   return rendered;
 }
