@@ -22,6 +22,12 @@ async function getScreenshot<T>({
 }) {
   const browser = await puppeteer.launch({
     executablePath: process.env.CHROMIUM_BIN || undefined,
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--unhandled-rejections=strict",
+    ],
   });
   const page = await browser.newPage();
 
