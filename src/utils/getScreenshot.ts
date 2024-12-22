@@ -6,7 +6,7 @@ export type ScreenshotSizeOption = {
   height: number;
 };
 
-async function getScreenshot<T>({
+async function getScreenshot<T extends object>({
   template,
   data,
   imagePath,
