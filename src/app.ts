@@ -16,6 +16,9 @@ import logger, { loggingOptions } from "./logger";
 import CallbackBaseDB from "./callbacks/base-db";
 
 function getApp(possibleCallbacks: any[] = []) {
+  if (!possibleCallbacks.length) {
+    throw new Error("no callbacks provided");
+  }
   const app = fastify({ logger: loggingOptions });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
@@ -53,7 +56,7 @@ function getApp(possibleCallbacks: any[] = []) {
   });
 
   app.get("/health", async (req, res) => {
-    return res.status(200);
+    return res.status(200).send("ok");
   });
 
   app.get("/", async (req, res) => {
@@ -77,7 +80,8 @@ function getApp(possibleCallbacks: any[] = []) {
     }
 
     if (typeof imagePath === "string") {
-      return res.type("image/png").send(await fs.readFile(imagePath));
+      const imageBuffer = await fs.readFile(imagePath);
+      return res.type("image/png").send(imageBuffer);
     } else {
       return res.send(imagePath);
     }
