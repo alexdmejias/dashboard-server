@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteer, { LaunchOptions } from "puppeteer";
 import getRenderedTemplate from "./getRenderedTemplate";
 
 export type ScreenshotSizeOption = {
@@ -20,15 +20,20 @@ async function getScreenshot<T extends object>({
   imagePath: string;
   size?: ScreenshotSizeOption;
 }) {
-  const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_BIN || undefined,
+  const puppeteerOptions: LaunchOptions = {
     headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--unhandled-rejections=strict",
     ],
-  });
+  };
+
+  if (process.env.CHROMIUM_BIN) {
+    puppeteerOptions.executablePath = process.env.CHROMIUM_BIN;
+  }
+
+  const browser = await puppeteer.launch(puppeteerOptions);
   const page = await browser.newPage();
 
   page.setViewport(size);
