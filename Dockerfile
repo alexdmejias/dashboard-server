@@ -49,8 +49,6 @@ RUN npm install
 
 COPY . .
 
-RUN npx playwright install --with-deps
-
 RUN npm run build
 
 CMD [ "node", "dist/index.js" ]
