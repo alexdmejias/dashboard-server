@@ -1,19 +1,19 @@
-import * as dotenv from "dotenv";
-dotenv.config();
-import "./instrument";
 import * as Sentry from "@sentry/node";
+import * as dotenv from "dotenv";
+import "./instrument";
+dotenv.config();
 
-import fs from "node:fs/promises";
-import { resolve } from "node:path";
-import fastify, { errorCodes, FastifyReply } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
+import fastify, { FastifyReply } from "fastify";
+import fs from "node:fs/promises";
+import { resolve } from "node:path";
 import { CallbackMessage } from "./callbacks";
-import StateMachine from "./stateMachine";
 import CallbackBase, { RenderResponse } from "./callbacks/base";
-import { SupportedViewTypes } from "./types";
-import logger, { loggingOptions } from "./logger";
 import CallbackBaseDB from "./callbacks/base-db";
+import logger, { loggingOptions } from "./logger";
+import StateMachine from "./stateMachine";
+import { SupportedViewTypes } from "./types";
 import { isSupportedViewTypes } from "./utils/isSupportedViewTypes";
 
 function getApp(possibleCallbacks: any[] = []) {
