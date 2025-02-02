@@ -19,6 +19,24 @@ export type CallbackConstructor = {
   envVariablesNeeded?: string[];
 };
 
+export type RenderResponse =
+  | {
+      viewType: "png";
+      imagePath: string;
+    }
+  | {
+      viewType: "html";
+      html: string;
+    }
+  | {
+      viewType: "error";
+      error: TemplateDataError;
+    }
+  | {
+      viewType: string;
+      data: unknown;
+    };
+
 abstract class CallbackBase<TemplateData extends object = object> {
   name: string;
   template: string;
@@ -79,8 +97,9 @@ abstract class CallbackBase<TemplateData extends object = object> {
     return true;
   }
 
-  async render(viewType: SupportedViewTypes) {
-    this.logger.info(`rendering: ${this.name}`);
+  async render(viewType: SupportedViewTypes): Promise<RenderResponse> {
+    // TODO validate viewType
+    this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     const data = await this.getData();
 
@@ -97,23 +116,43 @@ abstract class CallbackBase<TemplateData extends object = object> {
           `${this.name}-${newDataCache}.png`
         );
         if (newDataCache === this.oldDataCache) {
-          return screenshotPath;
+          return {
+            viewType,
+            imagePath: screenshotPath,
+          };
         } else {
           this.oldDataCache = newDataCache;
-          return this.#renderAsPNG(data, screenshotPath, templateOverride);
+          return {
+            viewType,
+            imagePath: await this.#renderAsPNG(
+              data,
+              screenshotPath,
+              templateOverride
+            ),
+          };
         }
       } else {
         const screenshotPath = getImagesPath();
-        return this.#renderAsPNG(data, screenshotPath, templateOverride);
+        return {
+          viewType,
+          imagePath: await this.#renderAsPNG(
+            data,
+            screenshotPath,
+            templateOverride
+          ),
+        };
       }
     }
 
     if (viewType === "html") {
       // TODO should also implement a caching strategy?
-      return this.#renderAsHTML(data, templateOverride);
+      return {
+        viewType,
+        html: this.#renderAsHTML(data, templateOverride),
+      };
     }
 
-    return data;
+    return { viewType, data };
   }
 
   async #renderAsPNG(

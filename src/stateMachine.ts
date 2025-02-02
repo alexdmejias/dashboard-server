@@ -131,13 +131,13 @@ class StateMachine {
     ];
   }
 
-  async tick() {
+  async tick(viewType: SupportedViewTypes) {
     const selectedInstance =
       this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
     logger.trace("tick");
 
     // try {
-    return selectedInstance.render("png");
+    return selectedInstance.render(viewType);
     // } catch (e) {
     //   // TODO should render error instance
     //   return selectedInstance.render("png", e);

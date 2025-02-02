@@ -5,15 +5,16 @@ import * as Sentry from "@sentry/node";
 
 import fs from "node:fs/promises";
 import { resolve } from "node:path";
-import fastify, { errorCodes } from "fastify";
+import fastify, { errorCodes, FastifyReply } from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
 import { CallbackMessage } from "./callbacks";
 import StateMachine from "./stateMachine";
-import CallbackBase from "./callbacks/base";
+import CallbackBase, { RenderResponse } from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
 import logger, { loggingOptions } from "./logger";
 import CallbackBaseDB from "./callbacks/base-db";
+import { isSupportedViewTypes } from "./utils/isSupportedViewTypes";
 
 function getApp(possibleCallbacks: any[] = []) {
   if (!possibleCallbacks.length) {
@@ -27,7 +28,7 @@ function getApp(possibleCallbacks: any[] = []) {
 
   const messageHandler = new CallbackMessage();
 
-  app.decorate("stateMachine", new StateMachine());
+  app.decorate("clients", {});
 
   app.register(fastifyStatic, {
     root: resolve("./public"),
@@ -40,111 +41,150 @@ function getApp(possibleCallbacks: any[] = []) {
     },
   });
 
-  app.addHook("onReady", async () => {
-    const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
-    possibleCallbacks.forEach((callback) => {
-      try {
-        const ins = new callback();
-        validCallbacks.push(ins);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error(e);
-        }
-      }
-    });
-    await app.stateMachine.addCallbacks(validCallbacks);
-  });
-
   app.get("/health", async (req, res) => {
     return res.status(200).send("ok");
   });
 
-  app.get("/", async (req, res) => {
-    const state = app.stateMachine.getConfig();
-    logger.error(`config.status: ${state.status}`);
+  app.get<{
+    Params: {
+      clientName: string;
+    };
+  }>("/register/:clientName", async (req, res) => {
+    const { clientName } = req.params;
+    let client = app.clients[clientName];
+    if (!client) {
+      app.clients[clientName] = new StateMachine();
+      client = app.clients[clientName];
+      logger.info(`created new client: ${clientName}`);
 
-    let imagePath;
-    if (state.status === "message") {
-      // TODO this should part of the message class
-      if (state.message) {
-        imagePath = await messageHandler.render("png");
-      } else {
-        logger.error(
-          "tried to render a message but a message has not been set"
-        );
-      }
+      const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
+      possibleCallbacks.forEach((callback) => {
+        try {
+          const ins = new callback();
+          validCallbacks.push(ins);
+        } catch (e) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error(e);
+          }
+        }
+      });
+
+      await client.addCallbacks(validCallbacks);
     } else {
-      imagePath = await app.stateMachine.tick();
-
-      app.stateMachine.advanceCallbackIndex();
+      logger.info(`retrieved existing client: ${clientName}`);
     }
 
-    if (typeof imagePath === "string") {
-      const imageBuffer = await fs.readFile(imagePath);
-      return res.type("image/png").send(imageBuffer);
-    } else {
-      return res.send(imagePath);
-    }
+    return res.status(200).send("ok");
   });
-
-  type TestParams = {
-    name: string;
-    viewType: SupportedViewTypes;
-  };
 
   app.get<{
-    Params: TestParams;
-    Querystring: Record<string, string | undefined>;
-  }>("/test/:name/:viewType?", async (req, res) => {
-    const { name, viewType = "json" } = req.params;
-    const { message = "" } = req.query;
+    Params: {
+      clientName: string;
+      viewType: SupportedViewTypes;
+    };
+  }>("/display/:clientName/:viewType", async (req, res) => {
+    const { clientName, viewType } = req.params;
 
-    let callback: CallbackBase | undefined;
-
-    if (app.stateMachine.hasCallback(name)) {
-      callback = app.stateMachine.getCallbackInstance(name);
-    } else if (name === "message") {
-      messageHandler.setMessage(
-        message ||
-          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
-      );
-
-      callback = messageHandler;
+    if (!isSupportedViewTypes(viewType)) {
+      logger.error(`viewType not supported: ${viewType}`);
+      return res.status(500).send({
+        error: `viewType not supported: ${viewType}`,
+      });
     }
 
-    if (!callback) {
-      const errorMessage = `"${name}" callback has not been added to the test route, available callbacks are ${Object.keys(
-        app.stateMachine.callbacks
-      )}`;
+    // INFO hack to accomodate inkplate limitations
+    const viewTypeToUse =
+      (viewType as unknown) === "png.png" ? "png" : viewType;
 
-      const output = await app.stateMachine.renderError(errorMessage, viewType);
-      if (viewType === "html") {
-        return fs.readFile(output as string);
-      } else if (viewType === "png") {
-        return res.type("image/png").send(await fs.readFile(output as string));
-      } else {
-        return res.send(errorMessage);
-      }
-    }
-
-    const renderResult = await callback.render(viewType);
-
-    if (viewType === "png" && typeof renderResult === "string") {
-      return res.type("image/png").send(await fs.readFile(renderResult));
-    } else if (viewType === "html") {
-      return res.type("text/html").send(renderResult);
+    const client = app.clients[clientName];
+    if (!client) {
+      logger.error("client not found");
+      return res.status(401).send("client not found");
     } else {
-      return res.send(renderResult);
+      logger.info(`retrieved existing client: ${clientName}`);
     }
+
+    const data = await client.tick(viewTypeToUse);
+    client.advanceCallbackIndex();
+
+    logger.info(
+      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse}`
+    );
+    return getResponseFromData(res, data);
   });
 
-  // app.get("/control", (req, res) => {
-  //   res.view("./views/control.html");
+  function getClient(clientName: string): StateMachine {
+    return app.clients[clientName];
+  }
+
+  async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
+    if (data.viewType === "png" && "imagePath" in data) {
+      return res.type("image/png").send(await fs.readFile(data.imagePath));
+    } else if (data.viewType === "html" && "html" in data) {
+      return res.type("text/html").send(data.html);
+    } else {
+      return res.send(data);
+    }
+  }
+
+  // type TestParams = {
+  //   name: string;
+  //   viewType: SupportedViewTypes;
+  // };
+
+  // app.get<{
+  //   Params: TestParams;
+  //   Querystring: Record<string, string | undefined>;
+  // }>("/test/:name/:viewType?", async (req, res) => {
+  //   const { name, viewType = "json" } = req.params;
+  //   const { message = "" } = req.query;
+
+  //   let callback: CallbackBase | undefined;
+
+  //   if (app.stateMachine.hasCallback(name)) {
+  //     callback = app.stateMachine.getCallbackInstance(name);
+  //   } else if (name === "message") {
+  //     messageHandler.setMessage(
+  //       message ||
+  //         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
+  //     );
+
+  //     callback = messageHandler;
+  //   }
+
+  //   if (!callback) {
+  //     const errorMessage = `"${name}" callback has not been added to the test route, available callbacks are ${Object.keys(
+  //       app.stateMachine.callbacks
+  //     )}`;
+
+  //     const output = await app.stateMachine.renderError(errorMessage, viewType);
+  //     if (viewType === "html") {
+  //       return fs.readFile(output as string);
+  //     } else if (viewType === "png") {
+  //       return res.type("image/png").send(await fs.readFile(output as string));
+  //     } else {
+  //       return res.send(errorMessage);
+  //     }
+  //   }
+
+  //   const renderResult = await callback.render(viewType);
+
+  //   if (viewType === "png" && typeof renderResult === "string") {
+  //     return res.type("image/png").send(await fs.readFile(renderResult));
+  //   } else if (viewType === "html") {
+  //     return res.type("text/html").send(renderResult);
+  //   } else {
+  //     return res.send(renderResult);
+  //   }
   // });
 
-  // app.get("/config", (req, res) => {
-  //   res.send(app.stateMachine.getConfig());
-  // });
+  app.get("/api/clients", (req, res) => {
+    res.send({
+      data: {
+        clients: Object.keys(app.clients),
+      },
+    });
+  });
 
   // // app.post<{ Body: Config["rotation"] }>("/set-rotation", (req, res) => {
   // //   try {

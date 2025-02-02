@@ -21,6 +21,6 @@ export * from "./weather-api";
 
 declare module "fastify" {
   interface FastifyInstance {
-    stateMachine: StateMachine;
+    clients: Record<string, StateMachine>;
   }
 }
