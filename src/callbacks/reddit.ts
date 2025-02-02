@@ -6,6 +6,8 @@ import logger from "../logger";
 type RedditPost = { title: string }[];
 
 class CallbackReddit extends CallbackBase<RedditPost> {
+  private authData: Record<string, string> = {};
+
   constructor() {
     super({
       name: "reddit",
@@ -55,12 +57,16 @@ class CallbackReddit extends CallbackBase<RedditPost> {
       throw new Error(json.error);
     }
 
+    this.authData = json;
+
     return json;
   }
 
   async getData() {
     try {
-      const authJSON = await this.auth();
+      if (!this.authData.access_token) {
+        await this.auth();
+      }
       const subreddit = process.env.REDDIT_SUBREDDIT;
       const qty = process.env.REDDIT_POST_QTY;
 
@@ -72,7 +78,7 @@ class CallbackReddit extends CallbackBase<RedditPost> {
         `https://oauth.reddit.com/r/${subreddit}/new?limit=${qty}`,
         {
           headers: {
-            Authorization: `bearer ${authJSON.access_token}`,
+            Authorization: `bearer ${this.authData.access_token}`,
           },
         }
       );
