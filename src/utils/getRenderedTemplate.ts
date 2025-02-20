@@ -1,36 +1,37 @@
 import ejs from "ejs";
 import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
-function getRenderedTemplate<T extends object & { markdown: string }>({
+async function getRenderedTemplate<T extends object = object>({
   template,
   data,
 }: {
   template: string;
   data: T;
 }) {
-  let rendered = "";
-  if (
-    template === "markdown" &&
-    "markdown" in data &&
-    typeof data.markdown !== "string"
-  ) {
-    throw new Error(
-      "attempted to render the markdown template, but the data.markdown argument is present or not a string"
-    );
+  if (template === "markdown") {
+    if (!("markdown" in data)) {
+      throw new Error("does not include markdown key");
+    }
+
+    if (typeof data.markdown !== "string") {
+      throw new Error("markdown key is not a string");
+    }
   }
 
-  ejs.renderFile(
+  return ejs.renderFile(
     `./views/${template}.ejs`,
     {
-      data: template === "markdown" ? getHTMLFromMarkdown(data.markdown) : data,
+      data:
+        template === "markdown" &&
+        "markdown" in data &&
+        typeof data.markdown === "string"
+          ? getHTMLFromMarkdown(data.markdown)
+          : data,
     },
-    (err, str) => {
-      if (err) throw err;
-      rendered = str;
+    {
+      async: true,
     }
   );
-
-  return rendered;
 }
 
 export default getRenderedTemplate;

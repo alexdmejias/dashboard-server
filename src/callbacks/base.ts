@@ -131,7 +131,10 @@ abstract class CallbackBase<TemplateData extends object = object> {
     return screenshot.path;
   }
 
-  #renderAsHTML(data: TemplateDataError | TemplateData, template?: string) {
+  async #renderAsHTML(
+    data: TemplateDataError | TemplateData,
+    template?: string
+  ) {
     return getRenderedTemplate({
       template: template ? template : this.template,
       data,

@@ -7,6 +7,7 @@ import CallbackWord from "./word";
 import CallbackOnThisDay from "./on-this-day";
 import CallbackWeather from "./weather";
 import CallbackFact from "./fact";
+import CallbackTodoist from "./todoist";
 
 export {
   CallbackReddit,
@@ -18,4 +19,5 @@ export {
   CallbackOnThisDay,
   CallbackWeather,
   CallbackFact,
+  CallbackTodoist,
 };

@@ -6,7 +6,7 @@ export type ScreenshotSizeOption = {
   height: number;
 };
 
-async function getScreenshot<T>({
+async function getScreenshot<T extends object = object>({
   template,
   data,
   imagePath,
@@ -33,7 +33,7 @@ async function getScreenshot<T>({
 
   page.setViewport(size);
 
-  const renderedTemplate = getRenderedTemplate({ template, data });
+  const renderedTemplate = await getRenderedTemplate({ template, data });
 
   await page.setContent(renderedTemplate);
 

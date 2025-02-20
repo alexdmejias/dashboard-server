@@ -24,6 +24,7 @@ import CallbackBase from "./callbacks/base";
 import { SupportedViewTypes } from "./types";
 import logger, { loggingOptions } from "./logger";
 import CallbackBaseDB from "./callbacks/base-db";
+import MarkdownTest from "./callbacks/markdown";
 
 const app = fastify({ logger: loggingOptions });
 
