@@ -1,0 +1,18 @@
+meta {
+  name: config
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/clients/inkplate/config
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "optionName":"wasd",
+    "optionValue": 1337
+  }
+}
