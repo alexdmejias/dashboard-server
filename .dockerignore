@@ -5,3 +5,4 @@ jest.config.js
 .vscode
 .dockerignore
 .DS_STORE
+bruno-collection
