@@ -21,7 +21,7 @@ export type CallbackConstructor = {
 
 export type RenderResponse =
   | {
-      viewType: "png";
+      viewType: "png" | "bmp";
       imagePath: string;
     }
   | {
@@ -109,11 +109,11 @@ abstract class CallbackBase<TemplateData extends object = object> {
       templateOverride = "error";
     }
 
-    if (viewType === "png") {
+    if (viewType === "png" || viewType === "bmp") {
       if (this.cacheable && templateOverride !== "error") {
         const newDataCache = objectHash(data);
         const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.png`
+          `${this.name}-${newDataCache}.${viewType}`
         );
         if (newDataCache === this.oldDataCache) {
           return {
@@ -124,22 +124,24 @@ abstract class CallbackBase<TemplateData extends object = object> {
           this.oldDataCache = newDataCache;
           return {
             viewType,
-            imagePath: await this.#renderAsPNG(
+            imagePath: await this.#renderAsImage({
+              viewType,
               data,
-              screenshotPath,
-              templateOverride
-            ),
+              imagePath: screenshotPath,
+              templateOverride,
+            }),
           };
         }
       } else {
-        const screenshotPath = getImagesPath();
+        const screenshotPath = getImagesPath(`image.${viewType}`);
         return {
           viewType,
-          imagePath: await this.#renderAsPNG(
+          imagePath: await this.#renderAsImage({
+            viewType,
             data,
-            screenshotPath,
-            templateOverride
-          ),
+            imagePath: screenshotPath,
+            templateOverride,
+          }),
         };
       }
     }
@@ -155,16 +157,23 @@ abstract class CallbackBase<TemplateData extends object = object> {
     return { viewType, data };
   }
 
-  async #renderAsPNG(
-    data: TemplateDataError | TemplateData,
-    imagePath: string,
-    template?: string
-  ): Promise<string> {
+  async #renderAsImage({
+    viewType,
+    data,
+    imagePath,
+    templateOverride,
+  }: {
+    viewType: SupportedViewTypes;
+    data: TemplateDataError | TemplateData;
+    imagePath: string;
+    templateOverride?: string;
+  }): Promise<string> {
     const screenshot = await getScreenshot({
       data,
-      template: template ? template : this.template,
+      template: templateOverride ? templateOverride : this.template,
       size: this.screenshotSize,
       imagePath,
+      viewType,
     });
 
     return screenshot.path;

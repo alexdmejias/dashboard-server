@@ -1,5 +1,7 @@
 import puppeteer, { LaunchOptions } from "puppeteer";
+import { Jimp } from "jimp";
 import getRenderedTemplate from "./getRenderedTemplate";
+import { readFile } from "node:fs/promises";
 
 export type ScreenshotSizeOption = {
   width: number;
@@ -10,6 +12,7 @@ async function getScreenshot<T extends object>({
   template,
   data,
   imagePath,
+  viewType,
   size = {
     width: 1200,
     height: 825,
@@ -18,6 +21,7 @@ async function getScreenshot<T extends object>({
   template: string;
   data: T;
   imagePath: string;
+  viewType: string;
   size?: ScreenshotSizeOption;
 }) {
   const puppeteerOptions: LaunchOptions = {
@@ -45,6 +49,14 @@ async function getScreenshot<T extends object>({
   const buffer = await page.screenshot({ path: imagePath });
 
   await browser.close();
+
+  if (viewType === "bmp") {
+    const imageBuffer = await readFile(imagePath);
+    const image = await Jimp.fromBuffer(imageBuffer, {
+      "image/png": {},
+    });
+    await image.write(imagePath as `{string}.{string}`);
+  }
 
   return { path: imagePath, buffer };
 }

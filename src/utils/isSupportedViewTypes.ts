@@ -1,8 +1,8 @@
-import { SupportedViewTypes } from "../types";
+import { supportedViewTypes, SupportedViewTypes } from "../types";
 
 export function isSupportedViewTypes(
-  viewType: string
+  viewType: SupportedViewTypes
 ): viewType is SupportedViewTypes {
   // TODO should use something like ZOD to validate this
-  return ["html", "json", "png"].includes(viewType);
+  return supportedViewTypes.includes(viewType);
 }

@@ -1,6 +1,8 @@
 import StateMachine from "../stateMachine";
 
-export type SupportedViewTypes = "html" | "json" | "png";
+export const supportedViewTypes = ["html", "json", "png", "bmp"] as const;
+export type SupportedViewTypes = (typeof supportedViewTypes)[number];
+
 export type SupportedDBCallbacks = "jokes" | "words" | "facts" | "quotes";
 
 export type TemplateDataError = {
