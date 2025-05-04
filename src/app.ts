@@ -13,8 +13,8 @@ import CallbackBase, { RenderResponse } from "./callbacks/base";
 import CallbackBaseDB from "./callbacks/base-db";
 import logger, { loggingOptions } from "./logger";
 import StateMachine from "./stateMachine";
-import { SupportedViewTypes } from "./types";
-import { isSupportedViewTypes } from "./utils/isSupportedViewTypes";
+import { SupportedViewType } from "./types";
+import { isSupportedViewType } from "./utils/isSupportedViewTypes";
 
 function getApp(possibleCallbacks: any[] = []) {
   if (!possibleCallbacks.length) {
@@ -80,12 +80,12 @@ function getApp(possibleCallbacks: any[] = []) {
   app.get<{
     Params: {
       clientName: string;
-      viewType: SupportedViewTypes;
+      viewType: SupportedViewType;
     };
   }>("/display/:clientName/:viewType", async (req, res) => {
     const { clientName, viewType } = req.params;
 
-    if (!isSupportedViewTypes(viewType)) {
+    if (!isSupportedViewType(viewType)) {
       logger.error(`viewType not supported: ${viewType}`);
       return res.status(500).send({
         error: `viewType not supported: ${viewType}`,

@@ -1,8 +1,18 @@
-import { supportedViewTypes, SupportedViewTypes } from "../types";
+import {
+  supportedViewTypes,
+  SupportedViewType,
+  supportedImageViewTypes,
+  SupportedImageViewType,
+} from "../types";
 
-export function isSupportedViewTypes(
-  viewType: SupportedViewTypes
-): viewType is SupportedViewTypes {
-  // TODO should use something like ZOD to validate this
+export function isSupportedImageViewType(
+  viewType: string
+): viewType is SupportedImageViewType {
+  return (supportedImageViewTypes as readonly string[]).includes(viewType);
+}
+
+export function isSupportedViewType(
+  viewType: SupportedViewType
+): viewType is SupportedViewType {
   return supportedViewTypes.includes(viewType);
 }

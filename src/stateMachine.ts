@@ -2,7 +2,7 @@ import { CallbackMessage } from "./callbacks";
 import CallbackBase from "./callbacks/base";
 import CallbackBaseDB from "./callbacks/base-db";
 import logger from "./logger";
-import { SupportedViewTypes } from "./types";
+import { SupportedViewType } from "./types";
 
 // type ConfigPlay = {
 //   status: "play";
@@ -131,7 +131,7 @@ class StateMachine {
     ];
   }
 
-  async tick(viewType: SupportedViewTypes) {
+  async tick(viewType: SupportedViewType) {
     const selectedInstance =
       this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
     logger.trace("tick");
@@ -168,7 +168,7 @@ class StateMachine {
     }
   }
 
-  renderError(errorMessage: string, viewType: SupportedViewTypes) {
+  renderError(errorMessage: string, viewType: SupportedViewType) {
     const cb = new CallbackMessage();
     cb.setMessage(errorMessage);
     return cb.render(viewType);

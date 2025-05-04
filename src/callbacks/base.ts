@@ -2,13 +2,15 @@ import getScreenshot, { ScreenshotSizeOption } from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import {
   PossibleTemplateData,
-  SupportedViewTypes,
+  SupportedViewType,
   TemplateDataError,
+  SupportedImageViewType,
 } from "../types";
 import { Logger } from "pino";
 import logger from "../logger";
 import objectHash from "object-hash";
 import { getImagesPath } from "../utils/imagesPath";
+import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 
 export type CallbackConstructor = {
   name: string;
@@ -97,7 +99,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
     return true;
   }
 
-  async render(viewType: SupportedViewTypes): Promise<RenderResponse> {
+  async render(viewType: SupportedViewType): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
@@ -109,7 +111,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
       templateOverride = "error";
     }
 
-    if (viewType === "png" || viewType === "bmp") {
+    if (isSupportedImageViewType(viewType)) {
       if (this.cacheable && templateOverride !== "error") {
         const newDataCache = objectHash(data);
         const screenshotPath = getImagesPath(
@@ -163,7 +165,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
     imagePath,
     templateOverride,
   }: {
-    viewType: SupportedViewTypes;
+    viewType: SupportedImageViewType;
     data: TemplateDataError | TemplateData;
     imagePath: string;
     templateOverride?: string;
