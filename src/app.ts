@@ -14,13 +14,28 @@ import CallbackBaseDB from "./callbacks/base-db";
 import logger, { loggingOptions } from "./logger";
 import StateMachine from "./stateMachine";
 import { SupportedViewType } from "./types";
-import { isSupportedViewType } from "./utils/isSupportedViewTypes";
+import {
+  isSupportedImageViewType,
+  isSupportedViewType,
+} from "./utils/isSupportedViewTypes";
+
+export const serverMessages = {
+  healthGood: "ok",
+  duplicateClientName: (clientName: string) =>
+    `client already exists: ${clientName}`,
+  clientNotFound: (clientName: string) => `client not found: ${clientName}`,
+  viewTypeNotSupported: (viewType: string) =>
+    `viewType not supported: ${viewType}`,
+} as const;
 
 function getApp(possibleCallbacks: any[] = []) {
   if (!possibleCallbacks.length) {
     throw new Error("no callbacks provided");
   }
-  const app = fastify({ logger: loggingOptions });
+
+  const app = fastify({
+    logger: process.env.NODE_ENV === "test" ? undefined : loggingOptions,
+  });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
     Sentry.setupFastifyErrorHandler(app);
@@ -29,6 +44,10 @@ function getApp(possibleCallbacks: any[] = []) {
   const messageHandler = new CallbackMessage();
 
   app.decorate("clients", {});
+
+  function getClient(clientName: string): StateMachine | undefined {
+    return app.clients[clientName];
+  }
 
   app.register(fastifyStatic, {
     root: resolve("./public"),
@@ -42,7 +61,7 @@ function getApp(possibleCallbacks: any[] = []) {
   });
 
   app.get("/health", async (req, res) => {
-    return res.status(200).send("ok");
+    return res.status(200).send(serverMessages.healthGood);
   });
 
   app.get<{
@@ -51,11 +70,11 @@ function getApp(possibleCallbacks: any[] = []) {
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
-    let client = app.clients[clientName];
+    let client = getClient(clientName);
     if (!client) {
       app.clients[clientName] = new StateMachine();
       client = app.clients[clientName];
-      logger.info(`created new client: ${clientName}`);
+      app.log.info(`created new client: ${clientName}`);
 
       const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
       possibleCallbacks.forEach((callback) => {
@@ -71,10 +90,13 @@ function getApp(possibleCallbacks: any[] = []) {
 
       await client.addCallbacks(validCallbacks);
     } else {
-      logger.info(`retrieved existing client: ${clientName}`);
+      app.log.info(`client already exists: ${clientName}`);
+      return res.status(500).send({
+        error: serverMessages.duplicateClientName(clientName),
+      });
     }
 
-    return res.status(200).send("ok");
+    return res.status(200).send(serverMessages.healthGood);
   });
 
   app.get<{
@@ -86,40 +108,38 @@ function getApp(possibleCallbacks: any[] = []) {
     const { clientName, viewType } = req.params;
 
     if (!isSupportedViewType(viewType)) {
-      logger.error(`viewType not supported: ${viewType}`);
-      return res.status(500).send({
-        error: `viewType not supported: ${viewType}`,
-      });
+      app.log.error(`viewType not supported: ${viewType}`);
+      return res
+        .status(500)
+        .send({ error: serverMessages.viewTypeNotSupported(viewType) });
     }
 
-    // INFO hack to accomodate inkplate limitations
+    // INFO hack to accomodate inkplate limitations with response having to have a .png extension
     const viewTypeToUse =
       (viewType as unknown) === "png.png" ? "png" : viewType;
 
-    const client = app.clients[clientName];
+    const client = getClient(clientName);
     if (!client) {
-      logger.error("client not found");
-      return res.status(401).send("client not found");
+      app.log.error("client not found");
+      return res.status(404).send(serverMessages.clientNotFound(clientName));
     } else {
-      logger.info(`retrieved existing client: ${clientName}`);
+      app.log.info(`retrieved existing client: ${clientName}`);
     }
 
     const data = await client.tick(viewTypeToUse);
     client.advanceCallbackIndex();
 
-    logger.info(
+    app.log.info(
       `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse}`
     );
     return getResponseFromData(res, data);
   });
 
-  function getClient(clientName: string): StateMachine {
-    return app.clients[clientName];
-  }
-
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
-    if (data.viewType === "png" && "imagePath" in data) {
-      return res.type("image/png").send(await fs.readFile(data.imagePath));
+    if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
+      return res
+        .type(`image/${data.viewType}`)
+        .send(await fs.readFile(data.imagePath));
     } else if (data.viewType === "html" && "html" in data) {
       return res.type("text/html").send(data.html);
     } else {

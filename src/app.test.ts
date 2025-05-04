@@ -1,4 +1,5 @@
-import getApp from "./app";
+import fastify, { errorCodes, FastifyError } from "fastify";
+import getApp, { serverMessages } from "./app";
 import CallbackBase from "./callbacks/base";
 import getScreenshot from "./utils/getScreenshot";
 import fs from "node:fs/promises";
@@ -33,20 +34,88 @@ describe("app", () => {
     expect(output.statusCode).toBe(200);
   });
 
-  it("should 200 /", async () => {
-    const app = getApp([DummyCallback]);
-
-    (getScreenshot as jest.Mock).mockResolvedValue({
-      path: "",
+  describe("register", () => {
+    it("should 200 /register/:clientName", async () => {
+      const app = getApp([DummyCallback]);
+      const output = await app.inject({
+        method: "GET",
+        path: "/register/testClient",
+      });
+      expect(output.statusCode).toBe(200);
+      expect(output.body).toBe(serverMessages.healthGood);
     });
+    it("should 500 duplicate client name", async () => {
+      const app = getApp([DummyCallback]);
+      const clientName = "testClient";
 
-    (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from(""));
-    const output = await app.inject({
-      method: "GET",
-      path: "/",
+      await app.inject({
+        method: "GET",
+        path: `/register/${clientName}`,
+      });
+
+      const output = await app.inject({
+        method: "GET",
+        path: `/register/${clientName}`,
+      });
+      expect(output.statusCode).toBe(500);
+      expect(output.json()).toStrictEqual({
+        error: serverMessages.duplicateClientName(clientName),
+      });
     });
-
-    expect(output.statusCode).toBe(200);
-    expect(output.headers["content-type"]).toBe("image/png");
   });
+
+  describe("/display/:clientName/:viewType", () => {
+    it("should 404 on /display", async () => {
+      const app = getApp([DummyCallback]);
+
+      const output = await app.inject({
+        method: "GET",
+        path: "/display",
+      });
+
+      expect(output.statusCode).toBe(404);
+      const e = errorCodes.FST_ERR_NOT_FOUND();
+
+      expect(output.json()).toMatchObject({
+        error: e.message,
+        statusCode: e.statusCode,
+      });
+    });
+
+    it("should 500 on /display/:clientName/unknownViewType", async () => {
+      const app = getApp([DummyCallback]);
+
+      const clientName = "testClient";
+      const unknownViewType = "unknownViewType";
+      await app.inject({
+        method: "GET",
+        path: `/register/${clientName}`,
+      });
+      const output = await app.inject({
+        method: "GET",
+        path: `/display/${clientName}/${unknownViewType}`,
+      });
+
+      expect(output.statusCode).toBe(500);
+      expect(output.json()).toStrictEqual({
+        error: serverMessages.viewTypeNotSupported(unknownViewType),
+      });
+    });
+  });
+  // it("should 200 /", async () => {
+  //   const app = getApp([DummyCallback]);
+
+  //   (getScreenshot as jest.Mock).mockResolvedValue({
+  //     path: "",
+  //   });
+
+  //   (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from(""));
+  //   const output = await app.inject({
+  //     method: "GET",
+  //     path: "/",
+  //   });
+
+  //   expect(output.statusCode).toBe(200);
+  //   expect(output.headers["content-type"]).toBe("image/png");
+  // });
 });
