@@ -1,10 +1,11 @@
-import getScreenshot, { ScreenshotSizeOption } from "../utils/getScreenshot";
+import getScreenshot from "../utils/getScreenshot";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import {
   PossibleTemplateData,
   SupportedViewType,
   TemplateDataError,
   SupportedImageViewType,
+  ScreenshotSizeOption,
 } from "../types";
 import { Logger } from "pino";
 import logger from "../logger";

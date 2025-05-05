@@ -2,11 +2,7 @@ import puppeteer, { LaunchOptions } from "puppeteer";
 import { Jimp } from "jimp";
 import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
-
-export type ScreenshotSizeOption = {
-  width: number;
-  height: number;
-};
+import { ScreenshotSizeOption } from "../types";
 
 async function getScreenshot<T extends object>({
   template,
