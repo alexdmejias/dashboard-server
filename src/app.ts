@@ -5,6 +5,7 @@ dotenv.config();
 
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
+import fastifySensible from "@fastify/sensible";
 import fastify, { FastifyReply } from "fastify";
 import fs from "node:fs/promises";
 import { resolve } from "node:path";
@@ -21,6 +22,7 @@ import {
 
 export const serverMessages = {
   healthGood: "ok",
+  createdClient: (clientName: string) => `created new client: ${clientName}`,
   duplicateClientName: (clientName: string) =>
     `client already exists: ${clientName}`,
   clientNotFound: (clientName: string) => `client not found: ${clientName}`,
@@ -49,6 +51,34 @@ function getApp(possibleCallbacks: any[] = []) {
     return app.clients[clientName];
   }
 
+  async function registerClient(clientName: string) {
+    app.log.info(`registering client: ${clientName}`);
+    app.clients[clientName] = new StateMachine();
+    const client = app.clients[clientName];
+    app.log.info(`created new client: ${clientName}`);
+
+    const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
+    possibleCallbacks.forEach((callback) => {
+      try {
+        const ins = new callback();
+        validCallbacks.push(ins);
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error(e);
+        }
+      }
+    });
+
+    await client.addCallbacks(validCallbacks);
+  }
+
+  app.addHook("onListen", async () => {
+    app.log.info("app is ready");
+    // await app.stateMachine.start();
+    await registerClient("inkplate");
+  });
+
+  app.register(fastifySensible);
   app.register(fastifyStatic, {
     root: resolve("./public"),
     prefix: "/public/",
@@ -61,7 +91,7 @@ function getApp(possibleCallbacks: any[] = []) {
   });
 
   app.get("/health", async (req, res) => {
-    return res.status(200).send(serverMessages.healthGood);
+    return res.send({ statusCode: 200, message: serverMessages.healthGood });
   });
 
   app.get<{
@@ -70,33 +100,19 @@ function getApp(possibleCallbacks: any[] = []) {
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
-    let client = getClient(clientName);
+    const client = getClient(clientName);
     if (!client) {
-      app.clients[clientName] = new StateMachine();
-      client = app.clients[clientName];
-      app.log.info(`created new client: ${clientName}`);
-
-      const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
-      possibleCallbacks.forEach((callback) => {
-        try {
-          const ins = new callback();
-          validCallbacks.push(ins);
-        } catch (e) {
-          if (process.env.NODE_ENV !== "production") {
-            console.error(e);
-          }
-        }
-      });
-
-      await client.addCallbacks(validCallbacks);
-    } else {
-      app.log.info(`client already exists: ${clientName}`);
-      return res.status(500).send({
-        error: serverMessages.duplicateClientName(clientName),
-      });
+      await registerClient(clientName);
+      return {
+        statusCode: 200,
+        message: serverMessages.createdClient(clientName),
+      };
     }
 
-    return res.status(200).send(serverMessages.healthGood);
+    app.log.info(`client already exists: ${clientName}`);
+    return res.internalServerError(
+      serverMessages.duplicateClientName(clientName)
+    );
   });
 
   app.get<{
@@ -109,9 +125,9 @@ function getApp(possibleCallbacks: any[] = []) {
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
-      return res
-        .status(500)
-        .send({ error: serverMessages.viewTypeNotSupported(viewType) });
+      return res.internalServerError(
+        serverMessages.viewTypeNotSupported(viewType)
+      );
     }
 
     // INFO hack to accomodate inkplate limitations with response having to have a .png extension
@@ -121,7 +137,7 @@ function getApp(possibleCallbacks: any[] = []) {
     const client = getClient(clientName);
     if (!client) {
       app.log.error("client not found");
-      return res.status(404).send(serverMessages.clientNotFound(clientName));
+      return res.notFound(serverMessages.clientNotFound(clientName));
     } else {
       app.log.info(`retrieved existing client: ${clientName}`);
     }
@@ -264,23 +280,24 @@ function getApp(possibleCallbacks: any[] = []) {
   // //   return res.status(200).send("ok");
   // // });
 
-  if (process.env.NODE_ENV === "production") {
-    app.setErrorHandler(function (error, request, reply) {
-      // TODO temp disabling because errorCodes is undefined in raspberry
-      // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-      //   // Log error
-      //   this.log.error(error);
-      //   // Send error response
-      //   reply.status(404).send({ ok: false });
-      // } else {
-      //   // fastify will use parent error handler to handle this
-      //   Sentry.captureException(error);
-      //   reply.send(error);
-      // }
+  app.setErrorHandler(function (error, request, reply) {
+    // TODO temp disabling because errorCodes is undefined in raspberry
+    // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+    //   // Log error
+    //   this.log.error(error);
+    //   // Send error response
+    //   reply.status(404).send({ ok: false });
+    // } else {
+    //   // fastify will use parent error handler to handle this
+    //   Sentry.captureException(error);
+    //   reply.send(error);
+    // }
+    if (process.env.NODE_ENV === "production") {
       Sentry.captureException(error);
-      reply.send(error);
-    });
-  }
+    }
+    // console.log("&&&&&&&&", { error });
+    reply.send(error);
+  });
 
   return app;
 }

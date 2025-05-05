@@ -18,6 +18,16 @@ class DummyCallback extends CallbackBase {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function testServerInternalError(output: any, message: string) {
+  expect(output.statusCode).toBe(500);
+  expect(output.json()).toStrictEqual({
+    error: "Internal Server Error",
+    message,
+    statusCode: 500,
+  });
+}
+
 describe("app", () => {
   it("should throw error if no callbacks provided", async () => {
     expect(() => getApp()).toThrowError("no callbacks provided");
@@ -32,18 +42,27 @@ describe("app", () => {
     });
 
     expect(output.statusCode).toBe(200);
+    expect(output.json()).toStrictEqual({
+      message: serverMessages.healthGood,
+      statusCode: 200,
+    });
   });
 
   describe("register", () => {
     it("should 200 /register/:clientName", async () => {
       const app = getApp([DummyCallback]);
+      const clientName = "testClient";
       const output = await app.inject({
         method: "GET",
-        path: "/register/testClient",
+        path: `/register/${clientName}`,
       });
       expect(output.statusCode).toBe(200);
-      expect(output.body).toBe(serverMessages.healthGood);
+      expect(output.json()).toStrictEqual({
+        statusCode: 200,
+        message: serverMessages.createdClient(clientName),
+      });
     });
+
     it("should 500 duplicate client name", async () => {
       const app = getApp([DummyCallback]);
       const clientName = "testClient";
@@ -57,10 +76,10 @@ describe("app", () => {
         method: "GET",
         path: `/register/${clientName}`,
       });
-      expect(output.statusCode).toBe(500);
-      expect(output.json()).toStrictEqual({
-        error: serverMessages.duplicateClientName(clientName),
-      });
+      testServerInternalError(
+        output,
+        serverMessages.duplicateClientName(clientName)
+      );
     });
   });
 
@@ -73,12 +92,29 @@ describe("app", () => {
         path: "/display",
       });
 
-      expect(output.statusCode).toBe(404);
       const e = errorCodes.FST_ERR_NOT_FOUND();
 
+      expect(output.statusCode).toBe(404);
       expect(output.json()).toMatchObject({
         error: e.message,
         statusCode: e.statusCode,
+      });
+    });
+
+    it("should 404 on /display/notRegistered/png", async () => {
+      const app = getApp([DummyCallback]);
+
+      const clientName = "notRegistered";
+      const output = await app.inject({
+        method: "GET",
+        path: `/display/${clientName}/png`,
+      });
+
+      expect(output.statusCode).toBe(404);
+      expect(output.json()).toStrictEqual({
+        error: "Not Found",
+        statusCode: 404,
+        message: serverMessages.clientNotFound(clientName),
       });
     });
 
@@ -96,10 +132,10 @@ describe("app", () => {
         path: `/display/${clientName}/${unknownViewType}`,
       });
 
-      expect(output.statusCode).toBe(500);
-      expect(output.json()).toStrictEqual({
-        error: serverMessages.viewTypeNotSupported(unknownViewType),
-      });
+      testServerInternalError(
+        output,
+        serverMessages.viewTypeNotSupported(unknownViewType)
+      );
     });
   });
   // it("should 200 /", async () => {
