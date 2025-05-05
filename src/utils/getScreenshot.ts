@@ -48,10 +48,10 @@ async function getScreenshot<T extends object>({
 
   if (viewType === "bmp") {
     const imageBuffer = await readFile(imagePath);
-    const image = await Jimp.fromBuffer(imageBuffer, {
-      "image/png": {},
-    });
+    const image = await Jimp.read(imageBuffer);
+
     await image.write(imagePath as `{string}.{string}`);
+    return { path: imagePath, buffer: image.getBuffer(`image/bmp`) };
   }
 
   return { path: imagePath, buffer };
