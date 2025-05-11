@@ -47,6 +47,25 @@ function getApp(possibleCallbacks: any[] = []) {
 
   app.decorate("clients", {});
 
+  app.decorateReply(
+    "internalServerError",
+    function (this: FastifyReply, message: string) {
+      return this.code(500).send({
+        error: "Internal Server Error",
+        message,
+        statusCode: 500,
+      });
+    }
+  );
+
+  app.decorateReply("notFound", function (this: FastifyReply, message: string) {
+    return this.code(404).send({
+      error: "Not Found",
+      message,
+      statusCode: 404,
+    });
+  });
+
   function getClient(clientName: string): StateMachine | undefined {
     return app.clients[clientName];
   }

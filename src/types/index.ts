@@ -37,4 +37,9 @@ declare module "fastify" {
   interface FastifyInstance {
     clients: Record<string, StateMachine>;
   }
+
+  interface FastifyReply {
+    internalServerError(message: string): FastifyReply;
+    notFound(message: string): FastifyReply;
+  }
 }
