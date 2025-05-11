@@ -5,7 +5,6 @@ dotenv.config();
 
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
-import fastifySensible from "@fastify/sensible";
 import fastify, { FastifyReply } from "fastify";
 import fs from "node:fs/promises";
 import { resolve } from "node:path";

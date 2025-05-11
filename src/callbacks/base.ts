@@ -24,7 +24,7 @@ export type CallbackConstructor = {
 
 export type RenderResponse =
   | {
-      viewType: "png" | "bmp";
+      viewType: SupportedImageViewType;
       imagePath: string;
     }
   | {
@@ -32,12 +32,12 @@ export type RenderResponse =
       html: string;
     }
   | {
-      viewType: "error";
-      error: TemplateDataError;
+      viewType: "json";
+      json: object;
     }
   | {
-      viewType: string;
-      data: unknown;
+      viewType: "error";
+      error: TemplateDataError;
     };
 
 abstract class CallbackBase<TemplateData extends object = object> {
@@ -157,7 +157,7 @@ abstract class CallbackBase<TemplateData extends object = object> {
       };
     }
 
-    return { viewType, data };
+    return { viewType, json: data };
   }
 
   async #renderAsImage({
