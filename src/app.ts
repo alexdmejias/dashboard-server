@@ -27,6 +27,7 @@ export const serverMessages = {
   clientNotFound: (clientName: string) => `client not found: ${clientName}`,
   viewTypeNotSupported: (viewType: string) =>
     `viewType not supported: ${viewType}`,
+  callbackNotFound: (callback: string) => `callback not found: ${callback}`,
 } as const;
 
 function getApp(possibleCallbacks: any[] = []) {
@@ -35,7 +36,7 @@ function getApp(possibleCallbacks: any[] = []) {
   }
 
   const app = fastify({
-    logger: process.env.NODE_ENV === "test" ? undefined : loggingOptions,
+    logger: loggingOptions,
   });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
@@ -90,13 +91,26 @@ function getApp(possibleCallbacks: any[] = []) {
     await client.addCallbacks(validCallbacks);
   }
 
-  app.addHook("onListen", async () => {
-    app.log.info("app is ready");
-    // await app.stateMachine.start();
-    await registerClient("inkplate");
-  });
+  // app.addHook("onListen", async () => {
+  //   app.log.info("app is ready");
+  //   // await app.stateMachine.start();
+  //   await registerClient("inkplate");
+  // });
 
-  app.register(fastifySensible);
+  async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
+    if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
+      return res
+        .type(`image/${data.viewType}`)
+        .send(await fs.readFile(data.imagePath));
+    } else if (data.viewType === "html" && "html" in data) {
+      return res.type("text/html").send(data.html);
+    } else if (data.viewType === "json" && "json" in data) {
+      return res.type("application/json").send(data.json);
+    } else {
+      return res.send(data);
+    }
+  }
+
   app.register(fastifyStatic, {
     root: resolve("./public"),
     prefix: "/public/",
@@ -137,9 +151,10 @@ function getApp(possibleCallbacks: any[] = []) {
     Params: {
       clientName: string;
       viewType: SupportedViewType;
+      callback?: string;
     };
-  }>("/display/:clientName/:viewType", async (req, res) => {
-    const { clientName, viewType } = req.params;
+  }>("/display/:clientName/:viewType/:callback?", async (req, res) => {
+    const { clientName, viewType, callback = "next" } = req.params;
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
@@ -160,26 +175,25 @@ function getApp(possibleCallbacks: any[] = []) {
       app.log.info(`retrieved existing client: ${clientName}`);
     }
 
-    const data = await client.tick(viewTypeToUse);
-    client.advanceCallbackIndex();
+    let data: RenderResponse;
+    if (callback === "next") {
+      data = await client.tick(viewTypeToUse);
+      client.advanceCallbackIndex();
+    } else {
+      const callbackInstance = client.getCallbackInstance(callback);
+      if (!callbackInstance) {
+        app.log.error(`callback not found: ${callback}`);
+        return res.notFound(serverMessages.callbackNotFound(callback));
+      }
+
+      data = await callbackInstance.render(viewTypeToUse);
+    }
 
     app.log.info(
       `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse}`
     );
     return getResponseFromData(res, data);
   });
-
-  async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
-    if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
-      return res
-        .type(`image/${data.viewType}`)
-        .send(await fs.readFile(data.imagePath));
-    } else if (data.viewType === "html" && "html" in data) {
-      return res.type("text/html").send(data.html);
-    } else {
-      return res.send(data);
-    }
-  }
 
   // type TestParams = {
   //   name: string;
@@ -313,8 +327,13 @@ function getApp(possibleCallbacks: any[] = []) {
     if (process.env.NODE_ENV === "production") {
       Sentry.captureException(error);
     }
-    // console.log("&&&&&&&&", { error });
-    reply.send(error);
+
+    // app.log.error(error);
+
+    // reply.send({
+    //   statusCode: 500,
+    //   error,
+    // });
   });
 
   return app;
