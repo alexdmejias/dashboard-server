@@ -1,4 +1,4 @@
-import CallbackBase from "./base";
+import CallbackBase from "../base-callbacks/base";
 
 class CallbackMessage extends CallbackBase {
   lastMessage: string[];

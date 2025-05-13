@@ -1,4 +1,4 @@
-import CallbackBase from "./base";
+import CallbackBase from "../base-callbacks/base";
 
 // https://github.com/showdownjs/showdown/wiki/emojis
 class MarkdownTest extends CallbackBase {

@@ -1,4 +1,4 @@
-import CallbackBaseDB from "./base-db";
+import CallbackBaseDB from "../base-callbacks/base-db";
 
 type DBTableShape = { id: string; content: string };
 type Joke = { id: string; content: string[] };
@@ -18,7 +18,7 @@ class CallbackJoke extends CallbackBaseDB<DBTableShape, Joke> {
   get migration() {
     return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
         id INTEGER PRIMARY KEY,
-        content TEXT NOT NULL)`
+        content TEXT NOT NULL)`;
   }
 }
 

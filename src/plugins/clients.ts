@@ -1,8 +1,8 @@
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import StateMachine from "../stateMachine";
-import CallbackBase from "../callbacks/base";
-import CallbackBaseDB from "../callbacks/base-db";
+import CallbackBase from "../base-callbacks/base";
+import CallbackBaseDB from "../base-callbacks/base-db";
 
 declare module "fastify" {
   interface FastifyInstance {

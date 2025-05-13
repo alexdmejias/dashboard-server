@@ -1,4 +1,4 @@
-import CallbackBaseDB from "./base-db";
+import CallbackBaseDB from "../base-callbacks/base-db";
 
 type Quote = { author: string; content: string; id: string };
 
@@ -11,7 +11,7 @@ class CallbackQuote extends CallbackBaseDB<Quote> {
     return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
       id INTEGER PRIMARY KEY,
       content TEXT NOT NULL,
-      author TEXT NOT NULL)`
+      author TEXT NOT NULL)`;
   }
 }
 

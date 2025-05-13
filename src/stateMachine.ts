@@ -1,6 +1,6 @@
-import { CallbackMessage } from "./callbacks";
-import CallbackBase from "./callbacks/base";
-import CallbackBaseDB from "./callbacks/base-db";
+// import CallbackMessage from "./callbacks/message";
+import CallbackBase from "./base-callbacks/base";
+import CallbackBaseDB from "./base-callbacks/base-db";
 import logger from "./logger";
 import { SupportedViewType } from "./types";
 
@@ -132,6 +132,12 @@ class StateMachine {
   }
 
   async tick(viewType: SupportedViewType) {
+    console.log(
+      "@@@@@@@@",
+      this.callbacks,
+      this.#config.rotation,
+      this.#config.currCallbackIndex
+    );
     const selectedInstance =
       this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
     logger.trace("tick");
@@ -169,9 +175,9 @@ class StateMachine {
   }
 
   renderError(errorMessage: string, viewType: SupportedViewType) {
-    const cb = new CallbackMessage();
-    cb.setMessage(errorMessage);
-    return cb.render(viewType);
+    // const cb = new CallbackMessage();
+    // cb.callbacksmessageerrorMessage);
+    // return cb.render(viewType);
   }
 }
 

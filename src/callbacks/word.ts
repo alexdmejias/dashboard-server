@@ -1,4 +1,4 @@
-import CallbackBaseDB from "./base-db";
+import CallbackBaseDB from "../base-callbacks/base-db";
 
 type DBTableShape = {
   id: string;
@@ -33,7 +33,7 @@ class CallbackWord extends CallbackBaseDB<DBTableShape, Word> {
       id INTEGER PRIMARY KEY,
       word TEXT NOT NULL,
       definitions TEXT NOT NULL,
-      sentences TEXT NOT NULL)`
+      sentences TEXT NOT NULL)`;
   }
 }
 

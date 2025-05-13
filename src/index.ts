@@ -1,30 +1,18 @@
 import getApp from "./app";
 import * as dotenv from "dotenv";
-import {
-  CallbackReddit,
-  CallbackQuote,
-  CallbackJoke,
-  CallbackWord,
-  CallbackYearProgress,
-  CallbackOnThisDay,
-  CallbackWeather,
-  CallbackFact,
-} from "./callbacks";
+
 dotenv.config();
 
 const start = async () => {
-  const possibleCallbacks = [
-    CallbackReddit,
-    CallbackQuote,
-    CallbackJoke,
-    CallbackWord,
-    CallbackYearProgress,
-    CallbackOnThisDay,
-    CallbackWeather,
-    CallbackFact,
-  ];
+  const callbacks = ["reddit", "weather", "year-progress"];
+  const possibleCallbacks = [];
 
-  const app = getApp(possibleCallbacks);
+  for await (const callback of callbacks) {
+    const asyncResult = await import(`./callbacks/${callback}`);
+    possibleCallbacks.push(asyncResult.default);
+  }
+
+  const app = await getApp(possibleCallbacks);
   try {
     await app.listen({ port: process.env.PORT || 3333, host: "0.0.0.0" });
   } catch (err) {
@@ -32,4 +20,5 @@ const start = async () => {
     process.exit(1);
   }
 };
+
 start();

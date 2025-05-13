@@ -1,4 +1,4 @@
-import CallbackBaseDB from "./base-db";
+import CallbackBaseDB from "../base-callbacks/base-db";
 
 type Fact = { id: string; content: string };
 
@@ -10,7 +10,7 @@ class CallbackFact extends CallbackBaseDB<Fact> {
   get migration() {
     return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
       id INTEGER PRIMARY KEY,
-      content TEXT NOT NULL)`
+      content TEXT NOT NULL)`;
   }
 }
 

@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/node";
+// import * as Sentry from "@sentry/node";
 import * as dotenv from "dotenv";
 import "./instrument";
 dotenv.config();
@@ -8,8 +8,8 @@ import fastifyView from "@fastify/view";
 import fastify, { FastifyReply } from "fastify";
 import fs from "node:fs/promises";
 import { resolve } from "node:path";
-import { CallbackMessage } from "./callbacks";
-import { RenderResponse } from "./callbacks/base";
+// import { CallbackMessage } from "./base-callbacks/callbacks";
+import { RenderResponse } from "./base-callbacks/base";
 import logger, { loggingOptions } from "./logger";
 import { SupportedViewType } from "./types";
 import {
@@ -35,14 +35,14 @@ async function getApp(possibleCallbacks: any[] = []) {
   }
 
   const app = fastify({
-    logger: loggingOptions,
+    logger: /* process.env.NODE_ENV === "test" ? undefined : */ loggingOptions,
   });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
-    Sentry.setupFastifyErrorHandler(app);
+    // Sentry.setupFastifyErrorHandler(app);
   }
 
-  const messageHandler = new CallbackMessage();
+  // const messageHandler = new CallbackMessage();
 
   app.register(clientsPlugin, { possibleCallbacks });
 
@@ -92,7 +92,7 @@ async function getApp(possibleCallbacks: any[] = []) {
 
   app.register(fastifyView, {
     engine: {
-      ejs: require("ejs"),
+      ejs: import("ejs"),
     },
   });
 
@@ -152,6 +152,7 @@ async function getApp(possibleCallbacks: any[] = []) {
     let data: RenderResponse;
     if (callback === "next") {
       data = await client.tick(viewTypeToUse);
+
       client.advanceCallbackIndex();
     } else {
       const callbackInstance = client.getCallbackInstance(callback);
@@ -299,7 +300,7 @@ async function getApp(possibleCallbacks: any[] = []) {
     //   reply.send(error);
     // }
     if (process.env.NODE_ENV === "production") {
-      Sentry.captureException(error);
+      // Sentry.captureException(error);
     }
 
     // app.log.error(error);

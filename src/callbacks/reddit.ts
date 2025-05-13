@@ -1,4 +1,4 @@
-import CallbackBase from "./base";
+import CallbackBase from "../base-callbacks/base";
 import base64Encode from "../utils/base64Encode";
 import { RedditResponseRoot } from "../types";
 import logger from "../logger";

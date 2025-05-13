@@ -1,5 +1,5 @@
 import { WeatherApiResponseRoot } from "../types";
-import CallbackBase from "./base";
+import CallbackBase from "../base-callbacks/base";
 
 type ForecastWeather = {
   max: number;
