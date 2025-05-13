@@ -34,10 +34,6 @@ export * from "./reddit-api";
 export * from "./weather-api";
 
 declare module "fastify" {
-  interface FastifyInstance {
-    clients: Record<string, StateMachine>;
-  }
-
   interface FastifyReply {
     internalServerError(message: string): FastifyReply;
     notFound(message: string): FastifyReply;

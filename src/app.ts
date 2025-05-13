@@ -9,15 +9,14 @@ import fastify, { FastifyReply } from "fastify";
 import fs from "node:fs/promises";
 import { resolve } from "node:path";
 import { CallbackMessage } from "./callbacks";
-import CallbackBase, { RenderResponse } from "./callbacks/base";
-import CallbackBaseDB from "./callbacks/base-db";
+import { RenderResponse } from "./callbacks/base";
 import logger, { loggingOptions } from "./logger";
-import StateMachine from "./stateMachine";
 import { SupportedViewType } from "./types";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
+import clientsPlugin from "./plugins/clients";
 
 export const serverMessages = {
   healthGood: "ok",
@@ -30,7 +29,7 @@ export const serverMessages = {
   callbackNotFound: (callback: string) => `callback not found: ${callback}`,
 } as const;
 
-function getApp(possibleCallbacks: any[] = []) {
+async function getApp(possibleCallbacks: any[] = []) {
   if (!possibleCallbacks.length) {
     throw new Error("no callbacks provided");
   }
@@ -45,7 +44,7 @@ function getApp(possibleCallbacks: any[] = []) {
 
   const messageHandler = new CallbackMessage();
 
-  app.decorate("clients", {});
+  app.register(clientsPlugin, { possibleCallbacks });
 
   app.decorateReply(
     "internalServerError",
@@ -65,31 +64,6 @@ function getApp(possibleCallbacks: any[] = []) {
       statusCode: 404,
     });
   });
-
-  function getClient(clientName: string): StateMachine | undefined {
-    return app.clients[clientName];
-  }
-
-  async function registerClient(clientName: string) {
-    app.log.info(`registering client: ${clientName}`);
-    app.clients[clientName] = new StateMachine();
-    const client = app.clients[clientName];
-    app.log.info(`created new client: ${clientName}`);
-
-    const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
-    possibleCallbacks.forEach((callback) => {
-      try {
-        const ins = new callback();
-        validCallbacks.push(ins);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error(e);
-        }
-      }
-    });
-
-    await client.addCallbacks(validCallbacks);
-  }
 
   // app.addHook("onListen", async () => {
   //   app.log.info("app is ready");
@@ -132,9 +106,9 @@ function getApp(possibleCallbacks: any[] = []) {
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
-    const client = getClient(clientName);
+    const client = app.getClient(clientName);
     if (!client) {
-      await registerClient(clientName);
+      await app.registerClient(clientName);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -167,7 +141,7 @@ function getApp(possibleCallbacks: any[] = []) {
     const viewTypeToUse =
       (viewType as unknown) === "png.png" ? "png" : viewType;
 
-    const client = getClient(clientName);
+    const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
       return res.notFound(serverMessages.clientNotFound(clientName));
@@ -246,13 +220,13 @@ function getApp(possibleCallbacks: any[] = []) {
   //   }
   // });
 
-  app.get("/api/clients", (req, res) => {
-    res.send({
-      data: {
-        clients: Object.keys(app.clients),
-      },
-    });
-  });
+  // app.get("/api/clients", (req, res) => {
+  //   res.send({
+  //     data: {
+  //       clients: Object.keys(app.clients),
+  //     },
+  //   });
+  // });
 
   // // app.post<{ Body: Config["rotation"] }>("/set-rotation", (req, res) => {
   // //   try {
