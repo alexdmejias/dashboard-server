@@ -1,4 +1,5 @@
-import StateMachine from "../stateMachine";
+import { z } from "zod";
+import CallbackBase from "../base-callbacks/base";
 
 export const supportedImageViewTypes = ["png", "bmp"] as const;
 export const supportedTextViewTypes = ["html", "json"] as const;
@@ -29,8 +30,11 @@ export type TemplateGeneric<T> = {
 export type PossibleTemplateData<T> = Promise<T | TemplateDataError>;
 
 export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
+export type PossibleCallback = {
+  callback: typeof CallbackBase;
+  options: z.AnyZodObject;
+};
 
-export * from "./reddit-api";
 export * from "./weather-api";
 
 declare module "fastify" {

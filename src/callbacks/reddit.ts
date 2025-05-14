@@ -1,86 +1,47 @@
 import CallbackBase from "../base-callbacks/base";
 import base64Encode from "../utils/base64Encode";
-import { RedditResponseRoot } from "../types";
 import logger from "../logger";
+import { z } from "zod";
 
-type RedditPost = { title: string }[];
+export interface RedditResponseRoot {
+  kind: string;
+  data: {
+    children: {
+      kind: string;
+      data: {
+        title: string;
+      };
+    }[];
+  };
+}
 
-class CallbackReddit extends CallbackBase<RedditPost> {
-  private authData: Record<string, string> = {};
+type RedditPost = RedditResponseRoot["data"]["children"][number]["data"][];
 
-  constructor() {
+const expectedConfig = z.object({
+  subreddit: z.string(),
+  qty: z.number().positive(),
+});
+
+class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
+  constructor(options = {}) {
     super({
       name: "reddit",
-      envVariablesNeeded: [
-        "REDDIT_USERNAME",
-        "REDDIT_PASSWORD",
-        "REDDIT_CLIENTID",
-        "REDDIT_SECRET",
-      ],
+      expectedConfig: expectedConfig,
+      receivedConfig: options,
     });
-  }
-
-  getEnvVariables() {
-    const username = process.env.REDDIT_USERNAME;
-    const password = process.env.REDDIT_PASSWORD;
-    const clientId = process.env.REDDIT_CLIENTID;
-    const secret = process.env.REDDIT_SECRET;
-
-    return {
-      username,
-      password,
-      clientId,
-      secret,
-    };
-  }
-
-  async auth() {
-    const { username, password, clientId, secret } = this.getEnvVariables();
-
-    const data = new URLSearchParams({
-      grant_type: "password",
-      username: username as string,
-      password: password as string,
-    });
-
-    const res = await fetch("https://www.reddit.com/api/v1/access_token", {
-      method: "POST",
-      headers: {
-        Authorization: "Basic " + base64Encode(`${clientId}:${secret}`),
-      },
-      body: data,
-    });
-
-    const json = await res.json();
-
-    if (json.error) {
-      throw new Error(json.error);
-    }
-
-    this.authData = json;
-
-    return json;
   }
 
   async getData() {
     try {
-      if (!this.authData.access_token) {
-        await this.auth();
-      }
-      const subreddit = process.env.REDDIT_SUBREDDIT;
-      const qty = process.env.REDDIT_POST_QTY;
+      const subreddit = process.env.REDDIT_SUBREDDIT || "asknyc";
+      const qty = process.env.REDDIT_POST_QTY || 10;
 
       if (!qty || !subreddit) {
         throw new Error("missing reddit subreddit or reddit post qty");
       }
 
       const dataRes = await fetch(
-        `https://oauth.reddit.com/r/${subreddit}/new?limit=${qty}`,
-        {
-          headers: {
-            Authorization: `bearer ${this.authData.access_token}`,
-          },
-        }
+        `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`
       );
 
       const json: RedditResponseRoot = await dataRes.json();

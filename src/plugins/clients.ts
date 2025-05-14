@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import StateMachine from "../stateMachine";
 import CallbackBase from "../base-callbacks/base";
 import CallbackBaseDB from "../base-callbacks/base-db";
+import { PossibleCallback } from "../types";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -13,7 +14,9 @@ declare module "fastify" {
 
 function clientsPlugin(
   fastify: FastifyInstance,
-  options: { possibleCallbacks: any[] },
+  options: {
+    possibleCallbacks: PossibleCallback[];
+  },
   done: () => void
 ) {
   const { possibleCallbacks } = options;
@@ -32,7 +35,7 @@ function clientsPlugin(
     const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
     possibleCallbacks.forEach((callback) => {
       try {
-        const ins = new callback();
+        const ins = new callback.callback(callback.options);
         validCallbacks.push(ins);
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {

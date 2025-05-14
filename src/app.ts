@@ -65,11 +65,11 @@ async function getApp(possibleCallbacks: any[] = []) {
     });
   });
 
-  // app.addHook("onListen", async () => {
-  //   app.log.info("app is ready");
-  //   // await app.stateMachine.start();
-  //   await registerClient("inkplate");
-  // });
+  app.addHook("onListen", async () => {
+    //   app.log.info("app is ready");
+    //   // await app.stateMachine.start();
+    await app.registerClient("inkplate");
+  });
 
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
     if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {

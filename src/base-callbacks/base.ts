@@ -12,14 +12,19 @@ import logger from "../logger";
 import objectHash from "object-hash";
 import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
+import { z } from "zod";
 
-export type CallbackConstructor = {
+// export type ExpectedConfig = z.AnyZodObject;
+
+export type CallbackConstructor<ExpectedConfig extends z.AnyZodObject> = {
   name: string;
   template?: string;
   inRotation?: boolean;
   screenshotSize?: ScreenshotSizeOption;
   cacheable?: boolean;
   envVariablesNeeded?: string[];
+  receivedConfig?: unknown;
+  expectedConfig?: ExpectedConfig;
 };
 
 export type RenderResponse =
@@ -40,7 +45,10 @@ export type RenderResponse =
       error: TemplateDataError;
     };
 
-abstract class CallbackBase<TemplateData extends object = object> {
+class CallbackBase<
+  TemplateData extends object = object,
+  ExpectedConfig extends z.AnyZodObject = z.AnyZodObject
+> {
   name: string;
   template: string;
   dataFile?: string;
@@ -50,6 +58,8 @@ abstract class CallbackBase<TemplateData extends object = object> {
   cacheable = false;
   oldDataCache = "";
   envVariablesNeeded: string[] = [];
+  receivedConfig?: unknown;
+  expectedConfig?: ExpectedConfig;
 
   constructor({
     name,
@@ -58,7 +68,9 @@ abstract class CallbackBase<TemplateData extends object = object> {
     screenshotSize,
     cacheable = false,
     envVariablesNeeded = [],
-  }: CallbackConstructor) {
+    receivedConfig,
+    expectedConfig,
+  }: CallbackConstructor<ExpectedConfig>) {
     this.name = name;
     this.inRotation = inRotation;
     this.template = template || name || "generic";
@@ -69,8 +81,13 @@ abstract class CallbackBase<TemplateData extends object = object> {
     };
     this.cacheable = cacheable;
     this.envVariablesNeeded = envVariablesNeeded;
+    this.expectedConfig = expectedConfig;
+    this.receivedConfig = receivedConfig;
 
-    this.checkEnvVariables();
+    if (this.envVariablesNeeded.length) {
+      this.checkEnvVariables();
+    }
+    this.checkRuntimeConfig();
   }
 
   abstract getData(): PossibleTemplateData<TemplateData>;
@@ -98,6 +115,14 @@ abstract class CallbackBase<TemplateData extends object = object> {
     }
 
     return true;
+  }
+
+  checkRuntimeConfig() {
+    if (this.expectedConfig) {
+      return this.expectedConfig.parse(this.receivedConfig) as ExpectedConfig;
+    }
+
+    return false;
   }
 
   async render(viewType: SupportedViewType): Promise<RenderResponse> {
