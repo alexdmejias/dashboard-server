@@ -1,6 +1,4 @@
 import CallbackBase from "../base-callbacks/base";
-import base64Encode from "../utils/base64Encode";
-import logger from "../logger";
 import { z } from "zod";
 
 export interface RedditResponseRoot {
@@ -33,12 +31,7 @@ class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
 
   async getData() {
     try {
-      const subreddit = process.env.REDDIT_SUBREDDIT || "asknyc";
-      const qty = process.env.REDDIT_POST_QTY || 10;
-
-      if (!qty || !subreddit) {
-        throw new Error("missing reddit subreddit or reddit post qty");
-      }
+      const { qty = 10, subreddit = "asknyc" } = this.getRuntimeConfig();
 
       const dataRes = await fetch(
         `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`

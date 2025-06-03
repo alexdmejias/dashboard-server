@@ -1,11 +1,4 @@
-import CallbackBaseDB from "../base-callbacks/base-db";
-
-type DBTableShape = {
-  id: string;
-  word: string;
-  definitions: string;
-  sentences: string;
-};
+import CallbackBase from "../base-callbacks/base";
 
 type Word = {
   id: string;
@@ -14,26 +7,30 @@ type Word = {
   sentences: string[];
 };
 
-class CallbackWord extends CallbackBaseDB<DBTableShape, Word> {
+type DBTableShape = {
+  id: string;
+  word: string;
+  definitions: string;
+  sentences: string;
+};
+
+class CallbackWord extends CallbackBase<Word> {
   constructor() {
-    super({ name: "word", dataFile: "words" });
+    super({ name: "word" });
   }
 
-  transformer({ id, word, definitions, sentences }: DBTableShape): Word {
+  transformer(item: DBTableShape): Word {
     return {
-      id,
-      word,
-      definitions: definitions.split("\\n"),
-      sentences: sentences.split("\\n"),
+      id: item.id,
+      word: item.word,
+      definitions: item.definitions.split("\\n"),
+      sentences: item.sentences.split("\\n"),
     };
   }
 
-  get migration() {
-    return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
-      id INTEGER PRIMARY KEY,
-      word TEXT NOT NULL,
-      definitions TEXT NOT NULL,
-      sentences TEXT NOT NULL)`;
+  async getData() {
+    const item = await this.getDBData<DBTableShape>("words", this.transformer);
+    return item;
   }
 }
 

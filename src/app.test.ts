@@ -1,6 +1,6 @@
 import fastify, { errorCodes, FastifyError } from "fastify";
 import getApp, { serverMessages } from "./app";
-import CallbackBase from "./callbacks/base";
+import CallbackBase from "./base-callbacks/base";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 
 jest.mock("node:fs/promises", () => ({

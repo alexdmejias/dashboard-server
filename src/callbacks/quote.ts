@@ -1,17 +1,10 @@
-import CallbackBaseDB from "../base-callbacks/base-db";
+import CallbackBase from "../base-callbacks/base";
 
 type Quote = { author: string; content: string; id: string };
 
-class CallbackQuote extends CallbackBaseDB<Quote> {
+class CallbackQuote extends CallbackBase<Quote> {
   constructor() {
-    super({ name: "quote", dataFile: "quotes" });
-  }
-
-  get migration() {
-    return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
-      id INTEGER PRIMARY KEY,
-      content TEXT NOT NULL,
-      author TEXT NOT NULL)`;
+    super({ name: "quote" });
   }
 }
 

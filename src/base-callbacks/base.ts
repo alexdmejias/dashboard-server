@@ -14,9 +14,9 @@ import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 import { z } from "zod";
 
-// export type ExpectedConfig = z.AnyZodObject;
+import DB from "../db";
 
-export type CallbackConstructor<ExpectedConfig extends z.AnyZodObject> = {
+export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
   template?: string;
   inRotation?: boolean;
@@ -90,7 +90,11 @@ class CallbackBase<
     this.checkRuntimeConfig();
   }
 
-  abstract getData(): PossibleTemplateData<TemplateData>;
+  getData(): PossibleTemplateData<TemplateData> {
+    throw new Error(
+      `getData method not implemented for callback: ${this.name}`
+    );
+  }
 
   getEnvVariables(): Record<string, string | undefined> {
     return {};
@@ -119,10 +123,47 @@ class CallbackBase<
 
   checkRuntimeConfig() {
     if (this.expectedConfig) {
-      return this.expectedConfig.parse(this.receivedConfig) as ExpectedConfig;
-    }
+      try {
+        this.logger.debug(
+          `received runtime config for ${this.name}: ${JSON.stringify(
+            this.receivedConfig
+          )}`
+        );
 
-    return false;
+        const result = this.expectedConfig.safeParse(this.receivedConfig);
+        if (!result.success) {
+          throw new Error(result.error.message);
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error checking runtime config for callback: ${this.name}`,
+          error
+        );
+        throw error;
+      }
+    }
+    return true;
+  }
+
+  getRuntimeConfig() {
+    return this.receivedConfig as z.infer<ExpectedConfig>;
+  }
+
+  async getDBData<DBTableShape>(
+    tableName: string,
+    transformer?: (tableRow: DBTableShape) => TemplateData
+  ): PossibleTemplateData<TemplateData> {
+    try {
+      const data = await DB.getRecord<DBTableShape>(tableName);
+
+      if (!data) {
+        throw new Error(`${this.name}: no data received`);
+      }
+
+      return transformer ? transformer(data) : (data as TemplateData);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : (e as string) };
+    }
   }
 
   async render(viewType: SupportedViewType): Promise<RenderResponse> {

@@ -4,28 +4,21 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const start = async () => {
-  const callbacks = [
+  const callbacks: { callbackName: string; options?: object }[] = [
     {
-      name: "reddit",
+      callbackName: "reddit",
       options: {
         subreddit: "astoria",
-        qty: 3,
+        qty: 10,
       },
     },
-    {
-      name: "reddit",
-      options: {
-        subreddit: "asknyc",
-        qty: 5,
-      },
-    },
-    { name: "weather" },
-    { name: "year-progress" },
+    { callbackName: "weather", options: { zipcode: "11106" } },
+    { callbackName: "year-progress" },
   ];
   const possibleCallbacks = [];
 
   for await (const callback of callbacks) {
-    const asyncResult = await import(`./callbacks/${callback.name}`);
+    const asyncResult = await import(`./callbacks/${callback.callbackName}`);
     possibleCallbacks.push({
       callback: asyncResult.default,
       options: callback.options,

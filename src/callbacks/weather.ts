@@ -1,5 +1,6 @@
 import { WeatherApiResponseRoot } from "../types";
 import CallbackBase from "../base-callbacks/base";
+import { z } from "zod";
 
 type ForecastWeather = {
   max: number;
@@ -18,17 +19,26 @@ type TemplateDataWeather = {
   forecast: ForecastWeather[];
 };
 
-class CallbackWeather extends CallbackBase<TemplateDataWeather> {
-  constructor() {
+const expectedConfig = z.object({
+  zipcode: z.string(),
+});
+
+class CallbackWeather extends CallbackBase<
+  TemplateDataWeather,
+  typeof expectedConfig
+> {
+  constructor(options = {}) {
     super({
       name: "weather",
-      envVariablesNeeded: ["WEATHER_APIKEY", "WEATHER_ZIPCODE"],
+      expectedConfig,
+      envVariablesNeeded: ["WEATHER_APIKEY"],
+      receivedConfig: options,
     });
   }
 
   async getWeather(): Promise<WeatherApiResponseRoot> {
-    const key = process.env.WEATHER_APIKEY;
-    const zipcode = process.env.WEATHER_ZIPCODE;
+    const key = process.env.WEATHER_APIKEY; // TODO move to runtime config
+    const { zipcode } = this.getRuntimeConfig();
 
     const data = await fetch(
       `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`

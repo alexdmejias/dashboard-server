@@ -2,7 +2,6 @@ import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import StateMachine from "../stateMachine";
 import CallbackBase from "../base-callbacks/base";
-import CallbackBaseDB from "../base-callbacks/base-db";
 import { PossibleCallback } from "../types";
 
 declare module "fastify" {
@@ -32,7 +31,7 @@ function clientsPlugin(
     const client = clients[clientName];
     fastify.log.info(`created new client: ${clientName}`);
 
-    const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
+    const validCallbacks: CallbackBase[] = [];
     possibleCallbacks.forEach((callback) => {
       try {
         const ins = new callback.callback(callback.options);

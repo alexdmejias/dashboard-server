@@ -32,7 +32,7 @@ export type PossibleTemplateData<T> = Promise<T | TemplateDataError>;
 export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
 export type PossibleCallback = {
   callback: typeof CallbackBase;
-  options: z.AnyZodObject;
+  options: z.AnyZodObject & { name: string };
 };
 
 export * from "./weather-api";

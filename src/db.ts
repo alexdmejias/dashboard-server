@@ -1,5 +1,4 @@
-import { Database, RunResult } from "sqlite3";
-import { SupportedDBCallbacks } from "./types";
+import { Database } from "sqlite3";
 import logger from "./logger";
 
 class DB {
@@ -13,17 +12,16 @@ class DB {
     return new Promise((resolve, reject) => {
       this.db.run(script, (error: Error) => {
         if (error) {
-          logger.error('failed to run migration')
-          reject(error)
+          logger.error("failed to run migration");
+          reject(error);
         }
 
-        return resolve(true)
-      })
-
-    })
+        return resolve(true);
+      });
+    });
   }
 
-  async getRecord<T>(type: SupportedDBCallbacks): Promise<T> {
+  async getRecord<T>(type: string): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.db.get<T>(
         `SELECT * FROM ${type} order by RANDOM() LIMIT 1`,
@@ -36,7 +34,7 @@ class DB {
     });
   }
 
-  async deleteItem(type: SupportedDBCallbacks, id: string): Promise<void> {
+  async deleteItem(type: string, id: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.run(`DELETE FROM ${type} WHERE id = ${id}`, (err) => {
         if (err) reject(err);

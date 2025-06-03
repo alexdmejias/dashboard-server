@@ -1,6 +1,5 @@
 // import CallbackMessage from "./callbacks/message";
 import CallbackBase from "./base-callbacks/base";
-import CallbackBaseDB from "./base-callbacks/base-db";
 import logger from "./logger";
 import { SupportedViewType } from "./types";
 
@@ -87,13 +86,8 @@ class StateMachine {
     }
   }
 
-  async addCallbacks(callbackInstances: (CallbackBase | CallbackBaseDB)[]) {
+  async addCallbacks(callbackInstances: CallbackBase[]) {
     for await (const cb of callbackInstances) {
-      if ("runMigration" in cb) {
-        logger.info(`found migration in ${cb.name}`);
-        await cb.runMigration();
-        // console.log(result)
-      }
       this.addCallback(cb);
     }
   }
