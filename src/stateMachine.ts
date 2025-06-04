@@ -126,12 +126,6 @@ class StateMachine {
   }
 
   async tick(viewType: SupportedViewType) {
-    console.log(
-      "@@@@@@@@",
-      this.callbacks,
-      this.#config.rotation,
-      this.#config.currCallbackIndex
-    );
     const selectedInstance =
       this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
     logger.trace("tick");

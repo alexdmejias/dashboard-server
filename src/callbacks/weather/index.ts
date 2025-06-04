@@ -1,6 +1,6 @@
 import { WeatherApiResponseRoot } from "./types";
 import CallbackBase from "../../base-callbacks/base";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 type ForecastWeather = {
   max: number;

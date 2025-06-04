@@ -12,7 +12,7 @@ import logger from "../logger";
 import objectHash from "object-hash";
 import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
-import { z } from "zod";
+import { z } from "zod/v4";
 import fs from "fs";
 
 import DB from "../db";
@@ -49,7 +49,7 @@ export type RenderResponse =
 
 class CallbackBase<
   TemplateData extends object = object,
-  ExpectedConfig extends z.AnyZodObject = z.AnyZodObject
+  ExpectedConfig extends z.ZodObject = z.ZodObject
 > {
   name: string;
   template: string;
@@ -75,7 +75,7 @@ class CallbackBase<
   }: CallbackConstructor<ExpectedConfig>) {
     this.name = name;
     this.inRotation = inRotation;
-    this.template = this.resolveTemplate(name, template);
+    this.template = this.#resolveTemplate(name, template);
     this.logger = logger;
     this.screenshotSize = screenshotSize || {
       width: 1200,
@@ -257,7 +257,7 @@ class CallbackBase<
     });
   }
 
-  private resolveTemplate(name: string, template?: string): string {
+  #resolveTemplate(name: string, template?: string): string {
     const adjacentTemplatePath = path.resolve(
       `./src/callbacks/${name}/template.ejs`
     );

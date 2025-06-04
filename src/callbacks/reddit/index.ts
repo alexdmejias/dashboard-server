@@ -1,5 +1,5 @@
 import CallbackBase from "../../base-callbacks/base";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export interface RedditResponseRoot {
   kind: string;
