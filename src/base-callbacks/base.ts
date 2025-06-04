@@ -13,8 +13,10 @@ import objectHash from "object-hash";
 import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 import { z } from "zod";
+import fs from "fs";
 
 import DB from "../db";
+import path from "path";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -73,7 +75,7 @@ class CallbackBase<
   }: CallbackConstructor<ExpectedConfig>) {
     this.name = name;
     this.inRotation = inRotation;
-    this.template = template || name || "generic";
+    this.template = this.resolveTemplate(name, template);
     this.logger = logger;
     this.screenshotSize = screenshotSize || {
       width: 1200,
@@ -253,6 +255,27 @@ class CallbackBase<
       template: template ? template : this.template,
       data,
     });
+  }
+
+  private resolveTemplate(name: string, template?: string): string {
+    const adjacentTemplatePath = path.resolve(
+      `./src/callbacks/${name}/template.ejs`
+    );
+    if (fs.existsSync(adjacentTemplatePath)) {
+      return adjacentTemplatePath;
+    }
+
+    const templatesFolderPath = `./views/${template || name}.ejs`;
+    if (fs.existsSync(templatesFolderPath)) {
+      return templatesFolderPath;
+    }
+
+    const genericTemplatePath = `./views/generic.ejs`;
+    if (fs.existsSync(genericTemplatePath)) {
+      return genericTemplatePath;
+    }
+
+    throw new Error(`No valid template found for callback: ${name}`);
   }
 }
 

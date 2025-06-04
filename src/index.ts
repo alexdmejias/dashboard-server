@@ -18,7 +18,9 @@ const start = async () => {
   const possibleCallbacks = [];
 
   for await (const callback of callbacks) {
-    const asyncResult = await import(`./callbacks/${callback.callbackName}`);
+    const asyncResult = await import(
+      `./callbacks/${callback.callbackName}/index.ts`
+    );
     possibleCallbacks.push({
       callback: asyncResult.default,
       options: callback.options,

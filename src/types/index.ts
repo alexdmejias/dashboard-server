@@ -35,8 +35,6 @@ export type PossibleCallback = {
   options: z.AnyZodObject & { name: string };
 };
 
-export * from "./weather-api";
-
 declare module "fastify" {
   interface FastifyReply {
     internalServerError(message: string): FastifyReply;

@@ -1,5 +1,5 @@
-import { WeatherApiResponseRoot } from "../types";
-import CallbackBase from "../base-callbacks/base";
+import { WeatherApiResponseRoot } from "./types";
+import CallbackBase from "../../base-callbacks/base";
 import { z } from "zod";
 
 type ForecastWeather = {

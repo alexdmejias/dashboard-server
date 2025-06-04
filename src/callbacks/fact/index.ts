@@ -1,4 +1,4 @@
-import CallbackBase from "../base-callbacks/base";
+import CallbackBase from "../../base-callbacks/base";
 
 type Fact = { id: string; content: string };
 
