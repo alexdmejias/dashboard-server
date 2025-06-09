@@ -2,50 +2,70 @@ import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import StateMachine from "../stateMachine";
 import CallbackBase from "../base-callbacks/base";
-import { PossibleCallback } from "../types";
+import { Playlist, PossibleCallbacks } from "../types";
 
 declare module "fastify" {
   interface FastifyInstance {
     getClient(clientName: string): StateMachine;
-    registerClient(clientName: string): Promise<StateMachine>;
+    getClients(): Record<string, StateMachine>;
+    registerClient(
+      clientName: string,
+      playlist: Playlist
+    ): Promise<StateMachine>;
   }
 }
 
 function clientsPlugin(
   fastify: FastifyInstance,
   options: {
-    possibleCallbacks: PossibleCallback[];
+    possibleCallbacks: PossibleCallbacks;
   },
   done: () => void
 ) {
   const { possibleCallbacks } = options;
   const clients: Record<string, StateMachine> = {};
 
+  fastify.decorate("getClients", function () {
+    return clients;
+  });
+
   fastify.decorate("getClient", function (clientName: string) {
     return clients[clientName];
   });
 
-  fastify.decorate("registerClient", async function (clientName: string) {
-    fastify.log.info(`registering client: ${clientName}`);
-    clients[clientName] = new StateMachine();
-    const client = clients[clientName];
-    fastify.log.info(`created new client: ${clientName}`);
+  fastify.decorate(
+    "registerClient",
+    async function (clientName: string, playlist: Playlist) {
+      fastify.log.info(`registering client: ${clientName}`);
 
-    const validCallbacks: CallbackBase[] = [];
-    possibleCallbacks.forEach((callback) => {
-      try {
-        const ins = new callback.callback(callback.options);
-        validCallbacks.push(ins);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error(e);
+      clients[clientName] = new StateMachine(playlist);
+      const client = clients[clientName];
+
+      fastify.log.info(`created new client: ${clientName}`);
+
+      const validCallbacks: CallbackBase[] = [];
+
+      playlist.forEach((playlistItem) => {
+        try {
+          fastify.log.debug(
+            `found matching callback between possible callbacks and playlist item, instantiating it`
+          );
+
+          const callbackFn = possibleCallbacks[playlistItem.callbackName];
+          const ins = new callbackFn(playlistItem.options);
+
+          validCallbacks.push(ins);
+        } catch (e) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error(e);
+          }
         }
-      }
-    });
+      });
 
-    await client.addCallbacks(validCallbacks);
-    return client;
-  });
+      await client.addCallbacks(validCallbacks);
+      return client;
+    }
+  );
 
   done();
 }

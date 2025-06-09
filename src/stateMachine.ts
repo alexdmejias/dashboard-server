@@ -1,7 +1,7 @@
 // import CallbackMessage from "./callbacks/message";
-import CallbackBase from "./base-callbacks/base";
+import CallbackBase, { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
-import { SupportedViewType } from "./types";
+import { Playlist, SupportedViewType } from "./types";
 
 // type ConfigPlay = {
 //   status: "play";
@@ -22,6 +22,7 @@ export type Config = {
   rotation: string[];
   message: string;
   currCallbackIndex: number;
+  playlist: Playlist;
 };
 
 class StateMachine {
@@ -31,7 +32,7 @@ class StateMachine {
   // rotation: string[];
   timer: NodeJS.Timeout | undefined;
 
-  constructor() {
+  constructor(playlist: Playlist = []) {
     // this.currCallbackIndex = 0;
     this.callbacks = {};
     this.#config = {
@@ -39,6 +40,7 @@ class StateMachine {
       message: "",
       rotation: [],
       currCallbackIndex: 0,
+      playlist: playlist,
     };
 
     // this.setState = this.setState.bind(this);
@@ -71,14 +73,14 @@ class StateMachine {
   // add method to get logs
 
   addCallback(callbackInstance: CallbackBase) {
-    logger.info(
-      `adding callback ${callbackInstance.name} in rotation?", ${callbackInstance.inRotation}`
-    );
+    // logger.info(
+    //   `adding callback ${callbackInstance.name} in rotation?", ${callbackInstance.inRotation}`
+    // );
     if (!this.callbacks[callbackInstance.name]) {
       this.callbacks[callbackInstance.name] = callbackInstance;
-      if (callbackInstance.inRotation) {
-        this.#config.rotation.push(callbackInstance.name);
-      }
+      // if (callbackInstance.inRotation) {
+      //   this.#config.rotation.push(callbackInstance.name);
+      // }
     } else {
       logger.warn(
         `attempting to add callback that already exists: ${callbackInstance.name}`
@@ -125,17 +127,40 @@ class StateMachine {
     ];
   }
 
-  async tick(viewType: SupportedViewType) {
-    const selectedInstance =
-      this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
-    logger.trace("tick");
+  getCallbackInstanceByName(name: string): CallbackBase | undefined {
+    if (this.callbacks[name]) {
+      return this.callbacks[name];
+    }
+    logger.warn(`callback not found: ${name}`);
+    return undefined;
+  }
 
+  async tick(viewType: SupportedViewType): Promise<RenderResponse> {
+    // const selectedInstance = getCallbackInstanceByName()
+    // this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
+    // logger.trace("tick");
+    const playlistItem = this.#config.playlist[this.#config.currCallbackIndex];
+
+    if (!playlistItem) {
+      logger.error("no playlist item found for current index");
+      return { error: { error: "wasd" }, viewType: "error" };
+    }
+    const selectedInstance = this.getCallbackInstanceByName(
+      playlistItem.callbackName
+    );
+    if (!selectedInstance) {
+      logger.error(`callback not found: ${playlistItem.callbackName}`);
+      return {
+        error: { error: `callback not found: ${playlistItem.callbackName}` },
+        viewType: "error",
+      };
+    }
     // try {
-    return selectedInstance.render(viewType);
     // } catch (e) {
     //   // TODO should render error instance
     //   return selectedInstance.render("png", e);
     // }
+    return selectedInstance.render(viewType /* playlistItem.options */);
   }
 
   advanceCallbackIndex() {

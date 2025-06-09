@@ -81,10 +81,23 @@ class CallbackWeather extends CallbackBase<
   }
 
   async getData() {
+    this.logger.debug(
+      {
+        runtimeConfig: this.getRuntimeConfig(),
+      },
+      `Fetching weather data`
+    );
     const weather = await this.getWeather();
     const forecast = this.getForecast(weather);
     const today = this.getToday(weather);
 
+    this.logger.debug(
+      {
+        today,
+        forecast,
+      },
+      `Weather data fetched successfully`
+    );
     return {
       today,
       forecast,

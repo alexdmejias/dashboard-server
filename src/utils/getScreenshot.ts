@@ -2,11 +2,16 @@ import puppeteer, { LaunchOptions } from "puppeteer";
 import { Jimp } from "jimp";
 import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
-import { ScreenshotSizeOption } from "../types";
+import { PossibleTemplateData, ScreenshotSizeOption } from "../types";
+import logger from "../logger";
 
-async function getScreenshot<T extends object>({
+async function getScreenshot<
+  T extends PossibleTemplateData,
+  U extends object = object
+>({
   template,
   data,
+  runtimeConfig,
   imagePath,
   viewType,
   size = {
@@ -16,6 +21,7 @@ async function getScreenshot<T extends object>({
 }: {
   template: string;
   data: T;
+  runtimeConfig?: U;
   imagePath: string;
   viewType: string;
   size?: ScreenshotSizeOption;
@@ -38,7 +44,18 @@ async function getScreenshot<T extends object>({
 
   page.setViewport(size);
 
-  const renderedTemplate = getRenderedTemplate({ template, data });
+  logger.debug(
+    `Getting rendered template for screenshot, ${JSON.stringify({
+      template,
+      data,
+      runtimeConfig,
+    })}`
+  );
+  const renderedTemplate = await getRenderedTemplate({
+    template,
+    data,
+    runtimeConfig,
+  });
 
   await page.setContent(renderedTemplate);
 

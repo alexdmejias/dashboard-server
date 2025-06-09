@@ -1,30 +1,24 @@
 import getApp from "./app";
 import * as dotenv from "dotenv";
+import { PossibleCallbacks } from "./types";
 
 dotenv.config();
 
 const start = async () => {
-  const callbacks: { callbackName: string; options?: object }[] = [
+  const callbacks: { callbackName: string }[] = [
     {
       callbackName: "reddit",
-      options: {
-        subreddit: "astoria",
-        qty: 10,
-      },
     },
-    { callbackName: "weather", options: { zipcode: "11106" } },
+    { callbackName: "weather" },
     { callbackName: "year-progress" },
   ];
-  const possibleCallbacks = [];
+  const possibleCallbacks: PossibleCallbacks = {};
 
   for await (const callback of callbacks) {
     const asyncResult = await import(
       `./callbacks/${callback.callbackName}/index.ts`
     );
-    possibleCallbacks.push({
-      callback: asyncResult.default,
-      options: callback.options,
-    });
+    possibleCallbacks[callback.callbackName] = asyncResult.default;
   }
 
   const app = await getApp(possibleCallbacks);

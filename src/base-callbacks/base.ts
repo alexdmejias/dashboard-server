@@ -66,7 +66,7 @@ class CallbackBase<
   constructor({
     name,
     template,
-    inRotation = true,
+    inRotation = false,
     screenshotSize,
     cacheable = false,
     envVariablesNeeded = [],
@@ -198,6 +198,7 @@ class CallbackBase<
             imagePath: await this.#renderAsImage({
               viewType,
               data,
+              runtimeConfig: this.getRuntimeConfig(),
               imagePath: screenshotPath,
               templateOverride,
             }),
@@ -221,26 +222,29 @@ class CallbackBase<
       // TODO should also implement a caching strategy?
       return {
         viewType,
-        html: this.#renderAsHTML(data, templateOverride),
+        html: await this.#renderAsHTML(data, templateOverride),
       };
     }
 
     return { viewType, json: data };
   }
 
-  async #renderAsImage({
+  async #renderAsImage<T extends PossibleTemplateData<TemplateData>>({
     viewType,
     data,
+    runtimeConfig,
     imagePath,
     templateOverride,
   }: {
     viewType: SupportedImageViewType;
-    data: TemplateDataError | TemplateData;
+    data: T;
+    runtimeConfig?: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
   }): Promise<string> {
-    const screenshot = await getScreenshot({
+    const screenshot = await getScreenshot<T>({
       data,
+      runtimeConfig,
       template: templateOverride ? templateOverride : this.template,
       size: this.screenshotSize,
       imagePath,
@@ -250,10 +254,14 @@ class CallbackBase<
     return screenshot.path;
   }
 
-  #renderAsHTML(data: TemplateDataError | TemplateData, template?: string) {
-    return getRenderedTemplate({
+  async #renderAsHTML(
+    data: TemplateDataError | TemplateData,
+    template?: string
+  ) {
+    return await getRenderedTemplate({
       template: template ? template : this.template,
       data,
+      runtimeConfig: this.getRuntimeConfig(),
     });
   }
 

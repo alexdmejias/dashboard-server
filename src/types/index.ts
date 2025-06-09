@@ -27,13 +27,15 @@ export type TemplateGeneric<T> = {
   item: T;
 };
 
-export type PossibleTemplateData<T> = Promise<T | TemplateDataError>;
+export type PossibleTemplateData<T extends object = object> = Promise<
+  T | TemplateDataError
+>;
 
 export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
-export type PossibleCallback = {
-  callback: typeof CallbackBase;
-  options: z.ZodObject & { name: string };
-};
+export type PossibleCallbacks = Record<string, any>;
+
+export type PlaylistItem = { callbackName: string; options?: object };
+export type Playlist = PlaylistItem[];
 
 declare module "fastify" {
   interface FastifyReply {

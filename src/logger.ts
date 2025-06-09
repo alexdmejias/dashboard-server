@@ -1,7 +1,7 @@
-import pino from "pino";
+import pino, { LoggerOptions } from "pino";
 
-export const loggingOptions = {
-  level: "debug",
+export const loggingOptions: LoggerOptions = {
+  level: "trace",
   transport: {
     target: "pino-pretty",
     options: {

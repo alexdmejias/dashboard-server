@@ -1,14 +1,33 @@
 import ejs from "ejs";
 import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
+import logger from "../logger";
+import { readFile } from "fs/promises";
+import path from "path";
 
-function getRenderedTemplate<T extends object>({
+async function getTemplateContent(templatePath: string): Promise<string> {
+  const [head, footer, template] = await Promise.all([
+    readFile(path.resolve("./views/partials/head.ejs"), "utf-8"),
+    readFile(path.resolve("./views/partials/footer.ejs"), "utf-8"),
+    readFile(templatePath, "utf-8"),
+  ]);
+  if (!head || !footer || !template) {
+    throw new Error(
+      `Failed to read one or more template files: head, footer, or template at ${templatePath}`
+    );
+  }
+
+  return `${head}\n${template}\n${footer}`;
+}
+
+async function getRenderedTemplate<T extends object>({
   template,
   data,
+  runtimeConfig,
 }: {
   template: string;
   data: T;
-}): string {
-  let rendered = "";
+  runtimeConfig?: object;
+}): Promise<string> {
   if (
     template === "markdown" &&
     (!("markdown" in data) || typeof data.markdown !== "string")
@@ -18,27 +37,30 @@ function getRenderedTemplate<T extends object>({
     );
   }
 
-  ejs.renderFile(
-    template,
-    {
-      data:
-        template === "markdown" && "markdown" in data
-          ? getHTMLFromMarkdown((data as { markdown: string }).markdown)
-          : data,
-    },
-    {
-      views: ["./views"],
-    },
-    (err, str) => {
-      if (err) {
-        console.error("Error rendering template:", err);
-        throw err; // TODO this error is being swallowed
-      }
-      rendered = str;
-    }
-  );
+  const templateStr = await getTemplateContent(template);
 
-  return rendered;
+  try {
+    return ejs.render(
+      templateStr,
+      {
+        runtimeConfig,
+        data:
+          template === "markdown" && "markdown" in data
+            ? getHTMLFromMarkdown((data as { markdown: string }).markdown)
+            : data,
+      },
+      {
+        views: ["./views"],
+        async: true,
+      }
+    );
+  } catch (err) {
+    logger.error(
+      { err, template, data, runtimeConfig },
+      "Error rendering template."
+    );
+    throw err; // TODO this error is being swallowed
+  }
 }
 
 export default getRenderedTemplate;

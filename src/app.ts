@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 // import { CallbackMessage } from "./base-callbacks/callbacks";
 import { RenderResponse } from "./base-callbacks/base";
 import logger, { loggingOptions } from "./logger";
-import { SupportedViewType } from "./types";
+import { PossibleCallbacks, SupportedViewType } from "./types";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
@@ -29,8 +29,8 @@ export const serverMessages = {
   callbackNotFound: (callback: string) => `callback not found: ${callback}`,
 } as const;
 
-async function getApp(possibleCallbacks: any[] = []) {
-  if (!possibleCallbacks.length) {
+async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
+  if (!possibleCallbacks || !Object.keys(possibleCallbacks).length) {
     throw new Error("no callbacks provided");
   }
 
@@ -68,7 +68,14 @@ async function getApp(possibleCallbacks: any[] = []) {
   app.addHook("onListen", async () => {
     //   app.log.info("app is ready");
     //   // await app.stateMachine.start();
-    await app.registerClient("inkplate");
+    await app.registerClient("inkplate", [
+      {
+        callbackName: "weather",
+        options: {
+          zipcode: "10001",
+        },
+      },
+    ]);
   });
 
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
@@ -97,7 +104,11 @@ async function getApp(possibleCallbacks: any[] = []) {
   });
 
   app.get("/health", async (req, res) => {
-    return res.send({ statusCode: 200, message: serverMessages.healthGood });
+    return res.send({
+      statusCode: 200,
+      message: serverMessages.healthGood,
+      clients: app.getClients(),
+    });
   });
 
   app.get<{
@@ -108,7 +119,8 @@ async function getApp(possibleCallbacks: any[] = []) {
     const { clientName } = req.params;
     const client = app.getClient(clientName);
     if (!client) {
-      await app.registerClient(clientName);
+      // TODO pass playlist
+      await app.registerClient(clientName, []);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -165,7 +177,12 @@ async function getApp(possibleCallbacks: any[] = []) {
     }
 
     app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse}`
+      {
+        // data,
+        clientName,
+        viewTypeToUse,
+      },
+      `sending response`
     );
     return getResponseFromData(res, data);
   });
