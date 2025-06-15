@@ -89,10 +89,9 @@ class CallbackBase<
     if (this.envVariablesNeeded.length) {
       this.checkEnvVariables();
     }
-    this.checkRuntimeConfig();
   }
 
-  getData(): PossibleTemplateData<TemplateData> {
+  getData(config: any): PossibleTemplateData<TemplateData> {
     throw new Error(
       `getData method not implemented for callback: ${this.name}`
     );
@@ -123,13 +122,16 @@ class CallbackBase<
     return true;
   }
 
-  checkRuntimeConfig() {
+  static checkRuntimeConfig(
+    expectedConfig?: z.ZodTypeAny,
+    receivedConfig?: unknown
+  ) {
     // this.logger.debug(
     //   { receivedConfig: this.receivedConfig },
     //   `checking runtime config for callback: ${this.name}`
     // );
-    if (this.expectedConfig) {
-      const result = this.expectedConfig.safeParse(this.receivedConfig, {
+    if (expectedConfig) {
+      const result = expectedConfig.safeParse(receivedConfig, {
         reportInput: true,
       });
       if (!result.success) {
@@ -139,9 +141,9 @@ class CallbackBase<
     return true;
   }
 
-  getRuntimeConfig() {
-    return this.receivedConfig as z.infer<ExpectedConfig>;
-  }
+  // getRuntimeConfig() {
+  //   return this.receivedConfig as z.infer<ExpectedConfig>;
+  // }
 
   async getDBData<DBTableShape>(
     tableName: string,
@@ -160,11 +162,14 @@ class CallbackBase<
     }
   }
 
-  async render(viewType: SupportedViewType): Promise<RenderResponse> {
+  async render(
+    viewType: SupportedViewType,
+    options?: any
+  ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
-    const data = await this.getData();
+    const data = await this.getData(options);
 
     let templateOverride: string | undefined;
 
@@ -194,7 +199,7 @@ class CallbackBase<
             imagePath: await this.#renderAsImage({
               viewType,
               data,
-              runtimeConfig: this.getRuntimeConfig() as ExpectedConfig,
+              runtimeConfig: options,
               imagePath: screenshotPath,
               templateOverride,
             }),
@@ -218,7 +223,11 @@ class CallbackBase<
       // TODO should also implement a caching strategy?
       return {
         viewType,
-        html: await this.#renderAsHTML(data, templateOverride),
+        html: await this.#renderAsHTML({
+          data,
+          template: templateOverride,
+          runtimeConfig: options,
+        }),
       };
     }
 
@@ -250,14 +259,19 @@ class CallbackBase<
     return screenshot.path;
   }
 
-  async #renderAsHTML(
-    data: TemplateDataError | TemplateData,
-    template?: string
-  ) {
-    return await getRenderedTemplate({
+  async #renderAsHTML({
+    data,
+    template,
+    runtimeConfig,
+  }: {
+    data: TemplateDataError | TemplateData;
+    template?: string;
+    runtimeConfig?: ExpectedConfig;
+  }) {
+    return getRenderedTemplate({
       template: template ? template : this.template,
       data,
-      runtimeConfig: this.getRuntimeConfig(),
+      runtimeConfig,
     });
   }
 

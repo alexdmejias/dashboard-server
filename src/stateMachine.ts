@@ -1,6 +1,11 @@
 import CallbackBase, { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
-import { Playlist, SupportedViewType, WASDWASD } from "./types";
+import {
+  Playlist,
+  PlaylistItem,
+  SupportedViewType,
+  ValidCallback,
+} from "./types";
 
 export type Config = {
   rotation: string[];
@@ -38,13 +43,13 @@ class StateMachine {
     this.#config[configKey] = configValue;
   }
 
-  async addCallbacks(callbackInstances: WASDWASD[]) {
-    for await (const cb of callbackInstances) {
+  async addCallbacks(validCallbacks: ValidCallback[]) {
+    for await (const cb of validCallbacks) {
       this.callbacks[cb.id] = {
-        name: cb.instance.name,
+        name: cb.name,
         instance: cb.instance,
       };
-      logger.info(`added callback ${cb.instance.name} with key: ${cb.id}`);
+      logger.info(`added callback ${cb.name} with key: ${cb.id}`);
     }
   }
 
@@ -52,16 +57,16 @@ class StateMachine {
     return cbName in this.callbacks;
   }
 
-  getCallbackInstance(callbackName: string): CallbackBase | undefined {
-    if (this.callbacks[callbackName]) {
-      return this.callbacks[callbackName].instance;
-    }
-    logger.warn(
-      `callback not found: ${callbackName}, callbacks available: ${Object.keys(
-        this.callbacks
-      ).join(", ")}`
-    );
-    return undefined;
+  getCallbackFromId(callbackId: string) {
+    return this.callbacks[callbackId];
+  }
+
+  getCallbackInstance(callbackId: string): CallbackBase | undefined {
+    return this.getCallbackFromId(callbackId)?.instance;
+  }
+
+  getPlaylistItemById(id: string): PlaylistItem | undefined {
+    return this.#config.playlist.find((item) => item.id === id);
   }
 
   async tick(viewType: SupportedViewType): Promise<RenderResponse> {
@@ -82,7 +87,12 @@ class StateMachine {
         viewType: "error",
       };
     }
-    return selectedInstance.render(viewType /* playlistItem.options */);
+
+    this.#config.currCallbackIndex++;
+    if (this.#config.currCallbackIndex >= this.#config.playlist.length) {
+      this.#config.currCallbackIndex = 0;
+    }
+    return selectedInstance.render(viewType, playlistItem.options);
   }
 
   advanceCallbackIndex() {

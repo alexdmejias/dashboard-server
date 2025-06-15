@@ -19,9 +19,11 @@ type TemplateDataWeather = {
   forecast: ForecastWeather[];
 };
 
-const expectedConfig = z.object({
+export const expectedConfig = z.object({
   zipcode: z.string(),
 });
+
+type ConfigType = z.infer<typeof expectedConfig>;
 
 class CallbackWeather extends CallbackBase<
   TemplateDataWeather,
@@ -36,14 +38,14 @@ class CallbackWeather extends CallbackBase<
     });
   }
 
-  async getWeather(): Promise<WeatherApiResponseRoot> {
+  async getWeather(config: ConfigType) {
     const key = process.env.WEATHER_APIKEY; // TODO move to runtime config
-    const { zipcode } = this.getRuntimeConfig();
+    const { zipcode } = config;
 
     const data = await fetch(
       `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`
     );
-    return data.json();
+    return (await data.json()) as WeatherApiResponseRoot;
   }
 
   getToday(payload: WeatherApiResponseRoot): TodayWeather {
@@ -80,14 +82,14 @@ class CallbackWeather extends CallbackBase<
     return forecast;
   }
 
-  async getData() {
+  async getData(config: ConfigType) {
     this.logger.debug(
       {
-        runtimeConfig: this.getRuntimeConfig(),
+        runtimeConfig: config,
       },
       `Fetching weather data`
     );
-    const weather = await this.getWeather();
+    const weather = await this.getWeather(config);
     const forecast = this.getForecast(weather);
     const today = this.getToday(weather);
 

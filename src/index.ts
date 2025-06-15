@@ -18,7 +18,11 @@ const start = async () => {
     const asyncResult = await import(
       `./callbacks/${callback.callbackName}/index.ts`
     );
-    possibleCallbacks[callback.callbackName] = asyncResult.default;
+    possibleCallbacks[callback.callbackName] = {
+      name: callback.callbackName,
+      expectedConfig: asyncResult.expectedConfig,
+      callback: asyncResult.default,
+    };
   }
 
   const app = await getApp(possibleCallbacks);
@@ -42,8 +46,8 @@ const start = async () => {
     //         },
     //       },
     //       {
-    //         id: "reddit-wasd",
-    //         callbackName: "wasd",
+    //         id: "reddit-astoria",
+    //         callbackName: "reddit",
     //         options: {
     //           subreddit: "astoria",
     //           qty: 10,

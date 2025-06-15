@@ -15,7 +15,7 @@ export interface RedditResponseRoot {
 
 type RedditPost = RedditResponseRoot["data"]["children"][number]["data"][];
 
-const expectedConfig = z.object({
+export const expectedConfig = z.object({
   subreddit: z.string(),
   qty: z.number().positive(),
 });
@@ -29,15 +29,15 @@ class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
     });
   }
 
-  async getData() {
+  async getData(config: z.infer<typeof expectedConfig>) {
     try {
-      const { qty = 10, subreddit = "asknyc" } = this.getRuntimeConfig();
+      const { qty = 10, subreddit = "asknyc" } = config;
 
       const dataRes = await fetch(
         `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`
       );
 
-      const json: RedditResponseRoot = await dataRes.json();
+      const json = (await dataRes.json()) as RedditResponseRoot;
       const posts = json.data.children.map((p) => ({
         title: p.data.title,
       }));

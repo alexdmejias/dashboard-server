@@ -65,16 +65,17 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     });
   });
 
+  // TODO make this a plugin
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
     if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
       return res
         .type(`image/${data.viewType}`)
         .send(await fs.readFile(data.imagePath));
-    } else if (data.viewType === "html" && "html" in data) {
+    } else if (data.viewType === "html") {
       return res.type("text/html").send(data.html);
-    } else if (data.viewType === "json" && "json" in data) {
+    } else if (data.viewType === "json") {
       return res.type("application/json").send(data.json);
-    } else if (data.viewType === "error" && "error" in data) {
+    } else if (data.viewType === "error") {
       return res.internalServerError(data.error);
     } else {
       return res.send(data);
@@ -179,12 +180,13 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       client.advanceCallbackIndex();
     } else {
       const callbackInstance = client.getCallbackInstance(callback);
-      if (!callbackInstance) {
+      const playlistItem = client.getPlaylistItemById(callback);
+      if (!callbackInstance || !playlistItem) {
         app.log.error(`callback not found: ${callback}`);
         return res.notFound(serverMessages.callbackNotFound(callback));
       }
 
-      data = await callbackInstance.render(viewTypeToUse);
+      data = await callbackInstance.render(viewTypeToUse, playlistItem.options);
     }
 
     app.log.info(

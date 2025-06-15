@@ -1,8 +1,9 @@
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import StateMachine from "../stateMachine";
-import { Playlist, PossibleCallbacks, WASDWASD } from "../types";
-import { z } from "zod/v4";
+import { Playlist, PossibleCallbacks, ValidCallback } from "../types";
+import { z, ZodError } from "zod/v4";
+import CallbackBase from "../base-callbacks/base";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -24,24 +25,23 @@ function validatePlaylist(
   const validPlaylist = z
     .array(
       z.object({
-        id: z
-          .string()
-          .min(1, "ID must be a non-empty string")
-          .check((ctx) => {
-            if (ctx.value.length !== new Set(ctx.value).size) {
-              ctx.issues.push({
-                code: "custom",
-                message: `No duplicates allowed.`,
-                input: ctx.value,
-                continue: true,
-              });
-            }
-          }),
+        id: z.string().min(1, "ID must be a non-empty string"),
         callbackName: z.literal(Object.keys(possibleCallbacks)),
         options: z.object().optional().default({}),
       })
     )
-    .min(1, "Playlist must contain at least one item");
+    .min(1, "Playlist must contain at least one item")
+    .check((ctx) => {
+      const callbackIds = ctx.value.map((item) => item.id);
+      if (callbackIds.length !== new Set(callbackIds).size) {
+        ctx.issues.push({
+          code: "custom",
+          message: `No duplicates playlist item IDs allowed.`,
+          input: ctx.value,
+          continue: true,
+        });
+      }
+    });
 
   return validPlaylist.safeParse(playlist);
 }
@@ -78,31 +78,34 @@ function clientsPlugin(
         };
       }
 
-      const validCallbacks: WASDWASD[] = [];
+      const validCallbacks: ValidCallback[] = [];
 
-      let error: undefined | Error;
+      let errors = "";
       playlist.forEach((playlistItem) => {
         try {
-          const callbackFn = possibleCallbacks[playlistItem.callbackName];
-          const ins = new callbackFn(playlistItem.options);
+          const a = possibleCallbacks[playlistItem.callbackName];
+          const callbackFn = a.callback;
+          const ins = new callbackFn(playlistItem.options) as CallbackBase;
 
-          validCallbacks.push({ instance: ins, id: playlistItem.id });
+          callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
+
+          validCallbacks.push({
+            instance: ins,
+            id: playlistItem.id,
+            name: a.name,
+            expectedConfig: a.expectedConfig,
+          });
         } catch (e) {
-          error = e as Error;
+          errors += `Error while validating item "${playlistItem.id}" ${
+            e instanceof ZodError
+              ? z.prettifyError(e).replaceAll(/\n/g, "")
+              : (e as Error).message
+          }}`;
         }
       });
 
-      if (error) {
-        if (error instanceof z.ZodError) {
-          return {
-            // TODO should say the name of the callback that failed
-            error: `Error while validating the passed options ${z
-              .prettifyError(error)
-              .replaceAll(/\n/g, "")}`,
-          };
-        } else {
-          return { error: error.message };
-        }
+      if (errors) {
+        return { error: errors };
       } else {
         clients[clientName] = new StateMachine(playlist);
         const client = clients[clientName];
