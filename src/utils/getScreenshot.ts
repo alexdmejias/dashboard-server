@@ -6,7 +6,7 @@ import { PossibleTemplateData, ScreenshotSizeOption } from "../types";
 import logger from "../logger";
 
 async function getScreenshot<
-  T extends PossibleTemplateData,
+  T extends object = object,
   U extends object = object
 >({
   template,

@@ -24,6 +24,7 @@
     "fastify": "^5.1.0",
     "fastify-plugin": "^5.0.1",
     "jimp": "^1.6.0",
+    "neverthrow": "^8.2.0",
     "object-hash": "^3.0.0",
     "pino": "^8.11.0",
     "pino-pretty": "^10.0.0",

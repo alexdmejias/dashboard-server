@@ -65,19 +65,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     });
   });
 
-  app.addHook("onListen", async () => {
-    //   app.log.info("app is ready");
-    //   // await app.stateMachine.start();
-    await app.registerClient("inkplate", [
-      {
-        callbackName: "weather",
-        options: {
-          zipcode: "10001",
-        },
-      },
-    ]);
-  });
-
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
     if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
       return res
@@ -87,6 +74,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       return res.type("text/html").send(data.html);
     } else if (data.viewType === "json" && "json" in data) {
       return res.type("application/json").send(data.json);
+    } else if (data.viewType === "error" && "error" in data) {
+      return res.internalServerError(data.error);
     } else {
       return res.send(data);
     }
@@ -108,22 +97,44 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       statusCode: 200,
       message: serverMessages.healthGood,
       clients: app.getClients(),
+      possibleCallbacks: Object.keys(possibleCallbacks),
     });
   });
 
-  app.get<{
+  app.post<{
     Params: {
       clientName: string;
     };
+    Body: {
+      playlist?: {
+        id: string;
+        callbackName: string;
+        options?: Record<string, unknown>;
+      }[];
+    };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
+    const { playlist = [] } = req.body;
+
     const client = app.getClient(clientName);
+
     if (!client) {
-      // TODO pass playlist
-      await app.registerClient(clientName, []);
+      const clientRes = await app.registerClient(clientName, playlist);
+
+      if ("error" in clientRes) {
+        app.log.error(
+          { error: clientRes.error },
+          `error registering client: ${clientName}`
+        );
+        return res.internalServerError(
+          `Error registering client "${clientName}": ${clientRes.error}`
+        );
+      }
+      app.log.info(`created new client: ${clientName}`, clientRes);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
+        client: clientRes,
       };
     }
 
@@ -178,7 +189,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     app.log.info(
       {
-        // data,
         clientName,
         viewTypeToUse,
       },
@@ -320,12 +330,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       // Sentry.captureException(error);
     }
 
-    // app.log.error(error);
+    app.log.error(error);
 
-    // reply.send({
-    //   statusCode: 500,
-    //   error,
-    // });
+    reply.send({
+      statusCode: 500,
+      error,
+    });
   });
 
   return app;

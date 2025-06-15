@@ -1,4 +1,3 @@
-import { z } from "zod/v4";
 import CallbackBase from "../base-callbacks/base";
 
 export const supportedImageViewTypes = ["png", "bmp"] as const;
@@ -34,8 +33,14 @@ export type PossibleTemplateData<T extends object = object> = Promise<
 export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
 export type PossibleCallbacks = Record<string, any>;
 
-export type PlaylistItem = { callbackName: string; options?: object };
+export type PlaylistItem = {
+  id: string;
+  callbackName: string;
+  options?: object;
+};
 export type Playlist = PlaylistItem[];
+
+export type WASDWASD = { instance: CallbackBase; id: string };
 
 declare module "fastify" {
   interface FastifyReply {

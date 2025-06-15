@@ -44,7 +44,7 @@ export type RenderResponse =
     }
   | {
       viewType: "error";
-      error: TemplateDataError;
+      error: string;
     };
 
 class CallbackBase<
@@ -124,24 +124,16 @@ class CallbackBase<
   }
 
   checkRuntimeConfig() {
+    // this.logger.debug(
+    //   { receivedConfig: this.receivedConfig },
+    //   `checking runtime config for callback: ${this.name}`
+    // );
     if (this.expectedConfig) {
-      try {
-        this.logger.debug(
-          `received runtime config for ${this.name}: ${JSON.stringify(
-            this.receivedConfig
-          )}`
-        );
-
-        const result = this.expectedConfig.safeParse(this.receivedConfig);
-        if (!result.success) {
-          throw new Error(result.error.message);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Error checking runtime config for callback: ${this.name}`,
-          error
-        );
-        throw error;
+      const result = this.expectedConfig.safeParse(this.receivedConfig, {
+        reportInput: true,
+      });
+      if (!result.success) {
+        throw result.error;
       }
     }
     return true;
@@ -178,6 +170,10 @@ class CallbackBase<
 
     if ("error" in data) {
       templateOverride = "error";
+      return {
+        viewType: "error",
+        error: data.error,
+      };
     }
 
     if (isSupportedImageViewType(viewType)) {
@@ -198,7 +194,7 @@ class CallbackBase<
             imagePath: await this.#renderAsImage({
               viewType,
               data,
-              runtimeConfig: this.getRuntimeConfig(),
+              runtimeConfig: this.getRuntimeConfig() as ExpectedConfig,
               imagePath: screenshotPath,
               templateOverride,
             }),
@@ -229,7 +225,7 @@ class CallbackBase<
     return { viewType, json: data };
   }
 
-  async #renderAsImage<T extends PossibleTemplateData<TemplateData>>({
+  async #renderAsImage<T extends TemplateData>({
     viewType,
     data,
     runtimeConfig,

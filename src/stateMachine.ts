@@ -1,24 +1,8 @@
-// import CallbackMessage from "./callbacks/message";
 import CallbackBase, { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
-import { Playlist, SupportedViewType } from "./types";
-
-// type ConfigPlay = {
-//   status: "play";
-// };
-
-// type ConfigMessage = {
-//   status: "message";
-//   message: string;
-// };
-
-// type ConfigSleep = {
-//   status: "sleep";
-//   wakeupTime: number;
-// };
+import { Playlist, SupportedViewType, WASDWASD } from "./types";
 
 export type Config = {
-  status: "play" | "sleep" | "message";
   rotation: string[];
   message: string;
   currCallbackIndex: number;
@@ -26,33 +10,21 @@ export type Config = {
 };
 
 class StateMachine {
-  // currCallbackIndex: number;
-  callbacks: Record<string, CallbackBase>;
+  callbacks: Record<string, { name: string; instance: CallbackBase }>;
   #config: Config;
-  // rotation: string[];
-  timer: NodeJS.Timeout | undefined;
 
   constructor(playlist: Playlist = []) {
-    // this.currCallbackIndex = 0;
     this.callbacks = {};
     this.#config = {
-      status: "play",
       message: "",
       rotation: [],
       currCallbackIndex: 0,
-      playlist: playlist,
+      playlist,
     };
-
-    // this.setState = this.setState.bind(this);
-    // this.rotation = [];
   }
 
   setMessage(message: string) {
     this.#config.message = message;
-  }
-
-  setState(newConfig: Config["status"]) {
-    this.#config.status = newConfig;
   }
 
   getConfig() {
@@ -65,32 +37,14 @@ class StateMachine {
   ) {
     this.#config[configKey] = configValue;
   }
-  // setConfig(newState: Partial<Config>) {
-  //   // TODO validate config
-  //   this.#config = {...this.#config, ...newState};
-  // }
 
-  // add method to get logs
-
-  addCallback(callbackInstance: CallbackBase) {
-    // logger.info(
-    //   `adding callback ${callbackInstance.name} in rotation?", ${callbackInstance.inRotation}`
-    // );
-    if (!this.callbacks[callbackInstance.name]) {
-      this.callbacks[callbackInstance.name] = callbackInstance;
-      // if (callbackInstance.inRotation) {
-      //   this.#config.rotation.push(callbackInstance.name);
-      // }
-    } else {
-      logger.warn(
-        `attempting to add callback that already exists: ${callbackInstance.name}`
-      );
-    }
-  }
-
-  async addCallbacks(callbackInstances: CallbackBase[]) {
+  async addCallbacks(callbackInstances: WASDWASD[]) {
     for await (const cb of callbackInstances) {
-      this.addCallback(cb);
+      this.callbacks[cb.id] = {
+        name: cb.instance.name,
+        instance: cb.instance,
+      };
+      logger.info(`added callback ${cb.instance.name} with key: ${cb.id}`);
     }
   }
 
@@ -98,68 +52,36 @@ class StateMachine {
     return cbName in this.callbacks;
   }
 
-  setRotation(newRotation: string[]) {
-    const output = this.validateRotation(newRotation);
-    if (typeof output === "string") {
-      throw new Error("invalid rotation value:" + output);
-    }
-
-    this.setConfigOption("rotation", newRotation);
-  }
-
-  validateRotation(newRotation: string[]) {
-    for (let i = 0; i < newRotation.length; i++) {
-      if (!this.callbacks[newRotation[i]]) {
-        return newRotation[i];
-      }
-    }
-
-    return true;
-  }
-
   getCallbackInstance(callbackName: string): CallbackBase | undefined {
-    return this.callbacks[callbackName];
-  }
-
-  getCurrCallbackInstance(): CallbackBase | undefined {
-    return this.callbacks[
-      this.#config.rotation[this.#config.currCallbackIndex]
-    ];
-  }
-
-  getCallbackInstanceByName(name: string): CallbackBase | undefined {
-    if (this.callbacks[name]) {
-      return this.callbacks[name];
+    if (this.callbacks[callbackName]) {
+      return this.callbacks[callbackName].instance;
     }
-    logger.warn(`callback not found: ${name}`);
+    logger.warn(
+      `callback not found: ${callbackName}, callbacks available: ${Object.keys(
+        this.callbacks
+      ).join(", ")}`
+    );
     return undefined;
   }
 
   async tick(viewType: SupportedViewType): Promise<RenderResponse> {
-    // const selectedInstance = getCallbackInstanceByName()
-    // this.callbacks[this.#config.rotation[this.#config.currCallbackIndex]];
-    // logger.trace("tick");
     const playlistItem = this.#config.playlist[this.#config.currCallbackIndex];
 
     if (!playlistItem) {
       logger.error("no playlist item found for current index");
-      return { error: { error: "wasd" }, viewType: "error" };
-    }
-    const selectedInstance = this.getCallbackInstanceByName(
-      playlistItem.callbackName
-    );
-    if (!selectedInstance) {
-      logger.error(`callback not found: ${playlistItem.callbackName}`);
       return {
-        error: { error: `callback not found: ${playlistItem.callbackName}` },
+        error: "no playlist item found for current index",
         viewType: "error",
       };
     }
-    // try {
-    // } catch (e) {
-    //   // TODO should render error instance
-    //   return selectedInstance.render("png", e);
-    // }
+    const selectedInstance = this.getCallbackInstance(playlistItem.id);
+    if (!selectedInstance) {
+      logger.error(`callback not found: ${playlistItem.callbackName}`);
+      return {
+        error: `callback not found: ${playlistItem.callbackName}`,
+        viewType: "error",
+      };
+    }
     return selectedInstance.render(viewType /* playlistItem.options */);
   }
 
@@ -169,28 +91,6 @@ class StateMachine {
     if (this.#config.currCallbackIndex + 1 > this.#config.rotation.length) {
       this.#config.currCallbackIndex = 0;
     }
-  }
-
-  start() {
-    this.timer = setInterval(() => {
-      this.#config.currCallbackIndex++;
-
-      if (this.#config.currCallbackIndex + 1 > this.#config.rotation.length) {
-        this.#config.currCallbackIndex = 0;
-      }
-    }, 1000);
-  }
-
-  stop() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
-  }
-
-  renderError(errorMessage: string, viewType: SupportedViewType) {
-    // const cb = new CallbackMessage();
-    // cb.callbacksmessageerrorMessage);
-    // return cb.render(viewType);
   }
 }
 
