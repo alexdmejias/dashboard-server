@@ -1,6 +1,6 @@
-import getApp from "./app";
 import * as dotenv from "dotenv";
-import { PossibleCallbacks } from "./types";
+import getApp from "./app";
+import type { PossibleCallbacks } from "./types";
 
 dotenv.config();
 

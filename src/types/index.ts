@@ -1,5 +1,5 @@
-import { z } from "zod/v4";
-import CallbackBase from "../base-callbacks/base";
+import type { z } from "zod/v4";
+import type CallbackBase from "../base-callbacks/base";
 
 export const supportedImageViewTypes = ["png", "bmp"] as const;
 export const supportedTextViewTypes = ["html", "json"] as const;

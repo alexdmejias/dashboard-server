@@ -1,13 +1,13 @@
-import puppeteer, { LaunchOptions } from "puppeteer";
-import { Jimp } from "jimp";
-import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
-import { PossibleTemplateData, ScreenshotSizeOption } from "../types";
+import { Jimp } from "jimp";
+import puppeteer, { type LaunchOptions } from "puppeteer";
 import logger from "../logger";
+import { PossibleTemplateData, type ScreenshotSizeOption } from "../types";
+import getRenderedTemplate from "./getRenderedTemplate";
 
 async function getScreenshot<
   T extends object = object,
-  U extends object = object
+  U extends object = object,
 >({
   template,
   data,
@@ -49,7 +49,7 @@ async function getScreenshot<
       template,
       data,
       runtimeConfig,
-    })}`
+    })}`,
   );
   const renderedTemplate = await getRenderedTemplate({
     template,
@@ -68,7 +68,7 @@ async function getScreenshot<
     const image = await Jimp.read(imageBuffer);
 
     await image.write(imagePath as `{string}.{string}`);
-    return { path: imagePath, buffer: image.getBuffer(`image/bmp`) };
+    return { path: imagePath, buffer: image.getBuffer("image/bmp") };
   }
 
   return { path: imagePath, buffer };

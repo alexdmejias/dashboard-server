@@ -1,6 +1,6 @@
-import { WeatherApiResponseRoot } from "./types";
-import CallbackBase from "../../base-callbacks/base";
 import { z } from "zod/v4";
+import CallbackBase from "../../base-callbacks/base";
+import type { WeatherApiResponseRoot } from "./types";
 
 type ForecastWeather = {
   max: number;
@@ -43,7 +43,7 @@ class CallbackWeather extends CallbackBase<
     const { zipcode } = config;
 
     const data = await fetch(
-      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`
+      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
     );
     return (await data.json()) as WeatherApiResponseRoot;
   }
@@ -67,7 +67,7 @@ class CallbackWeather extends CallbackBase<
         day: { maxtemp_f, mintemp_f, condition },
       } = dayData;
 
-      const date = new Date(dayData.date + " 00:00:00");
+      const date = new Date(`${dayData.date} 00:00:00`);
       return {
         max: maxtemp_f,
         low: mintemp_f,
@@ -87,7 +87,7 @@ class CallbackWeather extends CallbackBase<
       {
         runtimeConfig: config,
       },
-      `Fetching weather data`
+      "Fetching weather data",
     );
     const weather = await this.getWeather(config);
     const forecast = this.getForecast(weather);
@@ -98,7 +98,7 @@ class CallbackWeather extends CallbackBase<
         today,
         forecast,
       },
-      `Weather data fetched successfully`
+      "Weather data fetched successfully",
     );
     return {
       today,

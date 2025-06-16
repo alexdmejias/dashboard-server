@@ -1,5 +1,5 @@
-import CallbackBase from "../../base-callbacks/base";
 import * as cheerio from "cheerio";
+import CallbackBase from "../../base-callbacks/base";
 
 type Link = { url: string; title: string };
 

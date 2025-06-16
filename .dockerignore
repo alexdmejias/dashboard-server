@@ -8,3 +8,4 @@ Dockerfile
 test
 src/**/*.test.*
 src/**/*.spec.*
+biome.json

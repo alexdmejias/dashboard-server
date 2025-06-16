@@ -1,22 +1,22 @@
-import getScreenshot from "../utils/getScreenshot";
-import getRenderedTemplate from "../utils/getRenderedTemplate";
-import {
+import fs from "node:fs";
+import objectHash from "object-hash";
+import type { Logger } from "pino";
+import type { z } from "zod/v4";
+import logger from "../logger";
+import type {
   PossibleTemplateData,
+  ScreenshotSizeOption,
+  SupportedImageViewType,
   SupportedViewType,
   TemplateDataError,
-  SupportedImageViewType,
-  ScreenshotSizeOption,
 } from "../types";
-import { Logger } from "pino";
-import logger from "../logger";
-import objectHash from "object-hash";
+import getRenderedTemplate from "../utils/getRenderedTemplate";
+import getScreenshot from "../utils/getScreenshot";
 import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
-import { z } from "zod/v4";
-import fs from "fs";
 
+import path from "node:path";
 import DB from "../db";
-import path from "path";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -49,7 +49,7 @@ export type RenderResponse =
 
 class CallbackBase<
   TemplateData extends object = object,
-  ExpectedConfig extends z.ZodObject = z.ZodObject
+  ExpectedConfig extends z.ZodObject = z.ZodObject,
 > {
   name: string;
   template: string;
@@ -91,9 +91,9 @@ class CallbackBase<
     }
   }
 
-  getData(config: any): PossibleTemplateData<TemplateData> {
+  getData(_config: any): PossibleTemplateData<TemplateData> {
     throw new Error(
-      `getData method not implemented for callback: ${this.name}`
+      `getData method not implemented for callback: ${this.name}`,
     );
   }
 
@@ -103,17 +103,17 @@ class CallbackBase<
 
   checkEnvVariables() {
     const missingKeys: string[] = [];
-    this.envVariablesNeeded.forEach((key) => {
+    for (const key of this.envVariablesNeeded) {
       if (!process.env[key]) {
         missingKeys.push(key);
       }
-    });
+    }
 
     if (missingKeys.length) {
       const message = `${
         this.name
       } callback requires the following environment variable(s): ${missingKeys.join(
-        ", "
+        ", ",
       )}`;
       this.logger.error(message);
       throw new Error(message);
@@ -124,7 +124,7 @@ class CallbackBase<
 
   static checkRuntimeConfig(
     expectedConfig?: z.ZodTypeAny,
-    receivedConfig?: unknown
+    receivedConfig?: unknown,
   ) {
     // this.logger.debug(
     //   { receivedConfig: this.receivedConfig },
@@ -147,7 +147,7 @@ class CallbackBase<
 
   async getDBData<DBTableShape>(
     tableName: string,
-    transformer?: (tableRow: DBTableShape) => TemplateData
+    transformer?: (tableRow: DBTableShape) => TemplateData,
   ): PossibleTemplateData<TemplateData> {
     try {
       const data = await DB.getRecord<DBTableShape>(tableName);
@@ -164,7 +164,7 @@ class CallbackBase<
 
   async render(
     viewType: SupportedViewType,
-    options?: any
+    options?: any,
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
@@ -185,38 +185,38 @@ class CallbackBase<
       if (this.cacheable && templateOverride !== "error") {
         const newDataCache = objectHash(data);
         const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.${viewType}`
+          `${this.name}-${newDataCache}.${viewType}`,
         );
         if (newDataCache === this.oldDataCache) {
           return {
             viewType,
             imagePath: screenshotPath,
           };
-        } else {
-          this.oldDataCache = newDataCache;
-          return {
-            viewType,
-            imagePath: await this.#renderAsImage({
-              viewType,
-              data,
-              runtimeConfig: options,
-              imagePath: screenshotPath,
-              templateOverride,
-            }),
-          };
         }
-      } else {
-        const screenshotPath = getImagesPath(`image.${viewType}`);
+
+        this.oldDataCache = newDataCache;
         return {
           viewType,
           imagePath: await this.#renderAsImage({
             viewType,
             data,
+            runtimeConfig: options,
             imagePath: screenshotPath,
             templateOverride,
           }),
         };
       }
+
+      const screenshotPath = getImagesPath(`image.${viewType}`);
+      return {
+        viewType,
+        imagePath: await this.#renderAsImage({
+          viewType,
+          data,
+          imagePath: screenshotPath,
+          templateOverride,
+        }),
+      };
     }
 
     if (viewType === "html") {
@@ -277,7 +277,7 @@ class CallbackBase<
 
   #resolveTemplate(name: string, template?: string): string {
     const adjacentTemplatePath = path.resolve(
-      `./src/callbacks/${name}/template.ejs`
+      `./src/callbacks/${name}/template.ejs`,
     );
     if (fs.existsSync(adjacentTemplatePath)) {
       return adjacentTemplatePath;
@@ -288,7 +288,7 @@ class CallbackBase<
       return templatesFolderPath;
     }
 
-    const genericTemplatePath = `./views/generic.ejs`;
+    const genericTemplatePath = "./views/generic.ejs";
     if (fs.existsSync(genericTemplatePath)) {
       return genericTemplatePath;
     }

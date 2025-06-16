@@ -1,8 +1,8 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import ejs from "ejs";
-import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 import logger from "../logger";
-import { readFile } from "fs/promises";
-import path from "path";
+import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
 async function getTemplateContent(templatePath: string): Promise<string> {
   const [head, footer, template] = await Promise.all([
@@ -12,7 +12,7 @@ async function getTemplateContent(templatePath: string): Promise<string> {
   ]);
   if (!head || !footer || !template) {
     throw new Error(
-      `Failed to read one or more template files: head, footer, or template at ${templatePath}`
+      `Failed to read one or more template files: head, footer, or template at ${templatePath}`,
     );
   }
 
@@ -33,7 +33,7 @@ async function getRenderedTemplate<T extends object>({
     (!("markdown" in data) || typeof data.markdown !== "string")
   ) {
     throw new Error(
-      "attempted to render the markdown template, but the data.markdown argument is missing or not a string"
+      "attempted to render the markdown template, but the data.markdown argument is missing or not a string",
     );
   }
 
@@ -52,12 +52,12 @@ async function getRenderedTemplate<T extends object>({
       {
         views: ["./views"],
         async: true,
-      }
+      },
     );
   } catch (err) {
     logger.error(
       { err, template, data, runtimeConfig },
-      "Error rendering template."
+      "Error rendering template.",
     );
     throw err; // TODO this error is being swallowed
   }

@@ -1,5 +1,5 @@
-import CallbackBase from "../../base-callbacks/base";
 import { z } from "zod/v4";
+import CallbackBase from "../../base-callbacks/base";
 
 export interface RedditResponseRoot {
   kind: string;
@@ -34,7 +34,7 @@ class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
       const { qty = 10, subreddit = "asknyc" } = config;
 
       const dataRes = await fetch(
-        `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`
+        `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`,
       );
 
       const json = (await dataRes.json()) as RedditResponseRoot;

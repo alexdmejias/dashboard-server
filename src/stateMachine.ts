@@ -1,6 +1,7 @@
-import CallbackBase, { RenderResponse } from "./base-callbacks/base";
+import type CallbackBase from "./base-callbacks/base";
+import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
-import {
+import type {
   Playlist,
   PlaylistItem,
   SupportedViewType,
@@ -38,7 +39,7 @@ class StateMachine {
 
   setConfigOption<T extends keyof Config>(
     configKey: T,
-    configValue: Config[T]
+    configValue: Config[T],
   ) {
     this.#config[configKey] = configValue;
   }

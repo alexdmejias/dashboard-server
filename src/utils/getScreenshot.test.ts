@@ -1,7 +1,7 @@
-import puppeteer from "puppeteer";
-import { Jimp } from "jimp";
-import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
+import { Jimp } from "jimp";
+import puppeteer from "puppeteer";
+import getRenderedTemplate from "./getRenderedTemplate";
 import getScreenshot from "./getScreenshot";
 
 jest.mock("puppeteer");
@@ -50,7 +50,7 @@ describe("utils:getScreenshot", () => {
       expect.objectContaining({
         headless: true,
         args: expect.arrayContaining(["--no-sandbox"]),
-      })
+      }),
     );
     expect(mockNewPage).toHaveBeenCalled();
     expect(mockSetViewport).toHaveBeenCalledWith(options.size);
@@ -97,7 +97,7 @@ describe("utils:getScreenshot", () => {
 
     expect(readFile).toHaveBeenCalledWith(options.imagePath);
     expect(Jimp.read).toHaveBeenCalledWith(
-      Buffer.from(mockBufferContentSource)
+      Buffer.from(mockBufferContentSource),
     );
     expect(mockWrite).toHaveBeenCalledWith(options.imagePath);
     expect(result).toEqual({
