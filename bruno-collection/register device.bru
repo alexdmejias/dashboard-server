@@ -4,8 +4,40 @@ meta {
   seq: 3
 }
 
-get {
+post {
   url: {{host}}/register/inkplate
-  body: none
+  body: json
   auth: none
+}
+
+body:json {
+  {
+    "playlist": [{
+      "id": "astoria",
+      "callbackName": "reddit",
+      "options": {
+        "qty": 2,
+        "subreddit": "astoria"
+      }
+    }, {
+      "id": "asknyc",
+      "callbackName": "reddit",
+      "options": {
+        "qty": 10,
+        "subreddit": "asknyc"
+      }
+    }, {
+      "id": "astoria-weather",
+      "callbackName": "weather",
+      "options": {
+        "zipcode": "11106"
+      }
+    }, {
+      "id": "oceanside-weather",
+      "callbackName": "weather",
+      "options": {
+        "zipcode": "11572"
+      }
+    }]
+  }
 }
