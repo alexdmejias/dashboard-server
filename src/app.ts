@@ -5,6 +5,7 @@ dotenv.config();
 
 import fs from "node:fs/promises";
 import { resolve } from "node:path";
+import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
@@ -17,7 +18,6 @@ import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
-
 export const serverMessages = {
   healthGood: "ok",
   createdClient: (clientName: string) => `created new client: ${clientName}`,
@@ -98,6 +98,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       ejs: import("ejs"),
     },
   });
+
+  app.register(fastifyCors);
 
   app.get("/health", async (_req, res) => {
     return res.send({
