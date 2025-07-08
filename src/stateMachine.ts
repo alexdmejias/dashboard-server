@@ -29,6 +29,24 @@ class StateMachine {
     };
   }
 
+  toString() {
+    const data: Record<string, any> = {
+      config: this.#config,
+      callbacks: {},
+    };
+
+    for (const [callbackName, callbackValue] of Object.entries(
+      this.callbacks,
+    )) {
+      data.callbacks[callbackName] = {
+        name: callbackValue.name,
+        instance: callbackValue.instance.toString(),
+      };
+    }
+
+    return data;
+  }
+
   setMessage(message: string) {
     this.#config.message = message;
   }

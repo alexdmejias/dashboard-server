@@ -1,7 +1,9 @@
 import fs from "node:fs";
+import path from "node:path";
 import objectHash from "object-hash";
 import type { Logger } from "pino";
-import type { z } from "zod/v4";
+import { z } from "zod/v4";
+import DB from "../db";
 import logger from "../logger";
 import type {
   PossibleTemplateData,
@@ -14,9 +16,6 @@ import getRenderedTemplate from "../utils/getRenderedTemplate";
 import getScreenshot from "../utils/getScreenshot";
 import { getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
-
-import path from "node:path";
-import DB from "../db";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -55,7 +54,7 @@ class CallbackBase<
   template: string;
   dataFile?: string;
   inRotation: boolean;
-  logger: Logger;
+  #logger: Logger;
   screenshotSize: ScreenshotSizeOption;
   cacheable = false;
   oldDataCache = "";
@@ -76,7 +75,7 @@ class CallbackBase<
     this.name = name;
     this.inRotation = inRotation;
     this.template = this.#resolveTemplate(name, template);
-    this.logger = logger;
+    this.#logger = logger;
     this.screenshotSize = screenshotSize || {
       width: 1200,
       height: 825,
@@ -89,6 +88,21 @@ class CallbackBase<
     if (this.envVariablesNeeded.length) {
       this.checkEnvVariables();
     }
+  }
+
+  toString() {
+    const data: Record<string, any> = {
+      cacheable: this.cacheable,
+      screenshotSize: this.screenshotSize,
+      envVariablesNeeded: this.envVariablesNeeded,
+      template: this.template,
+      receivedConfig: this.receivedConfig,
+    };
+
+    if (this.expectedConfig) {
+      data.expectedConfig = z.toJSONSchema(this.expectedConfig);
+    }
+    return data;
   }
 
   getData(_config: any): PossibleTemplateData<TemplateData> {
@@ -115,7 +129,7 @@ class CallbackBase<
       } callback requires the following environment variable(s): ${missingKeys.join(
         ", ",
       )}`;
-      this.logger.error(message);
+      this.#logger.error(message);
       throw new Error(message);
     }
 
@@ -126,7 +140,7 @@ class CallbackBase<
     expectedConfig?: z.ZodTypeAny,
     receivedConfig?: unknown,
   ) {
-    // this.logger.debug(
+    // this.#logger.debug(
     //   { receivedConfig: this.receivedConfig },
     //   `checking runtime config for callback: ${this.name}`
     // );
@@ -167,7 +181,7 @@ class CallbackBase<
     options?: any,
   ): Promise<RenderResponse> {
     // TODO validate viewType
-    this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
+    this.#logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     const data = await this.getData(options);
 

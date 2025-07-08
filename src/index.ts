@@ -30,32 +30,32 @@ const start = async () => {
     const port = process.env.PORT || 3333;
     await app.listen({ port, host: "0.0.0.0" });
 
-    // await fetch(`http://localhost:${port}/register/inkplate`, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({
-    //     playlist: [
-    //       {
-    //         id: "reddit-programming",
-    //         callbackName: "reddit",
-    //         options: {
-    //           subreddit: "programming",
-    //           qty: 5,
-    //         },
-    //       },
-    //       {
-    //         id: "reddit-astoria",
-    //         callbackName: "reddit",
-    //         options: {
-    //           subreddit: "astoria",
-    //           qty: 10,
-    //         },
-    //       },
-    //     ],
-    //   }),
-    // });
+    await fetch(`http://localhost:${port}/register/inkplate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        playlist: [
+          {
+            id: "reddit-programming",
+            callbackName: "reddit",
+            options: {
+              subreddit: "programming",
+              qty: 5,
+            },
+          },
+          {
+            id: "reddit-astoria",
+            callbackName: "reddit",
+            options: {
+              subreddit: "astoria",
+              qty: 10,
+            },
+          },
+        ],
+      }),
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -54,11 +54,19 @@ function clientsPlugin(
   done: () => void,
 ) {
   const { possibleCallbacks } = options;
-  const clients: Record<string, StateMachine> = {};
+  const _clients: Record<string, StateMachine> = {};
 
-  fastify.decorate("getClients", () => clients);
+  fastify.decorate("getClients", () => {
+    const data: Record<string, any> = {};
 
-  fastify.decorate("getClient", (clientName: string) => clients[clientName]);
+    Object.keys(_clients).forEach((clientName) => {
+      data[clientName] = _clients[clientName].toString();
+    });
+
+    return data;
+  });
+
+  fastify.decorate("getClient", (clientName: string) => _clients[clientName]);
 
   fastify.decorate(
     "registerClient",
@@ -103,8 +111,8 @@ function clientsPlugin(
       if (errors) {
         return { error: errors };
       }
-      clients[clientName] = new StateMachine(playlist);
-      const client = clients[clientName];
+      _clients[clientName] = new StateMachine(playlist);
+      const client = _clients[clientName];
 
       await client.addCallbacks(validCallbacks);
       return client;

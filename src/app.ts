@@ -105,8 +105,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     return res.send({
       statusCode: 200,
       message: serverMessages.healthGood,
-      clients: app.getClients(),
       possibleCallbacks: Object.keys(possibleCallbacks),
+      clients: app.getClients(),
     });
   });
 
