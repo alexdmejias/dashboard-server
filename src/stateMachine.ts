@@ -107,19 +107,16 @@ class StateMachine {
       };
     }
 
-    this.#config.currCallbackIndex++;
-    if (this.#config.currCallbackIndex >= this.#config.playlist.length) {
-      this.#config.currCallbackIndex = 0;
-    }
+    this.advanceCallbackIndex();
     return selectedInstance.render(viewType, playlistItem.options);
   }
 
   advanceCallbackIndex() {
     this.#config.currCallbackIndex++;
-
-    if (this.#config.currCallbackIndex + 1 > this.#config.rotation.length) {
+    if (this.#config.currCallbackIndex + 1 > this.#config.playlist.length) {
       this.#config.currCallbackIndex = 0;
     }
+    logger.debug(`currCallbackIndex is now ${this.#config.currCallbackIndex}`);
   }
 }
 

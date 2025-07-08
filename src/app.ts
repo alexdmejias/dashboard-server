@@ -184,8 +184,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     let data: RenderResponse;
     if (callback === "next") {
       data = await client.tick(viewTypeToUse);
-
-      client.advanceCallbackIndex();
     } else {
       const callbackInstance = client.getCallbackInstance(callback);
       const playlistItem = client.getPlaylistItemById(callback);
