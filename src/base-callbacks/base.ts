@@ -54,7 +54,7 @@ class CallbackBase<
   template: string;
   dataFile?: string;
   inRotation: boolean;
-  #logger: Logger;
+  logger: Logger;
   screenshotSize: ScreenshotSizeOption;
   cacheable = false;
   oldDataCache = "";
@@ -75,7 +75,7 @@ class CallbackBase<
     this.name = name;
     this.inRotation = inRotation;
     this.template = this.#resolveTemplate(name, template);
-    this.#logger = logger;
+    this.logger = logger;
     this.screenshotSize = screenshotSize || {
       width: 1200,
       height: 825,
@@ -129,7 +129,7 @@ class CallbackBase<
       } callback requires the following environment variable(s): ${missingKeys.join(
         ", ",
       )}`;
-      this.#logger.error(message);
+      this.logger.error(message);
       throw new Error(message);
     }
 
@@ -140,7 +140,7 @@ class CallbackBase<
     expectedConfig?: z.ZodTypeAny,
     receivedConfig?: unknown,
   ) {
-    // this.#logger.debug(
+    // this.logger.debug(
     //   { receivedConfig: this.receivedConfig },
     //   `checking runtime config for callback: ${this.name}`
     // );
@@ -181,7 +181,7 @@ class CallbackBase<
     options?: any,
   ): Promise<RenderResponse> {
     // TODO validate viewType
-    this.#logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
+    this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     const data = await this.getData(options);
 
