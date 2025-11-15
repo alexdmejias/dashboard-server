@@ -1,7 +1,7 @@
 import pino, { type LoggerOptions } from "pino";
 
 export const loggingOptions: LoggerOptions = {
-  level: "trace",
+  level: process.env.LOG_LEVEL || "trace",
   transport: {
     target: "pino-pretty",
     options: {
