@@ -11,13 +11,14 @@ import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
 
 import type { RenderResponse } from "./base-callbacks/base";
-import logger, { loggingOptions } from "./logger";
+import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
 import type { PossibleCallbacks, SupportedViewType } from "./types";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
+
 export const serverMessages = {
   healthGood: "ok",
   createdClient: (clientName: string) => `created new client: ${clientName}`,
@@ -35,7 +36,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   }
 
   const app = fastify({
-    logger: /* process.env.NODE_ENV === "test" ? undefined : */ loggingOptions,
+    loggerInstance: logger,
   });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
