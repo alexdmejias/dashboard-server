@@ -59,7 +59,9 @@ async function getRenderedTemplate<T extends object>({
       { err, template, data, runtimeConfig },
       "Error rendering template.",
     );
+
     throw err; // TODO this error is being swallowed
+    // TODO should surface an error template with the contents of the error
   }
 }
 
