@@ -30,31 +30,33 @@ const start = async () => {
     const port = process.env.PORT || 3333;
     await app.listen({ port, host: "0.0.0.0" });
 
-    await fetch(`http://localhost:${port}/register/inkplate`, {
+    app.inject({
+      path: "/register/inkplate",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
+      body: {
         playlist: [
           {
-            id: "reddit-programming",
+            id: "astoria",
             callbackName: "reddit",
             options: {
-              subreddit: "programming",
-              qty: 5,
+              qty: 2,
+              title: "astoria posts",
+              subreddit: "astoria",
             },
           },
           {
-            id: "reddit-astoria",
+            id: "asknyc",
             callbackName: "reddit",
             options: {
-              subreddit: "astoria",
               qty: 10,
+              subreddit: "asknyc",
             },
           },
         ],
-      }),
+      },
     });
   } catch (err) {
     app.log.error(err);
