@@ -29,6 +29,10 @@ class CallbackWeather extends CallbackBase<
   TemplateDataWeather,
   typeof expectedConfig
 > {
+  static defaultOptions: ConfigType = {
+    zipcode: "10001",
+  };
+
   constructor(options = {}) {
     super({
       name: "weather",

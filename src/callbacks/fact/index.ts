@@ -4,7 +4,10 @@ type Fact = { id: string; content: string };
 
 class CallbackFact extends CallbackBase<Fact> {
   constructor() {
-    super({ name: "fact", template: "generic" });
+    super({
+      name: "fact",
+      template: "generic",
+    });
   }
 
   // get migration() {

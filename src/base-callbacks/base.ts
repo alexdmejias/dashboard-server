@@ -50,6 +50,8 @@ class CallbackBase<
   TemplateData extends object = object,
   ExpectedConfig extends z.ZodObject = z.ZodObject,
 > {
+  // static defaults can be overridden by child classes
+  static defaultOptions?: unknown;
   name: string;
   template: string;
   dataFile?: string;
@@ -83,7 +85,36 @@ class CallbackBase<
     this.cacheable = cacheable;
     this.envVariablesNeeded = envVariablesNeeded;
     this.expectedConfig = expectedConfig;
-    this.receivedConfig = receivedConfig;
+
+    // Merge defaults from the child's static defaultOptions with receivedConfig.
+    const ctor = this.constructor as typeof CallbackBase & {
+      defaultOptions?: unknown;
+    };
+    const defaults = (ctor.defaultOptions ?? {}) as unknown;
+
+    if (expectedConfig) {
+      // Use zod to validate and fill defaults
+      try {
+        this.receivedConfig = (
+          this.constructor as typeof CallbackBase
+        ).mergeWithDefaults(
+          expectedConfig as any,
+          defaults as any,
+          receivedConfig as any,
+        );
+      } catch (e) {
+        // rethrow to surface config validation errors during construction
+        throw e;
+      }
+    } else {
+      // shallow merge when no schema is provided
+      this.receivedConfig = {
+        ...(defaults as Record<string, unknown>),
+        ...(typeof receivedConfig === "object" && receivedConfig
+          ? (receivedConfig as Record<string, unknown>)
+          : {}),
+      };
+    }
 
     if (this.envVariablesNeeded.length) {
       this.checkEnvVariables();
@@ -158,6 +189,22 @@ class CallbackBase<
   // getRuntimeConfig() {
   //   return this.receivedConfig as z.infer<ExpectedConfig>;
   // }
+
+  /**
+   * Utility to merge default config with provided options, using zod for type safety.
+   */
+  static mergeWithDefaults<ConfigType extends object>(
+    expectedConfig: z.ZodType,
+    defaults: ConfigType,
+    options?: Partial<ConfigType>,
+  ): ConfigType {
+    const merged = { ...defaults, ...(options || {}) };
+    const result = expectedConfig.safeParse(merged);
+    if (!result.success) {
+      throw result.error;
+    }
+    return result.data as ConfigType;
+  }
 
   async getDBData<DBTableShape>(
     tableName: string,

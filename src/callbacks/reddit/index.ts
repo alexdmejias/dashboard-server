@@ -21,15 +21,15 @@ export const expectedConfig = z.object({
   qty: z.number().positive(),
 });
 
-type t = z.infer<typeof expectedConfig>;
-
-const defaultClassOptions: t = {
-  title: "default reddit title",
-  qty: 3,
-  subreddit: "pets",
-};
+type ConfigType = z.infer<typeof expectedConfig>;
 
 class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
+  static defaultOptions: ConfigType = {
+    title: "default reddit title",
+    qty: 3,
+    subreddit: "pets",
+  };
+
   constructor(options = {}) {
     super({
       name: "reddit",
