@@ -10,7 +10,7 @@ function getDaysInMonth(month: number, year: number) {
 
 class CallbackYearProgress extends CallbackBase<YearProgressData> {
   constructor(options = {}) {
-    super({ name: "year", cacheable: true, receivedConfig: options });
+    super({ name: "year-progress", cacheable: true, receivedConfig: options });
   }
 
   getData() {

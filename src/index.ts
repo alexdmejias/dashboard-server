@@ -6,9 +6,7 @@ dotenv.config();
 
 const start = async () => {
   const callbacks: { callbackName: string }[] = [
-    {
-      callbackName: "reddit",
-    },
+    { callbackName: "reddit" },
     { callbackName: "weather" },
     { callbackName: "year-progress" },
   ];
@@ -54,6 +52,10 @@ const start = async () => {
               qty: 10,
               subreddit: "asknyc",
             },
+          },
+          {
+            id: "cal",
+            callbackName: "year-progress",
           },
         ],
       },

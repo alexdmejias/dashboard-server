@@ -1,0 +1,26 @@
+<div class="layout layout--row">
+  <section class="flex flex--col">
+    <h1 class="title">{{ data.date }}</h1>
+    <div class="flex flex--col">
+      {% assign classes = "rounded--xsmall w--6 h--6" %}
+      {% for month in data.days %}
+      <div class="month inline-flex">
+        {% for i in (1..month[0]) %}
+        <div class="bg--gray-10 {{classes}}"></div>
+        {% endfor %}
+        {% for i in (1..month[1]) %}
+        <div class="{{classes}}"></div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+<style>
+  .month div {
+    --size: 25px;
+    width: var(--size);
+    height: var(--size);
+    border: 2px solid black;
+  }
+</style>

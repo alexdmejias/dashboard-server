@@ -225,12 +225,12 @@ class CallbackBase<
 
   async render(
     viewType: SupportedViewType,
-    options?: any,
+    // options?: any,
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
-    const data = await this.getData(options);
+    const data = await this.getData(this.receivedConfig);
 
     let templateOverride: string | undefined;
 
@@ -261,7 +261,7 @@ class CallbackBase<
           imagePath: await this.#renderAsImage({
             viewType,
             data,
-            runtimeConfig: options,
+            runtimeConfig: this.receivedConfig,
             imagePath: screenshotPath,
             templateOverride,
           }),
@@ -274,6 +274,7 @@ class CallbackBase<
         imagePath: await this.#renderAsImage({
           viewType,
           data,
+          runtimeConfig: this.receivedConfig,
           imagePath: screenshotPath,
           templateOverride,
         }),
@@ -287,7 +288,7 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: options,
+          runtimeConfig: this.receivedConfig,
         }),
       };
     }
@@ -304,7 +305,7 @@ class CallbackBase<
   }: {
     viewType: SupportedImageViewType;
     data: T;
-    runtimeConfig?: ExpectedConfig;
+    runtimeConfig: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
   }): Promise<string> {
@@ -337,22 +338,42 @@ class CallbackBase<
   }
 
   #resolveTemplate(name: string, template?: string): string {
-    const adjacentTemplatePath = path.resolve(
-      `./src/callbacks/${name}/template.ejs`,
-    );
-    if (fs.existsSync(adjacentTemplatePath)) {
-      return adjacentTemplatePath;
+    const extPreference = ["liquid", "ejs"];
+
+    // 1) If a specific template was requested, prefer resolving that first
+    if (template) {
+      // try exact resolution in callbacks folder if the template includes an ext or matches a preference
+      for (const ext of extPreference) {
+        if (template.endsWith(`.${ext}`) || template.endsWith(ext)) {
+          const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
+          if (fs.existsSync(candidate)) return candidate;
+          const viewsCandidate = path.resolve(`./views/${template}`);
+          if (fs.existsSync(viewsCandidate)) return viewsCandidate;
+        }
+      }
+
+      // try templates folder (views) with preferred extensions
+      for (const ext of extPreference) {
+        const viewsPath = path.resolve(`./views/${template}.${ext}`);
+        if (fs.existsSync(viewsPath)) return viewsPath;
+      }
     }
 
-    const templatesFolderPath = `./views/${template || name}.ejs`;
-    if (fs.existsSync(templatesFolderPath)) {
-      return templatesFolderPath;
+    // 2) Look for callback-local templates (template.liquid/template.ejs)
+    for (const ext of extPreference) {
+      const local = path.resolve(`./src/callbacks/${name}/template.${ext}`);
+      if (fs.existsSync(local)) return local;
     }
 
-    const genericTemplatePath = "./views/generic.ejs";
-    if (fs.existsSync(genericTemplatePath)) {
-      return genericTemplatePath;
+    // 3) Fallback to views/{name}.{ext}
+    for (const ext of extPreference) {
+      const viewsPath = path.resolve(`./views/${name}.${ext}`);
+      if (fs.existsSync(viewsPath)) return viewsPath;
     }
+
+    // 4) Fallback to generic template
+    const genericTemplatePath = path.resolve("./views/generic.ejs");
+    if (fs.existsSync(genericTemplatePath)) return genericTemplatePath;
 
     throw new Error(`No valid template found for callback: ${name}`);
   }

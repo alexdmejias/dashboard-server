@@ -1,13 +1,18 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ejs from "ejs";
+import { Liquid } from "liquidjs";
 import logger from "../logger";
 import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
-async function getTemplateContent(templatePath: string): Promise<string> {
+async function getTemplateContent(
+  templatePath: string,
+  isUsingLiquid: boolean,
+): Promise<string> {
+  const ext = isUsingLiquid ? "liquid" : "ejs";
   const [head, footer, template] = await Promise.all([
-    readFile(path.resolve("./views/partials/head.ejs"), "utf-8"),
-    readFile(path.resolve("./views/partials/footer.ejs"), "utf-8"),
+    readFile(path.resolve(`./views/partials/head.${ext}`), "utf-8"),
+    readFile(path.resolve(`./views/partials/footer.${ext}`), "utf-8"),
     readFile(templatePath, "utf-8"),
   ]);
   if (!head || !footer || !template) {
@@ -37,9 +42,17 @@ async function getRenderedTemplate<T extends object>({
     );
   }
 
-  const templateStr = await getTemplateContent(template);
+  const isUsingLiquid = template.endsWith("liquid");
+  const templateStr = await getTemplateContent(template, isUsingLiquid);
 
   try {
+    if (isUsingLiquid) {
+      const engine = new Liquid();
+      return engine.parseAndRender(templateStr, {
+        data,
+        runtimeConfig,
+      });
+    }
     return ejs.render(
       templateStr,
       {
@@ -47,7 +60,10 @@ async function getRenderedTemplate<T extends object>({
         data:
           template === "markdown" && "markdown" in data
             ? getHTMLFromMarkdown((data as { markdown: string }).markdown)
-            : data,
+            : {
+                data,
+                runtimeConfig,
+              },
       },
       {
         views: ["./views"],
