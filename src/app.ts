@@ -4,16 +4,18 @@ import "./instrument";
 dotenv.config();
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
-
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
 import type { PossibleCallbacks, SupportedViewType } from "./types";
+import getRenderedTemplate from "./utils/getRenderedTemplate";
+import getScreenshot from "./utils/getScreenshot";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
@@ -193,7 +195,20 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         return res.notFound(serverMessages.callbackNotFound(callback));
       }
 
-      data = await callbackInstance.render(viewTypeToUse, playlistItem.options);
+      // render may accept runtime options; use a typed cast to avoid `any`
+      type RenderWithOptions = (
+        viewType: SupportedViewType,
+        options?: Record<string, unknown>,
+      ) => Promise<RenderResponse>;
+
+      data = await (
+        callbackInstance as unknown as {
+          render: RenderWithOptions;
+        }
+      ).render(
+        viewTypeToUse,
+        playlistItem.options as Record<string, unknown> | undefined,
+      );
     }
 
     app.log.info(
@@ -204,6 +219,86 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       "sending response",
     );
     return getResponseFromData(res, data);
+  });
+
+  app.post<{
+    Body: {
+      templateType: "liquid" | "ejs";
+      template: string;
+      templateData?: Record<string, unknown>;
+      screenDetails: {
+        width: number;
+        height: number;
+        bits?: number;
+        output: "html" | "png" | "bmp";
+      };
+    };
+  }>("/test-template", async (req, res) => {
+    const {
+      templateType,
+      template,
+      templateData = {},
+      screenDetails,
+    } = req.body;
+
+    if (!templateType || !template || !screenDetails) {
+      return res.code(400).send({ error: "invalid request body" });
+    }
+
+    try {
+      const ext = templateType === "liquid" ? "liquid" : "ejs";
+
+      // write the provided template body to a temporary template file.
+      // We write only the body; getRenderedTemplate will compose head/footer
+      // when given a template path.
+      const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
+        Math.random() * 1e9,
+      )}.${ext}`;
+      const tmpPath = resolve(os.tmpdir(), tmpName);
+      await fs.writeFile(tmpPath, template, "utf-8");
+
+      try {
+        if (screenDetails.output === "html") {
+          const renderedHtml = await getRenderedTemplate({
+            template: tmpPath,
+            data: templateData,
+            runtimeConfig: screenDetails,
+          });
+
+          return res.type("text/html").send(renderedHtml);
+        }
+
+        // image output (png or bmp) — use shared getScreenshot utility
+        const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
+        const fileName = `test-template-${Date.now()}.${extOut}`;
+        const imagePath = resolve(`./public/images/${fileName}`);
+
+        const width = screenDetails.width ?? 1200;
+        const height = screenDetails.height ?? 825;
+
+        const { buffer } = await getScreenshot({
+          template: tmpPath,
+          data: templateData,
+          runtimeConfig: screenDetails,
+          imagePath,
+          viewType: extOut,
+          size: { width, height },
+        });
+
+        const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
+        return res.type(contentType).send(buffer);
+      } finally {
+        // best-effort cleanup of the temp template
+        try {
+          await fs.unlink(tmpPath);
+        } catch (e) {
+          app.log.debug({ err: e }, "failed to remove temp template file");
+        }
+      }
+    } catch (err) {
+      app.log.error(err);
+      return res.internalServerError("Error rendering template");
+    }
   });
 
   // type TestParams = {

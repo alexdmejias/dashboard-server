@@ -225,12 +225,17 @@ class CallbackBase<
 
   async render(
     viewType: SupportedViewType,
-    // options?: any,
+    options?: unknown,
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
-    const data = await this.getData(this.receivedConfig);
+    // allow callers to supply runtime options (e.g. from a playlist item).
+    const runtimeOptions =
+      typeof options !== "undefined" ? options : this.receivedConfig;
+    const data = await this.getData(
+      runtimeOptions as unknown as Record<string, unknown>,
+    );
 
     let templateOverride: string | undefined;
 
@@ -261,7 +266,7 @@ class CallbackBase<
           imagePath: await this.#renderAsImage({
             viewType,
             data,
-            runtimeConfig: this.receivedConfig,
+            runtimeConfig: runtimeOptions as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
           }),
@@ -274,7 +279,7 @@ class CallbackBase<
         imagePath: await this.#renderAsImage({
           viewType,
           data,
-          runtimeConfig: this.receivedConfig,
+          runtimeConfig: runtimeOptions as ExpectedConfig,
           imagePath: screenshotPath,
           templateOverride,
         }),
@@ -288,7 +293,7 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: this.receivedConfig,
+          runtimeConfig: runtimeOptions as ExpectedConfig,
         }),
       };
     }
