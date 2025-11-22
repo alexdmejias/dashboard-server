@@ -1,10 +1,57 @@
-```markdown
-TODO
-should add a picture callback to display images/movies/gifs
-switch to vitest
-move pupperter to docker image
+1.should add a picture callback to display images/movies/gifs
+2.switch to vitest
+3. move pupperter to docker image
+4. callback: load a notion page
+5. callback: calendar
 
+# Dashboard Server
+
+A small Node/TypeScript server that renders HTML for a set of pluggable "callbacks", captures screenshots, and serves image or HTML responses for clients (useful for dashboards, inkplate displays, widgets, etc.).
+
+Key ideas
+- Callbacks live in `src/callbacks/*`. Each callback is responsible for fetching or producing data and exposing a template for rendering.
+- Templates can be Liquid (`.liquid`) or EJS (`.ejs`). The renderer chooses a template per-callback and renders it with the provided data.
+- The renderer uses Puppeteer to produce images (`src/utils/getScreenshot.ts`) and writes images to `public/images/` by default.
+- Runtime configuration for callbacks is validated with Zod schemas exported from callback modules as `expectedConfig`.
+
+## Quick start
+
+Prerequisites
+- Node 18+ (the project uses modern ESM/TS tooling).
+- Chrome/Chromium is required by Puppeteer (the dependency is included in `package.json`).
+
+Install and run in dev mode
+
+```bash
+npm install
+npm run dev
 ```
+
+This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
+
+## Environment
+Create a `.env` file at the project root or export env vars. Example keys used by callbacks:
+
+- `WEATHER_APIKEY` — API key for the weather callback (if enabled)
+- `PORT` — server port
+
+Other per-callback env variables are declared in each callback under `envVariablesNeeded`.
+
+## How it works (high level)
+
+1. The server registers callbacks listed in `src/index.ts` (it dynamically imports `./callbacks/{name}/index.ts`).
+2. Each callback module may export:
+   - `expectedConfig` (a Zod schema) — used to validate runtime options.
+   - A default template file `template.liquid` or `template.ejs` under the callback folder or a shared view under `views/`.
+3. When rendering, the server calls the callback's `getData` method, then renders the callback's template using `getRenderedTemplate`, passing two top-level objects to the renderer:
+
+```js
+{ data, runtimeConfig }
+```
+
+For Liquid templates use `{{ data }}` and `{{ runtimeConfig }}` to access values.
+
+4. If the requested view is an image type (`png`, `bmp`) the server captures a screenshot via Puppeteer; otherwise it returns the HTML.
 
 ## Architecture
 
@@ -37,4 +84,50 @@ Notes
 - Storage/Serving: images are written to `public/images/` by default or uploaded to cloud storage (see `keys/` and any environment-specific config). Images are served over HTTP (optionally via a CDN).
 
 This flow shows the happy-path: a client request triggers the server's callback pipeline, which renders HTML, captures an image, stores it, and then the client receives an image URL that can be fetched or embedded.
-```markdown
+
+## Templates
+
+- Liquid and EJS are both supported. `getRenderedTemplate` chooses the correct engine based on the template file extension.
+- When writing Liquid templates, prefer `{{ data.foo }}` and `{{ runtimeConfig.bar }}`. Use the `default` filter for ternary-like fallback: `{{ data.title | default: runtimeConfig.title }}`.
+
+## Adding a new callback
+
+1. Create `src/callbacks/<name>/index.ts` that extends `CallbackBase` (or matches the callback shape).
+2. Optionally export `expectedConfig` (a Zod schema) and ensure you validate/merge runtime options.
+3. Add a template at `src/callbacks/<name>/template.liquid` or `template.ejs` (or a shared view at `views/<name>.<ext>`).
+4. Register the callback in `src/index.ts` so the server imports it at startup.
+
+Minimal callback example (pseudo):
+
+```ts
+export const expectedConfig = z.object({ zipcode: z.string() });
+
+class CallbackFoo extends CallbackBase<TemplateShape, typeof expectedConfig> {
+  constructor(options = {}) {
+    super({ name: 'foo', expectedConfig, receivedConfig: options });
+  }
+
+  async getData(config) { /* return template data */ }
+}
+
+export default CallbackFoo;
+```
+
+## Debugging templates
+
+- If a template renders nothing, inspect the shape of the `data` passed to `getRenderedTemplate` — Liquid receives `{ data, runtimeConfig }`.
+- Use console logs or temporarily render HTML to the console during development.
+
+## Tests
+
+Run unit tests with:
+
+```bash
+npm test
+```
+
+## Development notes & TODOs
+
+- Callbacks and templates are intentionally lightweight — add more unit tests and a CI pipeline.
+- Consider moving Puppeteer into a Docker image for reproducible rendering environments.
+- Possible improvements: switch to Vitest, add end-to-end tests for rendering, add a configurable image storage backend.
