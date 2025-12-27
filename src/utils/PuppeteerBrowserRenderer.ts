@@ -1,11 +1,19 @@
 import { BrowserRenderer, RenderOptions, RenderResult } from "../types/browser-renderer";
-import puppeteer, { LaunchOptions } from "puppeteer";
 
 class PuppeteerBrowserRenderer implements BrowserRenderer {
   async renderPage(options: RenderOptions): Promise<RenderResult> {
     const { htmlContent, imagePath, size = { width: 1200, height: 825 } } = options;
 
-    const puppeteerOptions: LaunchOptions = {
+    let puppeteer;
+    try {
+      puppeteer = await import("puppeteer");
+    } catch (error) {
+      throw new Error(
+        "Puppeteer is not installed. Install it with 'npm install puppeteer' or use a different renderer like 'cloudflare'."
+      );
+    }
+
+    const puppeteerOptions: any = {
       headless: true,
       args: [
         "--no-sandbox",
@@ -18,7 +26,7 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       puppeteerOptions.executablePath = process.env.CHROMIUM_BIN;
     }
 
-    const browser = await puppeteer.launch(puppeteerOptions);
+    const browser = await puppeteer.default.launch(puppeteerOptions);
     const page = await browser.newPage();
 
     page.setViewport(size);

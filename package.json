@@ -27,12 +27,14 @@
     "object-hash": "^3.0.0",
     "pino": "^8.11.0",
     "pino-pretty": "^10.0.0",
-    "puppeteer": "^23.10.4",
     "showdown": "^2.1.0",
     "sqlite3": "^5.1.6",
     "ts-import": "^5.0.0-beta.1",
     "ts-node": "^10.9.1",
     "zod": "^3.24.4"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^23.10.4"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.31",
