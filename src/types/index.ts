@@ -36,6 +36,7 @@ export type PossibleCallback = {
 };
 
 export * from "./weather-api";
+export * from "./browser-renderer";
 
 declare module "fastify" {
   interface FastifyReply {
