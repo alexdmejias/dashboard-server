@@ -13,7 +13,11 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       );
     }
 
-    const puppeteerOptions: any = {
+    const puppeteerOptions: {
+      headless: boolean;
+      args: string[];
+      executablePath?: string;
+    } = {
       headless: true,
       args: [
         "--no-sandbox",
@@ -26,20 +30,21 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       puppeteerOptions.executablePath = process.env.CHROMIUM_BIN;
     }
 
-    const browser = await puppeteer.default.launch(puppeteerOptions);
+    const puppeteerModule = puppeteer.default || puppeteer;
+    const browser = await puppeteerModule.launch(puppeteerOptions);
     const page = await browser.newPage();
 
-    page.setViewport(size);
+    await page.setViewport(size);
 
     await page.setContent(htmlContent);
 
-    const buffer = await page.screenshot({ path: imagePath });
+    const buffer = (await page.screenshot({ path: imagePath })) as Buffer;
 
     await browser.close();
 
     return {
       path: imagePath,
-      buffer: buffer as Buffer,
+      buffer,
     };
   }
 }
