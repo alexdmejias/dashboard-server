@@ -1,41 +1,34 @@
-import puppeteer from "puppeteer";
 import { Jimp } from "jimp";
 import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
 import getScreenshot from "./getScreenshot";
+import { createBrowserRenderer } from "./browserRendererFactory";
+import { BrowserRenderer } from "../types/browser-renderer";
 
-jest.mock("puppeteer");
 jest.mock("jimp");
 jest.mock("./getRenderedTemplate");
 jest.mock("node:fs/promises");
+jest.mock("./browserRendererFactory");
 
 describe("utils:getScreenshot", () => {
-  const mockNewPage = jest.fn();
-  const mockSetViewport = jest.fn();
-  const mockSetContent = jest.fn();
-  const mockScreenshot = jest.fn();
-  const mockClose = jest.fn();
+  const mockRenderPage = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (puppeteer.launch as jest.Mock).mockImplementation(() => ({
-      newPage: mockNewPage,
-      close: mockClose,
-    }));
-
-    mockNewPage.mockResolvedValue({
-      setViewport: mockSetViewport,
-      setContent: mockSetContent,
-      screenshot: mockScreenshot,
-    });
+    (createBrowserRenderer as jest.Mock).mockReturnValue({
+      renderPage: mockRenderPage,
+    } as BrowserRenderer);
 
     (getRenderedTemplate as jest.Mock).mockReturnValue("<html></html>");
   });
 
   it("should generate a screenshot and return the path and buffer", async () => {
     const mockBufferContent = "mocked screenshot buffer";
-    mockScreenshot.mockResolvedValue(Buffer.from(mockBufferContent));
+    mockRenderPage.mockResolvedValue({
+      path: "/path/to/image.png",
+      buffer: Buffer.from(mockBufferContent),
+    });
 
     const options = {
       template: "testTemplate",
@@ -46,21 +39,16 @@ describe("utils:getScreenshot", () => {
     };
     const result = await getScreenshot(options);
 
-    expect(puppeteer.launch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        headless: true,
-        args: expect.arrayContaining(["--no-sandbox"]),
-      })
-    );
-    expect(mockNewPage).toHaveBeenCalled();
-    expect(mockSetViewport).toHaveBeenCalledWith(options.size);
+    expect(createBrowserRenderer).toHaveBeenCalled();
     expect(getRenderedTemplate).toHaveBeenCalledWith({
       template: options.template,
       data: options.data,
     });
-    expect(mockSetContent).toHaveBeenCalledWith("<html></html>");
-    expect(mockScreenshot).toHaveBeenCalledWith({ path: options.imagePath });
-    expect(mockClose).toHaveBeenCalled();
+    expect(mockRenderPage).toHaveBeenCalledWith({
+      htmlContent: "<html></html>",
+      imagePath: options.imagePath,
+      size: options.size,
+    });
     expect(result).toEqual({
       path: options.imagePath,
       buffer: Buffer.from(mockBufferContent),
@@ -70,9 +58,12 @@ describe("utils:getScreenshot", () => {
   it("should convert the screenshot to BMP format if viewType is 'bmp'", async () => {
     const mockBufferContentSource = "mocked image buffer";
     const mockBufferContentConverted = "mocked screenshot buffer";
-    mockScreenshot.mockResolvedValue(Buffer.from(mockBufferContentConverted));
+    mockRenderPage.mockResolvedValue({
+      path: "/path/to/image.bmp",
+      buffer: Buffer.from(mockBufferContentConverted),
+    });
 
-    const mockWrite = jest.fn(); // Mock the write method
+    const mockWrite = jest.fn();
     (Jimp.read as jest.Mock).mockImplementation(() => {
       return Promise.resolve({
         write: mockWrite,
@@ -107,7 +98,10 @@ describe("utils:getScreenshot", () => {
   });
 
   it("should use the default size if no size is provided", async () => {
-    mockScreenshot.mockResolvedValue(Buffer.from("mocked screenshot buffer"));
+    mockRenderPage.mockResolvedValue({
+      path: "/path/to/image.png",
+      buffer: Buffer.from("mocked screenshot buffer"),
+    });
 
     await getScreenshot({
       template: "testTemplate",
@@ -116,6 +110,10 @@ describe("utils:getScreenshot", () => {
       viewType: "png",
     });
 
-    expect(mockSetViewport).toHaveBeenCalledWith({ width: 1200, height: 825 });
+    expect(mockRenderPage).toHaveBeenCalledWith({
+      htmlContent: "<html></html>",
+      imagePath: "/path/to/image.png",
+      size: { width: 1200, height: 825 },
+    });
   });
 });
