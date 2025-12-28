@@ -301,6 +301,44 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
   });
 
+  // SSE endpoint for streaming client updates
+  app.get("/api/clients/stream", async (req, res) => {
+    res.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+
+    // Send initial client state
+    const clients = app.getClients();
+    res.raw.write(`data: ${JSON.stringify({ clients })}\n\n`);
+
+    // Add this connection to the set of SSE connections
+    app.addSSEConnection(res);
+
+    // Set up heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.raw.write(":heartbeat\n\n");
+      } catch (_err) {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    // Clean up on connection close
+    req.raw.on("close", () => {
+      clearInterval(heartbeat);
+      app.removeSSEConnection(res);
+      app.log.info("SSE connection closed");
+    });
+  });
+
+  // REST endpoint for getting current client state
+  app.get("/api/clients", async (_req, res) => {
+    const clients = app.getClients();
+    return res.send({ clients });
+  });
+
   // type TestParams = {
   //   name: string;
   //   viewType: SupportedViewTypes;
@@ -417,6 +455,60 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   // //   return res.status(200).send("ok");
   // // });
+
+  app.setNotFoundHandler(async (req, res) => {
+    // Check if this is an API route that doesn't exist
+    if (req.url.startsWith("/api/")) {
+      return res.code(404).send({
+        error: "Not Found",
+        message: `Route ${req.url} not found`,
+        statusCode: 404,
+      });
+    }
+
+    // Try to serve static files from admin directory (for /assets/*)
+    if (req.url.startsWith("/assets/")) {
+      try {
+        // Validate path to prevent directory traversal
+        const requestedPath = req.url.replace("/assets/", "assets/");
+        const filePath = resolve(`./public/admin/${requestedPath}`);
+        const adminDir = resolve("./public/admin");
+
+        // Ensure the resolved path is within the admin directory
+        if (!filePath.startsWith(adminDir)) {
+          return res.code(403).send({
+            error: "Forbidden",
+            message: "Access denied",
+            statusCode: 403,
+          });
+        }
+
+        const stat = await fs.stat(filePath);
+        if (stat.isFile()) {
+          return res.sendFile(
+            req.url.replace("/assets/", "assets/"),
+            resolve("./public/admin"),
+          );
+        }
+      } catch (_err) {
+        // File not found, continue to serve index.html
+      }
+    }
+
+    // For all other routes, serve the admin index.html
+    try {
+      const adminIndexPath = resolve("./public/admin/index.html");
+      const content = await fs.readFile(adminIndexPath, "utf-8");
+      return res.type("text/html").send(content);
+    } catch (err) {
+      app.log.error("Error serving admin index:", err);
+      return res.code(404).send({
+        error: "Not Found",
+        message: "Admin interface not found. Please build the admin app.",
+        statusCode: 404,
+      });
+    }
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     // TODO temp disabling because errorCodes is undefined in raspberry
