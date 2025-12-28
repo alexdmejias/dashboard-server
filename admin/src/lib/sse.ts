@@ -1,35 +1,50 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import type { ClientsData } from "../types";
 
-export function createSSEConnection(url: string) {
-  const [data, setData] = createSignal<ClientsData | null>(null);
+interface SSEConnectionOptions {
+  initialData?: ClientsData | null;
+  onData?: (data: ClientsData) => void;
+}
+
+export function createSSEConnection(
+  url: string,
+  options?: SSEConnectionOptions,
+) {
+  const [data, setData] = createSignal<ClientsData | null>(
+    options?.initialData ?? null,
+  );
   const [error, setError] = createSignal<Event | null>(null);
   const [connected, setConnected] = createSignal(false);
 
-  const eventSource = new EventSource(url);
+  let eventSource: EventSource | null = null;
 
-  eventSource.onopen = () => {
-    setConnected(true);
-    setError(null);
-  };
+  onMount(() => {
+    eventSource = new EventSource(url);
 
-  eventSource.onmessage = (event) => {
-    try {
-      const parsedData = JSON.parse(event.data);
-      setData(parsedData);
-    } catch (err) {
-      console.error("Error parsing SSE data:", err);
-      setError(new Event("error"));
-    }
-  };
+    eventSource.onopen = () => {
+      setConnected(true);
+      setError(null);
+    };
 
-  eventSource.onerror = (err) => {
-    setError(err);
-    setConnected(false);
-  };
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        setData(parsedData);
+        options?.onData?.(parsedData);
+      } catch (err) {
+        console.error("Error parsing SSE data:", err);
+        setError(new Event("error"));
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      setError(err);
+      setConnected(false);
+    };
+  });
 
   onCleanup(() => {
-    eventSource.close();
+    eventSource?.close();
   });
 
   return { data, error, connected };

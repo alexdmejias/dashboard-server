@@ -5,10 +5,24 @@ A SolidJS-based admin interface for monitoring and managing dashboard-server cli
 ## Features
 
 - **Real-time Updates**: Uses Server-Sent Events (SSE) for live client monitoring
+- **TanStack Query Integration**: Efficient data fetching with caching and stale-while-revalidate strategy
 - **Client Overview**: Display all connected clients with their current state
 - **Callback Information**: View callback playlists, current index, and available callbacks
 - **Connection Status**: Visual indicator showing connection status
 - **Responsive Design**: Built with DaisyUI and Tailwind CSS
+
+## Architecture
+
+The admin interface uses a hybrid approach:
+1. **TanStack Query** fetches initial client data from `/api/clients` with caching
+2. **SSE Connection** provides real-time updates via `/api/clients/stream`
+3. Updates from SSE override the cached data for instant UI updates
+
+This approach provides:
+- Fast initial page load (cached data)
+- Real-time updates without polling
+- Automatic error handling and retry logic
+- Optimistic UI updates
 
 ## Development
 
@@ -82,6 +96,7 @@ The admin interface is automatically served by the main dashboard-server at the 
 ## Technologies
 
 - **SolidJS**: Reactive UI framework
+- **TanStack Query**: Server state management with caching
 - **Vite**: Build tool and dev server
 - **TypeScript**: Type safety
 - **DaisyUI**: Component library
