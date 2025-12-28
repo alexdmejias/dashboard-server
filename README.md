@@ -29,23 +29,32 @@ npm run dev
 
 This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
 
+### Building for Production
+
+The project includes an integrated build process that builds both the admin interface and the server:
+
+```bash
+npm run build
+```
+
+This single command:
+1. Builds the admin interface (SolidJS app) to `public/admin/`
+2. Compiles the TypeScript server code to `dist/`
+
+You can also run individual build steps:
+- `npm run build:admin` - Build only the admin interface
+- `npm run build:server` - Build only the server
+
 ### Admin Interface
 
 The server includes a web-based admin interface for monitoring connected clients in real-time. Access it at `http://localhost:3333/` (or your configured port).
 
 Features:
 - Real-time monitoring of connected clients via Server-Sent Events (SSE)
+- TanStack Query for efficient data fetching with caching
 - Display of client callback playlists and current state
 - Connection status indicator
 - Responsive UI built with SolidJS and DaisyUI
-
-To build the admin interface:
-
-```bash
-cd admin
-npm install
-npm run build
-```
 
 The admin interface is automatically served at the root path when you start the server.
 

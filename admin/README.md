@@ -47,6 +47,16 @@ This will start the Vite dev server on port 3001. For full integration testing, 
 
 ### Build for Production
 
+The admin interface is built as part of the main server build process. From the repository root:
+
+```bash
+npm run build
+```
+
+This automatically builds the admin interface to `../public/admin/` directory.
+
+You can also build just the admin interface independently:
+
 ```bash
 npm run build
 ```
