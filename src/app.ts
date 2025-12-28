@@ -96,13 +96,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     prefix: "/public/",
   });
 
-  // Serve admin app
-  app.register(fastifyStatic, {
-    root: resolve("./public/admin"),
-    prefix: "/",
-    decorateReply: false,
-  });
-
   app.register(fastifyView, {
     engine: {
       ejs: import("ejs"),
@@ -327,7 +320,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const heartbeat = setInterval(() => {
       try {
         res.raw.write(":heartbeat\n\n");
-      } catch (err) {
+      } catch (_err) {
         clearInterval(heartbeat);
       }
     }, 30000);
@@ -463,14 +456,45 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   // //   return res.status(200).send("ok");
   // // });
 
-  // Serve admin app for root and any unmatched routes (except API routes)
-  app.get("/*", async (req, res) => {
-    // Don't serve admin for API routes
-    if (req.url.startsWith("/api/") || req.url.startsWith("/public/")) {
-      return res.callNotFound();
+  app.setNotFoundHandler(async (req, res) => {
+    // Check if this is an API route that doesn't exist
+    if (req.url.startsWith("/api/")) {
+      return res.code(404).send({
+        error: "Not Found",
+        message: `Route ${req.url} not found`,
+        statusCode: 404,
+      });
     }
 
-    return res.sendFile("index.html");
+    // Try to serve static files from admin directory (for /assets/*)
+    if (req.url.startsWith("/assets/")) {
+      try {
+        const filePath = resolve(`./public/admin${req.url}`);
+        const stat = await fs.stat(filePath);
+        if (stat.isFile()) {
+          return res.sendFile(
+            req.url.replace("/assets/", "assets/"),
+            resolve("./public/admin"),
+          );
+        }
+      } catch (_err) {
+        // File not found, continue to serve index.html
+      }
+    }
+
+    // For all other routes, serve the admin index.html
+    try {
+      const adminIndexPath = resolve("./public/admin/index.html");
+      const content = await fs.readFile(adminIndexPath, "utf-8");
+      return res.type("text/html").send(content);
+    } catch (err) {
+      app.log.error("Error serving admin index:", err);
+      return res.code(404).send({
+        error: "Not Found",
+        message: "Admin interface not found. Please build the admin app.",
+        statusCode: 404,
+      });
+    }
   });
 
   app.setErrorHandler((error, _request, reply) => {

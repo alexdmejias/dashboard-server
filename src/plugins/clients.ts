@@ -141,10 +141,10 @@ function clientsPlugin(
       const client = _clients[clientName];
 
       await client.addCallbacks(validCallbacks);
-      
+
       // Broadcast client update to all SSE connections
       fastify.broadcastClientsUpdate();
-      
+
       return client;
     },
   );
