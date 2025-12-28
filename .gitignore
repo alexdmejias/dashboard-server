@@ -1,8 +1,13 @@
 node_modules
 .env
 public/images
+public/admin
 dist
 .DS_Store
 keys/*.json
 data/*.json
 !data/*.sample.json
+admin/node_modules
+admin/.solid
+admin/.output
+admin/dist

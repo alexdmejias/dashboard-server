@@ -96,6 +96,13 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     prefix: "/public/",
   });
 
+  // Serve admin app
+  app.register(fastifyStatic, {
+    root: resolve("./public/admin"),
+    prefix: "/",
+    decorateReply: false,
+  });
+
   app.register(fastifyView, {
     engine: {
       ejs: import("ejs"),
@@ -455,6 +462,16 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   // //   return res.status(200).send("ok");
   // // });
+
+  // Serve admin app for root and any unmatched routes (except API routes)
+  app.get("/*", async (req, res) => {
+    // Don't serve admin for API routes
+    if (req.url.startsWith("/api/") || req.url.startsWith("/public/")) {
+      return res.callNotFound();
+    }
+
+    return res.sendFile("index.html");
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     // TODO temp disabling because errorCodes is undefined in raspberry
