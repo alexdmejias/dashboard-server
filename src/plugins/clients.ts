@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
 import { ZodError, z } from "zod/v4";
 import type CallbackBase from "../base-callbacks/base";
@@ -13,6 +13,9 @@ declare module "fastify" {
       clientName: string,
       playlist: Playlist,
     ): Promise<StateMachine | { error: string }>;
+    broadcastClientsUpdate(): void;
+    addSSEConnection(reply: FastifyReply): void;
+    removeSSEConnection(reply: FastifyReply): void;
   }
 }
 
@@ -55,6 +58,7 @@ function clientsPlugin(
 ) {
   const { possibleCallbacks } = options;
   const _clients: Record<string, StateMachine> = {};
+  const _sseConnections: Set<FastifyReply> = new Set();
 
   fastify.decorate("getClients", () => {
     const data: Record<string, any> = {};
@@ -67,6 +71,28 @@ function clientsPlugin(
   });
 
   fastify.decorate("getClient", (clientName: string) => _clients[clientName]);
+
+  fastify.decorate("addSSEConnection", (reply: FastifyReply) => {
+    _sseConnections.add(reply);
+  });
+
+  fastify.decorate("removeSSEConnection", (reply: FastifyReply) => {
+    _sseConnections.delete(reply);
+  });
+
+  fastify.decorate("broadcastClientsUpdate", () => {
+    const clients = fastify.getClients();
+    const message = `data: ${JSON.stringify({ clients })}\n\n`;
+
+    for (const connection of _sseConnections) {
+      try {
+        connection.raw.write(message);
+      } catch (err) {
+        fastify.log.error("Error broadcasting to SSE connection:", err);
+        _sseConnections.delete(connection);
+      }
+    }
+  });
 
   fastify.decorate(
     "registerClient",
@@ -115,6 +141,10 @@ function clientsPlugin(
       const client = _clients[clientName];
 
       await client.addCallbacks(validCallbacks);
+      
+      // Broadcast client update to all SSE connections
+      fastify.broadcastClientsUpdate();
+      
       return client;
     },
   );

@@ -301,6 +301,44 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
   });
 
+  // SSE endpoint for streaming client updates
+  app.get("/api/clients/stream", async (req, res) => {
+    res.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+
+    // Send initial client state
+    const clients = app.getClients();
+    res.raw.write(`data: ${JSON.stringify({ clients })}\n\n`);
+
+    // Add this connection to the set of SSE connections
+    app.addSSEConnection(res);
+
+    // Set up heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.raw.write(":heartbeat\n\n");
+      } catch (err) {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    // Clean up on connection close
+    req.raw.on("close", () => {
+      clearInterval(heartbeat);
+      app.removeSSEConnection(res);
+      app.log.info("SSE connection closed");
+    });
+  });
+
+  // REST endpoint for getting current client state
+  app.get("/api/clients", async (_req, res) => {
+    const clients = app.getClients();
+    return res.send({ clients });
+  });
+
   // type TestParams = {
   //   name: string;
   //   viewType: SupportedViewTypes;
