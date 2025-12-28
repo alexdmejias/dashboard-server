@@ -29,6 +29,26 @@ npm run dev
 
 This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
 
+### Admin Interface
+
+The server includes a web-based admin interface for monitoring connected clients in real-time. Access it at `http://localhost:3333/` (or your configured port).
+
+Features:
+- Real-time monitoring of connected clients via Server-Sent Events (SSE)
+- Display of client callback playlists and current state
+- Connection status indicator
+- Responsive UI built with SolidJS and DaisyUI
+
+To build the admin interface:
+
+```bash
+cd admin
+npm install
+npm run build
+```
+
+The admin interface is automatically served at the root path when you start the server.
+
 ## Environment
 Create a `.env` file at the project root or export env vars. Example keys used by callbacks:
 
@@ -84,6 +104,37 @@ Notes
 - Storage/Serving: images are written to `public/images/` by default or uploaded to cloud storage (see `keys/` and any environment-specific config). Images are served over HTTP (optionally via a CDN).
 
 This flow shows the happy-path: a client request triggers the server's callback pipeline, which renders HTML, captures an image, stores it, and then the client receives an image URL that can be fetched or embedded.
+
+## API Endpoints
+
+### Client Management
+
+- **POST /register/:clientName** — Register a new client with a callback playlist
+  - Body: `{ playlist: [{ id, callbackName, options? }] }`
+  - Returns client configuration
+
+- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
+  - `:viewType` can be `png`, `bmp`, `html`, or `json`
+  - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
+
+### Monitoring
+
+- **GET /health** — Health check endpoint
+  - Returns server status, available callbacks, and connected clients
+
+- **GET /api/clients** — Get current state of all clients (JSON)
+  - Returns full client data including playlists and callback configurations
+
+- **GET /api/clients/stream** — Real-time SSE stream of client updates
+  - Server-Sent Events endpoint for monitoring client changes
+  - Sends updates when clients are registered or modified
+  - Includes heartbeat every 30 seconds
+
+### Template Testing
+
+- **POST /test-template** — Test a template with custom data
+  - Body: `{ templateType, template, templateData?, screenDetails }`
+  - Useful for developing and debugging templates
 
 ## Templates
 
