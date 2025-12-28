@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "dev": "tsx --watch src/index.ts",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:admin\"",
+    "dev:server": "tsx --watch src/index.ts",
+    "dev:admin": "cd admin && npm install --silent && npm run dev",
     "start": "node dist/index.js",
     "build": "npm run build:admin && npm run build:server",
     "build:admin": "cd admin && npm install && npm run build",
@@ -48,6 +50,7 @@
     "@types/object-hash": "^3.0.6",
     "@types/showdown": "^2.0.6",
     "@types/sqlite3": "^3.1.8",
+    "concurrently": "^9.2.1",
     "jest": "^29.5.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",

@@ -27,7 +27,15 @@ npm install
 npm run dev
 ```
 
-This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
+This starts both the backend server and the admin interface concurrently:
+- **Backend server** runs on `http://localhost:3333` (or your configured `PORT`) with hot-reload via `tsx --watch`
+- **Admin interface** runs on `http://localhost:3001` with Vite dev server and HMR (Hot Module Replacement)
+
+The admin dev server proxies API requests to the backend server, so you get a seamless development experience with instant feedback on both frontend and backend changes.
+
+You can also run individual dev servers:
+- `npm run dev:server` - Run only the backend server
+- `npm run dev:admin` - Run only the admin interface
 
 ### Building for Production
 
@@ -47,7 +55,10 @@ You can also run individual build steps:
 
 ### Admin Interface
 
-The server includes a web-based admin interface for monitoring connected clients in real-time. Access it at `http://localhost:3333/` (or your configured port).
+The server includes a web-based admin interface for monitoring connected clients in real-time. 
+
+**Development**: Access at `http://localhost:3001` (Vite dev server with HMR)
+**Production**: Access at `http://localhost:3333/` (served by Fastify)
 
 Features:
 - Real-time monitoring of connected clients via Server-Sent Events (SSE)
