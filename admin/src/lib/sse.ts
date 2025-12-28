@@ -2,7 +2,7 @@ import { createSignal, onCleanup, onMount } from "solid-js";
 import type { ClientsData } from "../types";
 
 interface SSEConnectionOptions {
-  initialData?: ClientsData | null;
+  initialData?: ClientsData | null | undefined;
   onData?: (data: ClientsData) => void;
 }
 

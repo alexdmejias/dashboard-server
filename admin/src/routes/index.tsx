@@ -12,10 +12,11 @@ export default function Home() {
   }));
 
   // Use SSE for real-time updates, starting with initial data from query
+  // Only pass data if query has succeeded to avoid undefined issues
   const { data, connected, error } = createSSEConnection(
     "/api/clients/stream",
     {
-      initialData: clientsQuery.data,
+      initialData: clientsQuery.data ?? null,
     },
   );
 
