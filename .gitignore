@@ -11,3 +11,5 @@ admin/node_modules
 admin/.solid
 admin/.output
 admin/dist
+db.sqlite
+*.sqlite

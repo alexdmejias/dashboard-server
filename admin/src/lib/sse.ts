@@ -19,6 +19,7 @@ export function createSSEConnection(url: string) {
       setData(parsedData);
     } catch (err) {
       console.error("Error parsing SSE data:", err);
+      setError(new Event("error"));
     }
   };
 

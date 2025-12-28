@@ -84,7 +84,9 @@ function clientsPlugin(
     const clients = fastify.getClients();
     const message = `data: ${JSON.stringify({ clients })}\n\n`;
 
-    for (const connection of _sseConnections) {
+    // Create a copy of connections to avoid modification during iteration
+    const connections = Array.from(_sseConnections);
+    for (const connection of connections) {
       try {
         connection.raw.write(message);
       } catch (err) {

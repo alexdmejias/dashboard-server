@@ -469,7 +469,20 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     // Try to serve static files from admin directory (for /assets/*)
     if (req.url.startsWith("/assets/")) {
       try {
-        const filePath = resolve(`./public/admin${req.url}`);
+        // Validate path to prevent directory traversal
+        const requestedPath = req.url.replace("/assets/", "assets/");
+        const filePath = resolve(`./public/admin/${requestedPath}`);
+        const adminDir = resolve("./public/admin");
+
+        // Ensure the resolved path is within the admin directory
+        if (!filePath.startsWith(adminDir)) {
+          return res.code(403).send({
+            error: "Forbidden",
+            message: "Access denied",
+            statusCode: 403,
+          });
+        }
+
         const stat = await fs.stat(filePath);
         if (stat.isFile()) {
           return res.sendFile(
