@@ -5,7 +5,7 @@ This guide will help you set up automated deployment from GitHub to your Raspber
 ## Prerequisites
 
 Before starting, ensure you have:
-- ✅ Repository already cloned at `~/dashboard-server/`
+- ✅ Repository already cloned at `~/projects/dashboard-server/`
 - ✅ PM2 installed and running the application
 - ✅ NVM (Node Version Manager) installed
 - ✅ Node.js version 22 (as specified in `.nvmrc`) installed via NVM
@@ -29,7 +29,7 @@ pm2 logs dashboard-server --lines 50
 If PM2 is not currently running the app, you can start it manually:
 
 ```bash
-cd ~/dashboard-server
+cd ~/projects/dashboard-server
 npm run build
 pm2 start ecosystem.config.js
 pm2 save
@@ -172,7 +172,7 @@ After setup, you'll have two important directories:
 │           ├── node_modules/
 │           └── ecosystem.config.js
 
-~/dashboard-server/            # Original repo (for manual deploys)
+~/projects/dashboard-server/   # Consolidated repo location
 ├── src/
 ├── dist/
 ├── node_modules/
@@ -182,7 +182,7 @@ After setup, you'll have two important directories:
 **Important:** 
 - The GitHub Actions workflow operates in `~/actions-runner/_work/dashboard-server/dashboard-server/`
 - The `ecosystem.config.js` file automatically detects which directory to use via the `GITHUB_WORKSPACE` environment variable
-- Manual deployments (git pull + pm2 restart) still work from `~/dashboard-server/`
+- Manual deployments (git pull + pm2 restart) work from `~/projects/dashboard-server/`
 
 ## 7. Monitoring
 
@@ -233,10 +233,10 @@ pm2 monit
 
 ### Manual Deployment (Alternative to GitHub Actions)
 
-If you need to deploy manually from the original directory:
+If you need to deploy manually:
 
 ```bash
-cd ~/dashboard-server
+cd ~/projects/dashboard-server
 git pull origin main
 npm ci
 npm run build
@@ -381,9 +381,9 @@ npm cache clean --force
 
 Then trigger the workflow again.
 
-### Problem: Two Instances of the App Running
+### Problem: Multiple Instances of the App Running
 
-If you have the app running from both directories:
+If you have multiple PM2 instances:
 
 ```bash
 # List all PM2 processes
@@ -392,11 +392,13 @@ pm2 list
 # Delete all instances
 pm2 delete all
 
-# Start fresh from the GitHub Actions directory
-cd ~/actions-runner/_work/dashboard-server/dashboard-server/
+# Start fresh from the consolidated directory
+cd ~/projects/dashboard-server
 pm2 start ecosystem.config.js
 pm2 save
 ```
+
+Note: With the consolidated setup at `~/projects/dashboard-server`, PM2 will run from the GitHub Actions runner directory (`~/actions-runner/_work/...`) during automated deployments, and fall back to `~/projects/dashboard-server` for manual operations.
 
 ### Problem: Changes Not Reflected After Deployment
 
@@ -440,7 +442,7 @@ If you need to update the Node.js version:
 nvm install 22  # or whatever version you need
 
 # Update .nvmrc in your repository
-echo "22" > ~/dashboard-server/.nvmrc
+echo "22" > ~/projects/dashboard-server/.nvmrc
 
 # Reinstall PM2 for the new Node version
 npm install -g pm2
