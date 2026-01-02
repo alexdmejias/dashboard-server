@@ -43,7 +43,8 @@ jobs:
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          pm2 restart dashboard-server || pm2 start npm --name dashboard-server -- start
+          pm2 restart ecosystem.config.js || pm2 start ecosystem.config.js
+          pm2 save
 
       - name: Wait for app to start
         run: sleep 5
@@ -54,3 +55,4 @@ jobs:
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           pm2 list
           pm2 info dashboard-server
+          echo "App is running from: $(pwd)"
