@@ -17,19 +17,19 @@ jobs:
       - name: Setup Node. js
         run: |
           export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && \.  "$NVM_DIR/nvm.sh"
           nvm use
 
       - name: Install dependencies
         run: |
           export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           npm ci
 
       - name: Build TypeScript
         run: |
           export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           npm run build
 
       - name:  Run tests
@@ -41,8 +41,8 @@ jobs:
 
       - name:  Restart PM2 app
         run: |
-          export NVM_DIR="$HOME/. nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm. sh"
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           pm2 restart dashboard-server || pm2 start npm --name dashboard-server -- start
 
       - name: Wait for app to start
@@ -50,7 +50,7 @@ jobs:
 
       - name:  Check PM2 status
         run: |
-          export NVM_DIR="$HOME/. nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm. sh"
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           pm2 list
           pm2 info dashboard-server
