@@ -1,0 +1,56 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - main  # Auto-deploy when code is merged to main
+  workflow_dispatch:  # Allows manual deployment from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses:  actions/checkout@v4
+
+      - name: Setup Node. js
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use
+
+      - name: Install dependencies
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm ci
+
+      - name: Build TypeScript
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm. sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm run build
+
+      - name:  Run tests
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm test
+        continue-on-error:  true  # Don't fail deployment if tests fail
+
+      - name:  Restart PM2 app
+        run: |
+          export NVM_DIR="$HOME/. nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm. sh"
+          pm2 restart dashboard-server || pm2 start npm --name dashboard-server -- start
+
+      - name: Wait for app to start
+        run: sleep 5
+
+      - name:  Check PM2 status
+        run: |
+          export NVM_DIR="$HOME/. nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm. sh"
+          pm2 list
+          pm2 info dashboard-server
