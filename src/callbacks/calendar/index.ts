@@ -33,8 +33,17 @@
  *
  * ### 4. Usage
  * The callback accepts the following runtime configuration:
- * - calendarId: (optional) The calendar ID to fetch events from (default: 'primary')
+ * - calendarId: (optional) A single calendar ID or an array of calendar IDs (default: 'primary')
+ *   Examples:
+ *   - Single: "primary"
+ *   - Multiple: ["primary", "family@group.calendar.google.com", "work@company.com"]
  * - maxEventsPerDay: (optional) Maximum number of events to show per day (default: 5)
+ *
+ * ### 5. Multiple Calendars
+ * To combine events from multiple calendars (e.g., personal and family):
+ * - Set calendarId to an array of calendar IDs
+ * - Events from all calendars will be merged and sorted by start time
+ * - The maxEventsPerDay limit applies to the total number of events per day across all calendars
  */
 
 import { google } from "googleapis";
@@ -60,7 +69,10 @@ type CalendarData = {
 };
 
 export const expectedConfig = z.object({
-  calendarId: z.string().default("primary"),
+  calendarId: z
+    .union([z.string(), z.array(z.string())])
+    .default("primary")
+    .transform((val) => (Array.isArray(val) ? val : [val])),
   maxEventsPerDay: z.number().default(5),
 });
 
@@ -71,7 +83,7 @@ class CallbackCalendar extends CallbackBase<
   typeof expectedConfig
 > {
   static defaultOptions: ConfigType = {
-    calendarId: "primary",
+    calendarId: ["primary"],
     maxEventsPerDay: 5,
   };
 
@@ -106,38 +118,78 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Fetches calendar events for the next 7 days
+   * Fetches calendar events for the next 7 days from a single calendar
+   */
+  async getCalendarEventsFromSingle(
+    calendarId: string,
+    now: Date,
+    endDate: Date,
+    maxResults: number,
+  ) {
+    const auth = this.getAuthClient();
+    const calendar = google.calendar({ version: "v3", auth });
+
+    this.logger.debug(
+      {
+        calendarId,
+        timeMin: now.toISOString(),
+        timeMax: endDate.toISOString(),
+      },
+      "Fetching calendar events from single calendar",
+    );
+
+    const response = await calendar.events.list({
+      calendarId,
+      timeMin: now.toISOString(),
+      timeMax: endDate.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults,
+    });
+
+    return response.data.items || [];
+  }
+
+  /**
+   * Fetches calendar events for the next 7 days from multiple calendars
    */
   async getCalendarEvents(config: ConfigType) {
     try {
-      const auth = this.getAuthClient();
-      const calendar = google.calendar({ version: "v3", auth });
-
       const now = new Date();
       const endDate = new Date();
       endDate.setDate(now.getDate() + 7);
 
-      this.logger.debug(
-        {
-          calendarId: config.calendarId,
-          timeMin: now.toISOString(),
-          timeMax: endDate.toISOString(),
-        },
-        "Fetching calendar events",
+      // Approximate total events to fetch across all 7 days
+      // Note: This may result in uneven distribution across days
+      const maxResults = config.maxEventsPerDay * 7;
+
+      // Fetch events from all calendars in parallel
+      const calendarIds = config.calendarId;
+      const eventPromises = calendarIds.map((calendarId) =>
+        this.getCalendarEventsFromSingle(calendarId, now, endDate, maxResults),
       );
 
-      const response = await calendar.events.list({
-        calendarId: config.calendarId,
-        timeMin: now.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        // Approximate total events to fetch across all 7 days
-        // Note: This may result in uneven distribution across days
-        maxResults: config.maxEventsPerDay * 7,
+      const eventArrays = await Promise.all(eventPromises);
+
+      // Flatten all events into a single array
+      const allEvents = eventArrays.flat();
+
+      // Sort by start time
+      allEvents.sort((a, b) => {
+        const aStart = a.start?.dateTime || a.start?.date || "";
+        const bStart = b.start?.dateTime || b.start?.date || "";
+        return aStart.localeCompare(bStart);
       });
 
-      return response.data.items || [];
+      this.logger.debug(
+        {
+          calendarIds,
+          totalEvents: allEvents.length,
+        },
+        "Fetched events from all calendars",
+      );
+
+      return allEvents;
     } catch (error) {
       this.logger.error({ error }, "Failed to fetch calendar events");
       throw error;
