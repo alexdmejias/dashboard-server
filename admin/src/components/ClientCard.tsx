@@ -1,4 +1,5 @@
 import { For } from "solid-js";
+import { A } from "@solidjs/router";
 import type { ClientData } from "../types";
 
 interface ClientCardProps {
@@ -8,7 +9,10 @@ interface ClientCardProps {
 
 export function ClientCard(props: ClientCardProps) {
   return (
-    <div class="card bg-base-100 shadow-xl">
+    <A
+      href={`/${props.clientName}`}
+      class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+    >
       <div class="card-body">
         <h2 class="card-title">{props.clientName}</h2>
         <div class="stats stats-vertical">
@@ -48,7 +52,10 @@ export function ClientCard(props: ClientCardProps) {
             </table>
           </div>
         </div>
+        <div class="card-actions justify-end mt-4">
+          <span class="text-sm text-primary">Click for details →</span>
+        </div>
       </div>
-    </div>
+    </A>
   );
 }

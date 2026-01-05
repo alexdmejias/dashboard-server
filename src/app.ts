@@ -49,6 +49,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   app.register(clientsPlugin, { possibleCallbacks });
 
+  // Register admin plugin for authentication and client details
+  const adminPlugin = await import("./plugins/admin");
+  app.register(adminPlugin.default);
+
   app.decorateReply(
     "internalServerError",
     function (this: FastifyReply, message: string) {
@@ -130,6 +134,16 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
 
+    // Log the request
+    app.logClientRequest(
+      clientName,
+      "POST",
+      `/register/${clientName}`,
+      undefined,
+      undefined,
+      req.id
+    );
+
     if (!client) {
       const clientRes = await app.registerClient(clientName, playlist);
 
@@ -138,11 +152,23 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           { error: clientRes.error },
           `error registering client: ${clientName}`,
         );
+        app.logClientActivity(
+          clientName,
+          "error",
+          `Error registering client: ${clientRes.error}`,
+          req.id
+        );
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
       }
       app.log.info(`created new client: ${clientName}`, clientRes);
+      app.logClientActivity(
+        clientName,
+        "info",
+        `Client registered successfully`,
+        req.id
+      );
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -151,6 +177,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
 
     app.log.info(`client already exists: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "warn",
+      `Client already exists`,
+      req.id
+    );
     return res.internalServerError(
       serverMessages.duplicateClientName(clientName),
     );
@@ -163,10 +195,27 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       callback?: string;
     };
   }>("/display/:clientName/:viewType/:callback?", async (req, res) => {
+    const startTime = Date.now();
     const { clientName, viewType, callback = "next" } = req.params;
+
+    // Log the request
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      undefined,
+      undefined,
+      req.id
+    );
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Unsupported viewType: ${viewType}`,
+        req.id
+      );
       return res.internalServerError(
         serverMessages.viewTypeNotSupported(viewType),
       );
@@ -179,10 +228,22 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Client not found`,
+        req.id
+      );
       return res.notFound(serverMessages.clientNotFound(clientName));
     }
 
     app.log.info(`retrieved existing client: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "info",
+      `Displaying ${callback} as ${viewTypeToUse}`,
+      req.id
+    );
 
     let data: RenderResponse;
     if (callback === "next") {
@@ -192,6 +253,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       const playlistItem = client.getPlaylistItemById(callback);
       if (!callbackInstance || !playlistItem) {
         app.log.error(`callback not found: ${callback}`);
+        app.logClientActivity(
+          clientName,
+          "error",
+          `Callback not found: ${callback}`,
+          req.id
+        );
         return res.notFound(serverMessages.callbackNotFound(callback));
       }
 
@@ -218,6 +285,17 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       },
       "sending response",
     );
+    
+    const responseTime = Date.now() - startTime;
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      200,
+      responseTime,
+      req.id
+    );
+    
     return getResponseFromData(res, data);
   });
 
