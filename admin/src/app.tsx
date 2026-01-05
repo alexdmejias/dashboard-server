@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { Router, Route } from "@solidjs/router";
-import { createSignal, onMount, Show } from "solid-js";
+import { Router, Route, useNavigate } from "@solidjs/router";
+import { createSignal, onMount, Show, createEffect } from "solid-js";
 import Home from "./routes/index";
 import ClientDetail from "./routes/[clientName]";
 import Login from "./routes/login";
@@ -29,8 +29,10 @@ function ProtectedRoute(props: { children: any }) {
   const [isAuthenticated, setIsAuthenticated] = createSignal(false);
   const [authRequired, setAuthRequired] = createSignal(false);
   const [checking, setChecking] = createSignal(true);
+  const navigate = useNavigate();
 
-  onMount(async () => {
+  const checkAuth = async () => {
+    setChecking(true);
     const required = await checkAuthRequired();
     setAuthRequired(required);
 
@@ -43,15 +45,30 @@ function ProtectedRoute(props: { children: any }) {
               Authorization: `Bearer ${token}`,
             },
           });
-          setIsAuthenticated(response.ok);
+          if (response.ok) {
+            setIsAuthenticated(true);
+          } else {
+            setIsAuthenticated(false);
+            localStorage.removeItem("adminToken");
+            navigate("/login");
+          }
         } catch {
           setIsAuthenticated(false);
+          localStorage.removeItem("adminToken");
+          navigate("/login");
         }
+      } else {
+        setIsAuthenticated(false);
+        navigate("/login");
       }
     } else {
       setIsAuthenticated(true);
     }
     setChecking(false);
+  };
+
+  onMount(() => {
+    checkAuth();
   });
 
   return (
@@ -63,7 +80,7 @@ function ProtectedRoute(props: { children: any }) {
         </div>
       }
     >
-      <Show when={!authRequired() || isAuthenticated()} fallback={<Login />}>
+      <Show when={!authRequired() || isAuthenticated()}>
         {props.children}
       </Show>
     </Show>

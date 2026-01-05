@@ -1,11 +1,9 @@
 import { createSignal, Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
 
 export default function Login() {
   const [password, setPassword] = createSignal("");
   const [error, setError] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
@@ -24,14 +22,16 @@ export default function Login() {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem("adminToken", data.token);
-        navigate("/");
+        // Use window.location to force a full page reload and re-authentication
+        window.location.href = "/";
       } else {
         setError(true);
         setPassword("");
+        setLoading(false);
       }
     } catch (err) {
       setError(true);
-    } finally {
+      setPassword("");
       setLoading(false);
     }
   };
@@ -58,7 +58,20 @@ export default function Login() {
             </div>
             <Show when={error()}>
               <div class="alert alert-error mt-4">
-                <span>Incorrect password</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>Incorrect password. Please try again.</span>
               </div>
             </Show>
             <div class="card-actions justify-end mt-6">
