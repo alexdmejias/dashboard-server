@@ -1,7 +1,7 @@
 import { useParams, A } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import { For, Show } from "solid-js";
-import { createSSEConnection } from "../lib/sse";
+import { fetchClientDetail, fetchClientLogs, fetchClientRequests } from "../lib/api";
 
 interface ClientLog {
   timestamp: string;
@@ -17,30 +17,6 @@ interface ClientRequest {
   statusCode?: number;
   responseTime?: number;
   reqId: string;
-}
-
-async function fetchClientDetail(clientName: string) {
-  const response = await fetch(`/api/clients/${clientName}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch client details");
-  }
-  return response.json();
-}
-
-async function fetchClientLogs(clientName: string) {
-  const response = await fetch(`/api/clients/${clientName}/logs`);
-  if (!response.ok) {
-    return { logs: [] };
-  }
-  return response.json();
-}
-
-async function fetchClientRequests(clientName: string) {
-  const response = await fetch(`/api/clients/${clientName}/requests`);
-  if (!response.ok) {
-    return { requests: [] };
-  }
-  return response.json();
 }
 
 export default function ClientDetail() {
