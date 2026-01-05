@@ -61,11 +61,32 @@ The server includes a web-based admin interface for monitoring connected clients
 **Production**: Access at `http://localhost:3333/` (served by Fastify)
 
 Features:
-- Real-time monitoring of connected clients via Server-Sent Events (SSE)
-- TanStack Query for efficient data fetching with caching
-- Display of client callback playlists and current state
-- Connection status indicator
-- Responsive UI built with SolidJS and DaisyUI
+- **Real-time monitoring** of connected clients via Server-Sent Events (SSE)
+- **TanStack Query** for efficient data fetching with caching
+- **Client detail pages** - Click on any client to view:
+  - Detailed callback configuration with options
+  - Request history with status codes and response times
+  - Activity logs with severity levels (info, warn, error)
+  - Auto-refreshing data every 5 seconds
+- **Password protection** (optional) - Set `ADMIN_PASSWORD` in `.env`
+- **Connection status indicator**
+- **Responsive UI** built with SolidJS and DaisyUI
+
+#### Setting Up Password Protection
+
+To enable password protection for the admin interface, add to your `.env` file:
+
+```
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+Leave empty or omit to disable password protection (open access):
+
+```
+ADMIN_PASSWORD=
+```
+
+When enabled, users will be prompted to login before accessing the admin interface.
 
 The admin interface is automatically served at the root path when you start the server.
 
