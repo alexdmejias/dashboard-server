@@ -163,6 +163,8 @@ class CallbackCalendar extends CallbackBase<
       // Divide total capacity by number of calendars for more efficient fetching
       const calendarIds = config.calendarId;
       const totalCapacity = config.maxEventsPerDay * 7;
+      // Use ceil to ensure we get enough events even with uneven distribution
+      // Note: May fetch slightly more than totalCapacity across all calendars
       const perCalendarLimit = Math.ceil(totalCapacity / calendarIds.length);
 
       // Fetch events from all calendars in parallel
@@ -185,7 +187,11 @@ class CallbackCalendar extends CallbackBase<
       allEvents.sort((a, b) => {
         const aStartStr = a.start?.dateTime || a.start?.date;
         const bStartStr = b.start?.dateTime || b.start?.date;
-        if (!aStartStr || !bStartStr) return 0;
+
+        // Move events with missing start times to the end
+        if (!aStartStr && !bStartStr) return 0;
+        if (!aStartStr) return 1;
+        if (!bStartStr) return -1;
 
         const aDate = new Date(aStartStr);
         const bDate = new Date(bStartStr);
