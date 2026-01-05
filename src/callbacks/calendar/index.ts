@@ -132,7 +132,9 @@ class CallbackCalendar extends CallbackBase<
         timeMax: endDate.toISOString(),
         singleEvents: true,
         orderBy: "startTime",
-        maxResults: config.maxEventsPerDay * 7, // rough limit
+        // Approximate total events to fetch across all 7 days
+        // Note: This may result in uneven distribution across days
+        maxResults: config.maxEventsPerDay * 7,
       });
 
       return response.data.items || [];
@@ -224,6 +226,7 @@ class CallbackCalendar extends CallbackBase<
     const days: DayEvents[] = [];
     const now = new Date();
     now.setHours(0, 0, 0, 0);
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(now);
@@ -244,7 +247,7 @@ class CallbackCalendar extends CallbackBase<
 
       // Find which day this event belongs to
       const dayIndex = Math.floor(
-        (startDay.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        (startDay.getTime() - now.getTime()) / MS_PER_DAY,
       );
 
       if (dayIndex >= 0 && dayIndex < 7) {
