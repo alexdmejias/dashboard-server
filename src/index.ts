@@ -9,6 +9,7 @@ const start = async () => {
     { callbackName: "reddit" },
     { callbackName: "weather" },
     { callbackName: "year-progress" },
+    { callbackName: "calendar" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
 
