@@ -159,14 +159,20 @@ class CallbackCalendar extends CallbackBase<
       const endDate = new Date();
       endDate.setDate(now.getDate() + 7);
 
-      // Approximate total events to fetch across all 7 days
-      // Note: This may result in uneven distribution across days
-      const maxResults = config.maxEventsPerDay * 7;
+      // Calculate per-calendar limit to avoid fetching too many events
+      // Divide total capacity by number of calendars for more efficient fetching
+      const calendarIds = config.calendarId;
+      const totalCapacity = config.maxEventsPerDay * 7;
+      const perCalendarLimit = Math.ceil(totalCapacity / calendarIds.length);
 
       // Fetch events from all calendars in parallel
-      const calendarIds = config.calendarId;
       const eventPromises = calendarIds.map((calendarId) =>
-        this.getCalendarEventsFromSingle(calendarId, now, endDate, maxResults),
+        this.getCalendarEventsFromSingle(
+          calendarId,
+          now,
+          endDate,
+          perCalendarLimit,
+        ),
       );
 
       const eventArrays = await Promise.all(eventPromises);
@@ -174,11 +180,16 @@ class CallbackCalendar extends CallbackBase<
       // Flatten all events into a single array
       const allEvents = eventArrays.flat();
 
-      // Sort by start time
+      // Sort by start time using Date objects for accurate comparison
+      // Handles both all-day (date) and timed (dateTime) events correctly
       allEvents.sort((a, b) => {
-        const aStart = a.start?.dateTime || a.start?.date || "";
-        const bStart = b.start?.dateTime || b.start?.date || "";
-        return aStart.localeCompare(bStart);
+        const aStartStr = a.start?.dateTime || a.start?.date;
+        const bStartStr = b.start?.dateTime || b.start?.date;
+        if (!aStartStr || !bStartStr) return 0;
+
+        const aDate = new Date(aStartStr);
+        const bDate = new Date(bStartStr);
+        return aDate.getTime() - bDate.getTime();
       });
 
       this.logger.debug(
