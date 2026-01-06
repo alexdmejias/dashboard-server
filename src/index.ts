@@ -11,10 +11,11 @@ const start = async () => {
     { callbackName: "year-progress" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
+  const currentExtension = __filename.endsWith(".ts") ? "ts" : "js";
 
   for await (const callback of callbacks) {
     const asyncResult = await import(
-      `./callbacks/${callback.callbackName}/index.ts`
+      `./callbacks/${callback.callbackName}/index.${currentExtension}`
     );
     possibleCallbacks[callback.callbackName] = {
       name: callback.callbackName,
