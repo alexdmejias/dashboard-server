@@ -15,4 +15,4 @@ export interface BrowserRenderer {
   renderPage(options: RenderOptions): Promise<RenderResult>;
 }
 
-export type BrowserRendererType = "cloudflare" | "puppeteer";
+export type BrowserRendererType = "cloudflare" | "puppeteer" | "browserless" | "multi";
