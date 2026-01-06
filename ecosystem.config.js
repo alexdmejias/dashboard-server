@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "dashboard-server",
       script: "./dist/index.js",
-      cwd: process.env.GITHUB_WORKSPACE || "/home/pi/projects/dashboard-server",
+      cwd: "/home/alex/projects/dashboard-server",
       instances: 1,
       autorestart: true,
       watch: false,
