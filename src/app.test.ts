@@ -1,13 +1,14 @@
+import { describe, it, expect, vi, type Mock } from 'vitest'
 import fastify, { FastifyError, errorCodes } from "fastify";
 import getApp, { serverMessages } from "./app";
 import CallbackBase from "./base-callbacks/base";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 
-jest.mock("node:fs/promises", () => ({
-  readFile: jest.fn(),
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn(),
 }));
-jest.mock("./utils/getScreenshot");
-jest.mock("./utils/getRenderedTemplate");
+vi.mock("./utils/getScreenshot");
+vi.mock("./utils/getRenderedTemplate");
 
 class DummyCallback extends CallbackBase {
   constructor() {
@@ -146,7 +147,7 @@ describe("app", () => {
       const clientName = "testClient";
       const viewType = "html";
       const mockedHtml = "dummy page";
-      (getRenderedTemplate as jest.Mock).mockReturnValue(mockedHtml);
+      (getRenderedTemplate as Mock).mockReturnValue(mockedHtml);
 
       await app.inject({
         method: "GET",

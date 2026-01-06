@@ -1,7 +1,8 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import { writeFile } from "node:fs/promises";
 
-jest.mock("node:fs/promises");
+vi.mock("node:fs/promises");
 
 describe("CloudflareBrowserRenderer", () => {
   const mockAccountId = "test-account-id";
@@ -11,13 +12,13 @@ describe("CloudflareBrowserRenderer", () => {
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     renderer = new CloudflareBrowserRenderer({
       accountId: mockAccountId,
       apiToken: mockApiToken,
     });
     originalFetch = global.fetch;
-    (writeFile as jest.Mock).mockResolvedValue(undefined);
+    (writeFile as Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -35,9 +36,9 @@ describe("CloudflareBrowserRenderer", () => {
       mockBuffer.byteOffset + mockBuffer.byteLength
     );
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
     });
 
     const options = {
@@ -78,9 +79,9 @@ describe("CloudflareBrowserRenderer", () => {
       mockBuffer.byteOffset + mockBuffer.byteLength
     );
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
     });
 
     const options = {
@@ -90,7 +91,7 @@ describe("CloudflareBrowserRenderer", () => {
 
     await renderer.renderPage(options);
 
-    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
     expect(body.options.viewport).toEqual({
@@ -100,11 +101,11 @@ describe("CloudflareBrowserRenderer", () => {
   });
 
   it("should throw error when API request fails", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       statusText: "Unauthorized",
-      text: jest.fn().mockResolvedValue("Invalid credentials"),
+      text: vi.fn().mockResolvedValue("Invalid credentials"),
     });
 
     const options = {
