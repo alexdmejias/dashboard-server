@@ -27,7 +27,68 @@ npm install
 npm run dev
 ```
 
-This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
+This starts both the backend server and the admin interface concurrently:
+- **Backend server** runs on `http://localhost:3333` (or your configured `PORT`) with hot-reload via `tsx --watch`
+- **Admin interface** runs on `http://localhost:3001` with Vite dev server and HMR (Hot Module Replacement)
+
+The admin dev server proxies API requests to the backend server, so you get a seamless development experience with instant feedback on both frontend and backend changes.
+
+You can also run individual dev servers:
+- `npm run dev:server` - Run only the backend server
+- `npm run dev:admin` - Run only the admin interface
+
+### Building for Production
+
+The project includes an integrated build process that builds both the admin interface and the server:
+
+```bash
+npm run build
+```
+
+This single command:
+1. Builds the admin interface (SolidJS app) to `public/admin/`
+2. Compiles the TypeScript server code to `dist/`
+
+You can also run individual build steps:
+- `npm run build:admin` - Build only the admin interface
+- `npm run build:server` - Build only the server
+
+### Admin Interface
+
+The server includes a web-based admin interface for monitoring connected clients in real-time. 
+
+**Development**: Access at `http://localhost:3001` (Vite dev server with HMR)
+**Production**: Access at `http://localhost:3333/` (served by Fastify)
+
+Features:
+- **Real-time monitoring** of connected clients via Server-Sent Events (SSE)
+- **TanStack Query** for efficient data fetching with caching
+- **Client detail pages** - Click on any client to view:
+  - Detailed callback configuration with options
+  - Request history with status codes and response times
+  - Activity logs with severity levels (info, warn, error)
+  - Auto-refreshing data every 5 seconds
+- **Password protection** (optional) - Set `ADMIN_PASSWORD` in `.env`
+- **Connection status indicator**
+- **Responsive UI** built with SolidJS and DaisyUI
+
+#### Setting Up Password Protection
+
+To enable password protection for the admin interface, add to your `.env` file:
+
+```
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+Leave empty or omit to disable password protection (open access):
+
+```
+ADMIN_PASSWORD=
+```
+
+When enabled, users will be prompted to login before accessing the admin interface.
+
+The admin interface is automatically served at the root path when you start the server.
 
 ## Environment
 Create a `.env` file at the project root or export env vars. Example keys used by callbacks:
@@ -123,6 +184,37 @@ Notes
 - Storage/Serving: images are written to `public/images/` by default or uploaded to cloud storage (see `keys/` and any environment-specific config). Images are served over HTTP (optionally via a CDN).
 
 This flow shows the happy-path: a client request triggers the server's callback pipeline, which renders HTML, captures an image, stores it, and then the client receives an image URL that can be fetched or embedded.
+
+## API Endpoints
+
+### Client Management
+
+- **POST /register/:clientName** — Register a new client with a callback playlist
+  - Body: `{ playlist: [{ id, callbackName, options? }] }`
+  - Returns client configuration
+
+- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
+  - `:viewType` can be `png`, `bmp`, `html`, or `json`
+  - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
+
+### Monitoring
+
+- **GET /health** — Health check endpoint
+  - Returns server status, available callbacks, and connected clients
+
+- **GET /api/clients** — Get current state of all clients (JSON)
+  - Returns full client data including playlists and callback configurations
+
+- **GET /api/clients/stream** — Real-time SSE stream of client updates
+  - Server-Sent Events endpoint for monitoring client changes
+  - Sends updates when clients are registered or modified
+  - Includes heartbeat every 30 seconds
+
+### Template Testing
+
+- **POST /test-template** — Test a template with custom data
+  - Body: `{ templateType, template, templateData?, screenDetails }`
+  - Useful for developing and debugging templates
 
 ## Templates
 

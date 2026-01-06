@@ -49,6 +49,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   app.register(clientsPlugin, { possibleCallbacks });
 
+  // Register admin plugin for authentication and client details
+  const adminPlugin = await import("./plugins/admin");
+  app.register(adminPlugin.default);
+
   app.decorateReply(
     "internalServerError",
     function (this: FastifyReply, message: string) {
@@ -130,6 +134,18 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
 
+    // Log the request
+    app.logClientRequest(
+      clientName,
+      "POST",
+      `/register/${clientName}`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>
+    );
+
     if (!client) {
       const clientRes = await app.registerClient(clientName, playlist);
 
@@ -138,11 +154,23 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           { error: clientRes.error },
           `error registering client: ${clientName}`,
         );
+        app.logClientActivity(
+          clientName,
+          "error",
+          `Error registering client: ${clientRes.error}`,
+          req.id
+        );
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
       }
       app.log.info(`created new client: ${clientName}`, clientRes);
+      app.logClientActivity(
+        clientName,
+        "info",
+        `Client registered successfully`,
+        req.id
+      );
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -151,6 +179,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
 
     app.log.info(`client already exists: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "warn",
+      `Client already exists`,
+      req.id
+    );
     return res.internalServerError(
       serverMessages.duplicateClientName(clientName),
     );
@@ -163,10 +197,29 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       callback?: string;
     };
   }>("/display/:clientName/:viewType/:callback?", async (req, res) => {
+    const startTime = Date.now();
     const { clientName, viewType, callback = "next" } = req.params;
+
+    // Log the incoming request
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>
+    );
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Unsupported viewType: ${viewType}`,
+        req.id
+      );
       return res.internalServerError(
         serverMessages.viewTypeNotSupported(viewType),
       );
@@ -179,10 +232,22 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Client not found`,
+        req.id
+      );
       return res.notFound(serverMessages.clientNotFound(clientName));
     }
 
     app.log.info(`retrieved existing client: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "info",
+      `Displaying ${callback} as ${viewTypeToUse}`,
+      req.id
+    );
 
     let data: RenderResponse;
     if (callback === "next") {
@@ -192,6 +257,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       const playlistItem = client.getPlaylistItemById(callback);
       if (!callbackInstance || !playlistItem) {
         app.log.error(`callback not found: ${callback}`);
+        app.logClientActivity(
+          clientName,
+          "error",
+          `Callback not found: ${callback}`,
+          req.id
+        );
         return res.notFound(serverMessages.callbackNotFound(callback));
       }
 
@@ -218,6 +289,19 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       },
       "sending response",
     );
+    
+    const responseTime = Date.now() - startTime;
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      "outgoing",
+      200,
+      responseTime,
+      req.id,
+      req.headers as Record<string, string | string[]>
+    );
+    
     return getResponseFromData(res, data);
   });
 
@@ -299,6 +383,44 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       app.log.error(err);
       return res.internalServerError("Error rendering template");
     }
+  });
+
+  // SSE endpoint for streaming client updates
+  app.get("/api/clients/stream", async (req, res) => {
+    res.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+
+    // Send initial client state
+    const clients = app.getClients();
+    res.raw.write(`data: ${JSON.stringify({ clients })}\n\n`);
+
+    // Add this connection to the set of SSE connections
+    app.addSSEConnection(res);
+
+    // Set up heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.raw.write(":heartbeat\n\n");
+      } catch (_err) {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    // Clean up on connection close
+    req.raw.on("close", () => {
+      clearInterval(heartbeat);
+      app.removeSSEConnection(res);
+      app.log.info("SSE connection closed");
+    });
+  });
+
+  // REST endpoint for getting current client state
+  app.get("/api/clients", async (_req, res) => {
+    const clients = app.getClients();
+    return res.send({ clients });
   });
 
   // type TestParams = {
@@ -417,6 +539,60 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   // //   return res.status(200).send("ok");
   // // });
+
+  app.setNotFoundHandler(async (req, res) => {
+    // Check if this is an API route that doesn't exist
+    if (req.url.startsWith("/api/")) {
+      return res.code(404).send({
+        error: "Not Found",
+        message: `Route ${req.url} not found`,
+        statusCode: 404,
+      });
+    }
+
+    // Try to serve static files from admin directory (for /assets/*)
+    if (req.url.startsWith("/assets/")) {
+      try {
+        // Validate path to prevent directory traversal
+        const requestedPath = req.url.replace("/assets/", "assets/");
+        const filePath = resolve(`./public/admin/${requestedPath}`);
+        const adminDir = resolve("./public/admin");
+
+        // Ensure the resolved path is within the admin directory
+        if (!filePath.startsWith(adminDir)) {
+          return res.code(403).send({
+            error: "Forbidden",
+            message: "Access denied",
+            statusCode: 403,
+          });
+        }
+
+        const stat = await fs.stat(filePath);
+        if (stat.isFile()) {
+          return res.sendFile(
+            req.url.replace("/assets/", "assets/"),
+            resolve("./public/admin"),
+          );
+        }
+      } catch (_err) {
+        // File not found, continue to serve index.html
+      }
+    }
+
+    // For all other routes, serve the admin index.html
+    try {
+      const adminIndexPath = resolve("./public/admin/index.html");
+      const content = await fs.readFile(adminIndexPath, "utf-8");
+      return res.type("text/html").send(content);
+    } catch (err) {
+      app.log.error("Error serving admin index:", err);
+      return res.code(404).send({
+        error: "Not Found",
+        message: "Admin interface not found. Please build the admin app.",
+        statusCode: 404,
+      });
+    }
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     // TODO temp disabling because errorCodes is undefined in raspberry
