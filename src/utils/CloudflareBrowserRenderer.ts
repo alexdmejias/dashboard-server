@@ -1,4 +1,8 @@
-import { BrowserRenderer, RenderOptions, RenderResult } from "../types/browser-renderer";
+import {
+  BrowserRenderer,
+  RenderOptions,
+  RenderResult,
+} from "../types/browser-renderer";
 import { ScreenshotSizeOption } from "../types";
 import { writeFile } from "node:fs/promises";
 
@@ -15,14 +19,18 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
   constructor(config: CloudflareConfig) {
     this.accountId = config.accountId;
     this.apiToken = config.apiToken;
-    this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/browser`;
+    this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/browser-rendering/screenshot`;
   }
 
   async renderPage(options: RenderOptions): Promise<RenderResult> {
-    const { htmlContent, imagePath, size = { width: 1200, height: 825 } } = options;
+    const {
+      htmlContent,
+      imagePath,
+      size = { width: 1200, height: 825 },
+    } = options;
 
     const response = await this.captureScreenshot(htmlContent, size);
-    
+
     // Write the screenshot buffer to the file
     await writeFile(imagePath, response);
 
@@ -36,24 +44,20 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
     htmlContent: string,
     size: ScreenshotSizeOption
   ): Promise<Buffer> {
-    const url = `${this.baseUrl}/rendering`;
-    
-    const response = await fetch(url, {
+    const response = await fetch(this.baseUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${this.apiToken}`,
+        Authorization: `Bearer ${this.apiToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        url: `data:text/html;base64,${Buffer.from(htmlContent).toString("base64")}`,
-        options: {
-          viewport: {
-            width: size.width,
-            height: size.height,
-          },
-          screenshot: {
-            fullPage: false,
-          },
+        html: htmlContent,
+        viewport: {
+          width: size.width,
+          height: size.height,
+        },
+        screenshotOptions: {
+          type: "png",
         },
       }),
     });
