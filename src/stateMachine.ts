@@ -58,10 +58,6 @@ class StateMachine {
     return this.#config;
   }
 
-  getLogger() {
-    return this.#logger;
-  }
-
   setConfigOption<T extends keyof Config>(
     configKey: T,
     configValue: Config[T],
