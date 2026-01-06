@@ -150,18 +150,28 @@ async function getApp(possibleCallbacks: any[] = []) {
     }
 
     let data: RenderResponse;
-    if (callback === "next") {
-      data = await client.tick(viewTypeToUse);
+    try {
+      if (callback === "next") {
+        data = await client.tick(viewTypeToUse);
 
-      client.advanceCallbackIndex();
-    } else {
-      const callbackInstance = client.getCallbackInstance(callback);
-      if (!callbackInstance) {
-        app.log.error(`callback not found: ${callback}`);
-        return res.notFound(serverMessages.callbackNotFound(callback));
+        client.advanceCallbackIndex();
+      } else {
+        const callbackInstance = client.getCallbackInstance(callback);
+        if (!callbackInstance) {
+          app.log.error(`callback not found: ${callback}`);
+          return res.notFound(serverMessages.callbackNotFound(callback));
+        }
+
+        data = await callbackInstance.render(viewTypeToUse);
       }
-
-      data = await callbackInstance.render(viewTypeToUse);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      app.log.error(
+        { error, clientName, viewType: viewTypeToUse },
+        "Error rendering callback"
+      );
+      return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
     app.log.info(
@@ -287,29 +297,29 @@ async function getApp(possibleCallbacks: any[] = []) {
   // //   return res.status(200).send("ok");
   // // });
 
-  app.setErrorHandler(function (error, request, reply) {
-    // TODO temp disabling because errorCodes is undefined in raspberry
-    // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-    //   // Log error
-    //   this.log.error(error);
-    //   // Send error response
-    //   reply.status(404).send({ ok: false });
-    // } else {
-    //   // fastify will use parent error handler to handle this
-    //   Sentry.captureException(error);
-    //   reply.send(error);
-    // }
-    if (process.env.NODE_ENV === "production") {
-      // Sentry.captureException(error);
-    }
+  // app.setErrorHandler(function (error, request, reply) {
+  //   // TODO temp disabling because errorCodes is undefined in raspberry
+  //   // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+  //   //   // Log error
+  //   //   this.log.error(error);
+  //   //   // Send error response
+  //   //   reply.status(404).send({ ok: false });
+  //   // } else {
+  //   //   // fastify will use parent error handler to handle this
+  //   //   Sentry.captureException(error);
+  //   //   reply.send(error);
+  //   // }
+  //   if (process.env.NODE_ENV === "production") {
+  //     // Sentry.captureException(error);
+  //   }
 
-    // app.log.error(error);
+  //   // app.log.error(error);
 
-    // reply.send({
-    //   statusCode: 500,
-    //   error,
-    // });
-  });
+  //   // reply.send({
+  //   //   statusCode: 500,
+  //   //   error,
+  //   // });
+  // });
 
   return app;
 }
