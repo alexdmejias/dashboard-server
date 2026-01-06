@@ -200,12 +200,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const startTime = Date.now();
     const { clientName, viewType, callback = "next" } = req.params;
 
-    // Log the request
+    // Log the incoming request
     app.logClientRequest(
       clientName,
       "GET",
       `/display/${clientName}/${viewType}/${callback}`,
-      "outgoing",
+      "incoming",
       undefined,
       undefined,
       req.id,
