@@ -16,7 +16,9 @@ import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
+
 import clientsPlugin from "./plugins/clients";
+import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 
 export const serverMessages = {
   healthGood: "ok",
@@ -174,8 +176,10 @@ async function getApp(possibleCallbacks: any[] = []) {
       return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
+    const rendererType = getBrowserRendererType();
+
     app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse}`
+      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`
     );
     return getResponseFromData(res, data);
   });
