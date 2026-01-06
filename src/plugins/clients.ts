@@ -71,8 +71,11 @@ function clientsPlugin(
   fastify.decorate(
     "registerClient",
     async (clientName: string, playlist: Playlist) => {
-      fastify.log.info(`registering client: ${clientName}...`);
-      fastify.log.info("validating playlist");
+      // Create child logger with clientId for all logs related to this client registration
+      const log = fastify.log.child({ clientId: clientName });
+
+      log.info(`registering client: ${clientName}...`);
+      log.info("validating playlist");
       const result = validatePlaylist(fastify, playlist, possibleCallbacks);
       if (!result.success) {
         return {
