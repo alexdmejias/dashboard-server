@@ -80,18 +80,23 @@ tar xzf ./actions-runner-linux-arm64-X.X.X.tar.gz
 
 ### 3.3 Configure the Runner
 
+**CRITICAL:** Configure the runner with a custom work directory to use the existing project directory:
+
 ```bash
-# Run the configuration script
-./config.sh --url https://github.com/YOUR_USERNAME/dashboard-server --token YOUR_TOKEN
+# Run the configuration script with custom work directory
+./config.sh --url https://github.com/YOUR_USERNAME/dashboard-server --token YOUR_TOKEN --work /home/alex/projects/dashboard-server
 
 # When prompted:
 # - Enter runner name (e.g., "raspberry-pi" or "pi-runner")
 # - Accept default runner group (press Enter)
-# - Accept default work folder (press Enter)
 # - Add labels if desired (optional, press Enter to skip)
 ```
 
-**Important:** Replace `YOUR_USERNAME` with your GitHub username and `YOUR_TOKEN` with the token provided on the GitHub runner setup page.
+**Important:** 
+- Replace `YOUR_USERNAME` with your GitHub username and `YOUR_TOKEN` with the token provided on the GitHub runner setup page.
+- Replace `/home/alex/projects/dashboard-server` with your actual path if different (e.g., `/home/pi/projects/dashboard-server`)
+- The `--work` flag makes the runner work directly in your existing project directory instead of creating a separate `_work` directory
+- This is the single source of truth for your application
 
 ### 3.4 Install Runner as a Service
 
@@ -158,33 +163,51 @@ git push origin main
 2. Click on it to see real-time logs
 3. On your Pi, you can monitor with: `pm2 logs dashboard-server`
 
-## 6. Understanding the Directory Structure
+## 6. Directory Structure
 
-After setup, you'll have two important directories:
+With the single-directory approach, you have only ONE directory that serves as the source of truth:
 
 ```
-~/actions-runner/              # Runner software and working directory
-├── _work/
-│   └── dashboard-server/      # Working directory for builds
-│       └── dashboard-server/  # Code checked out here during workflow runs
-│           ├── src/
-│           ├── dist/          # Built files
-│           ├── node_modules/
-│           └── ecosystem.config.js
+~/projects/dashboard-server/   # Single source of truth
+├── src/                        # Source code
+├── dist/                       # Built files
+├── node_modules/               # Dependencies
+├── logs/                       # Application logs
+│   ├── err.log
+│   ├── out.log
+│   └── combined.log
+└── ecosystem.config.js         # PM2 configuration
 
-~/projects/dashboard-server/   # Consolidated repo location
-├── src/
-├── dist/
-├── node_modules/
-└── ecosystem.config.js
+~/actions-runner/               # Runner software only
+├── config.sh
+├── run.sh
+├── svc.sh
+└── _diag/                      # Runner diagnostic logs
+    (No _work directory - runner works directly in ~/projects/dashboard-server)
 ```
 
-**Important:** 
-- The GitHub Actions workflow operates in `~/actions-runner/_work/dashboard-server/dashboard-server/`
-- The `ecosystem.config.js` file automatically detects which directory to use via the `GITHUB_WORKSPACE` environment variable
-- Manual deployments (git pull + pm2 restart) work from `~/projects/dashboard-server/`
+**How it works:**
+- GitHub Actions checks out code directly into `~/projects/dashboard-server`
+- Builds and installs dependencies in that same directory
+- PM2 runs the app from `~/projects/dashboard-server`
+- Manual deployments (`git pull`) also work from this directory
+- Everything happens in one place - no duplicate directories or confusion
 
-## 7. Monitoring
+## 7. How It Works
+
+When you push code to GitHub or manually trigger the workflow:
+
+1. **GitHub Actions detects the trigger** (push to main or manual dispatch)
+2. **Runner receives the job** and checks out code directly into `~/projects/dashboard-server`
+3. **Dependencies are installed** with `npm ci` in that directory
+4. **TypeScript is built** with `npm run build`, creating files in `./dist/`
+5. **Tests run** (failures don't stop deployment)
+6. **PM2 restarts** the app using `pm2 restart dashboard-server`
+7. **Verification** happens by checking PM2 status
+
+**Key Point:** Everything happens in `~/projects/dashboard-server` - the single source of truth. No separate working directories, no file copying, no confusion.
+
+## 8. Monitoring
 
 ### View PM2 Logs
 
@@ -229,20 +252,21 @@ pm2 info dashboard-server
 pm2 monit
 ```
 
-## 8. Useful Commands
+## 9. Useful Commands
 
 ### Manual Deployment (Alternative to GitHub Actions)
 
-If you need to deploy manually:
+If you need to deploy manually, it's simple because you work in the same directory as GitHub Actions:
 
 ```bash
 cd ~/projects/dashboard-server
 git pull origin main
 npm ci
 npm run build
-pm2 restart ecosystem.config.js
-pm2 save
+pm2 restart dashboard-server
 ```
+
+**Note:** This is the exact same directory that GitHub Actions uses, so manual and automated deployments are always in sync.
 
 ### PM2 Management
 
@@ -293,7 +317,32 @@ sudo ./svc.sh uninstall
 ./config.sh remove --token YOUR_TOKEN
 ```
 
-## 9. Troubleshooting
+## 10. Troubleshooting
+
+### Verify Runner Work Directory
+
+Check that your runner is configured to use the correct work directory:
+
+```bash
+cd ~/actions-runner
+cat .runner  # Should show workFolder pointing to your projects directory
+```
+
+The output should contain something like:
+```json
+{
+  "workFolder": "/home/alex/projects/dashboard-server"
+}
+```
+
+### Verify PM2 Working Directory
+
+Check that PM2 is using the correct directory:
+
+```bash
+pm2 describe dashboard-server | grep cwd
+# Should show: │ cwd              │ /home/alex/projects/dashboard-server
+```
 
 ### Problem: `pm2: command not found` in GitHub Actions
 
@@ -324,13 +373,13 @@ pm2 --version
 pm2 logs dashboard-server --lines 50
 
 # 2. Verify the build output exists
-ls -la ~/actions-runner/_work/dashboard-server/dashboard-server/dist/
+ls -la ~/projects/dashboard-server/dist/
 
 # 3. Check if the app is actually running
 pm2 list
 
 # 4. Manually test the built code
-cd ~/actions-runner/_work/dashboard-server/dashboard-server/
+cd ~/projects/dashboard-server
 node dist/index.js
 
 # 5. Check for missing environment variables
@@ -374,7 +423,7 @@ tail -f _diag/Runner_*.log
 **Solution:** Clear the npm cache and try again:
 
 ```bash
-cd ~/actions-runner/_work/dashboard-server/dashboard-server/
+cd ~/projects/dashboard-server
 rm -rf node_modules package-lock.json
 npm cache clean --force
 ```
@@ -392,13 +441,11 @@ pm2 list
 # Delete all instances
 pm2 delete all
 
-# Start fresh from the consolidated directory
+# Start fresh from the project directory
 cd ~/projects/dashboard-server
 pm2 start ecosystem.config.js
 pm2 save
 ```
-
-Note: With the consolidated setup at `~/projects/dashboard-server`, PM2 will run from the GitHub Actions runner directory (`~/actions-runner/_work/...`) during automated deployments, and fall back to `~/projects/dashboard-server` for manual operations.
 
 ### Problem: Changes Not Reflected After Deployment
 
@@ -407,25 +454,61 @@ Note: With the consolidated setup at `~/projects/dashboard-server`, PM2 will run
 2. Check which directory PM2 is using:
    ```bash
    pm2 info dashboard-server | grep cwd
+   # Should show: /home/alex/projects/dashboard-server
    ```
 3. Verify the correct code is deployed:
    ```bash
-   cd ~/actions-runner/_work/dashboard-server/dashboard-server/
+   cd ~/projects/dashboard-server
    git log -1
    ```
 
-## 10. Benefits of This Setup
+## 11. Benefits of This Setup
 
 ✅ **Automatic Deployment** - Push to main branch triggers deployment  
 ✅ **Manual Trigger** - Deploy on-demand via GitHub UI  
 ✅ **No Port Forwarding** - Pi connects out to GitHub (works behind NAT/firewall)  
 ✅ **No Static IP Required** - No need for dynamic DNS or port forwarding  
-✅ **Flexibility** - Manual git pull + pm2 restart still works  
+✅ **Single Directory** - One source of truth, no duplicate directories  
+✅ **Flexibility** - Manual git pull + pm2 restart still works from the same directory  
 ✅ **Process Management** - PM2 handles restarts and monitoring  
 ✅ **Logging** - Built-in logging for both GitHub Actions and PM2  
-✅ **Dual Directory Support** - Works from both automated and manual deployment directories
+✅ **Simplified Setup** - No confusion about which directory is active
 
-## 11. Security Notes
+## 12. Reconfiguring Existing Runner
+
+If you already set up the runner with the default work directory and want to switch to the single-directory approach:
+
+```bash
+# 1. Stop the runner service
+cd ~/actions-runner
+sudo ./svc.sh stop
+
+# 2. Uninstall the service
+sudo ./svc.sh uninstall
+
+# 3. Remove the runner configuration
+./config.sh remove --token YOUR_TOKEN
+
+# 4. Reconfigure with custom work directory
+./config.sh --url https://github.com/YOUR_USERNAME/dashboard-server --token YOUR_NEW_TOKEN --work /home/alex/projects/dashboard-server
+
+# 5. Reinstall and start the service
+sudo ./svc.sh install $USER
+sudo ./svc.sh start
+
+# 6. Verify the configuration
+cat .runner  # Should show workFolder: /home/alex/projects/dashboard-server
+sudo ./svc.sh status
+
+# 7. Restart PM2 to ensure it's using the correct directory
+cd ~/projects/dashboard-server
+pm2 restart dashboard-server
+pm2 save
+```
+
+**Note:** You'll need a new token from GitHub (Settings → Actions → Runners → Add runner) for the reconfiguration steps.
+
+## 13. Security Notes
 
 - The runner has access to your repository code
 - The runner runs under your user account on the Raspberry Pi
@@ -433,7 +516,7 @@ Note: With the consolidated setup at `~/projects/dashboard-server`, PM2 will run
 - Keep your Pi's OS and packages up to date
 - Consider using SSH keys for additional security
 
-## 12. Updating Node.js Version
+## 14. Updating Node.js Version
 
 If you need to update the Node.js version:
 
