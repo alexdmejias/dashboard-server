@@ -1,15 +1,16 @@
 module.exports = {
   apps: [
     {
-      name: "dashboard-server",
+      name:  "dashboard-server",
       script: "./dist/index.js",
-      cwd: "/home/alex/projects/dashboard-server",
+      cwd: "/home/alex/projects/alexdmejias/dashboard-server",  // Fixed path
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
       env: {
         NODE_ENV: "production",
+        LOG_LEVEL: "debug",
       },
       error_file: "./logs/err.log",
       out_file: "./logs/out.log",
