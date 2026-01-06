@@ -1,18 +1,25 @@
 import pino, { type LoggerOptions } from "pino";
 
 const hasLogtailToken = !!process.env.LOGTAIL_SOURCE_TOKEN;
+const isProduction = process.env.NODE_ENV === "production";
 
 export const loggingOptions: LoggerOptions = {
   level: process.env.LOG_LEVEL || "trace",
+  // Conditional transport based on environment
   transport: hasLogtailToken
     ? {
         targets: [
-          {
-            target: "pino-pretty",
-            options: {
-              colorize: true,
-            },
-          },
+          // Only add pino-pretty in non-production environments
+          ...(!isProduction
+            ? [
+                {
+                  target: "pino-pretty",
+                  options: {
+                    colorize: true,
+                  },
+                },
+              ]
+            : []),
           {
             target: "@logtail/pino",
             options: {
@@ -21,12 +28,15 @@ export const loggingOptions: LoggerOptions = {
           },
         ],
       }
-    : {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-        },
-      },
+    : !isProduction
+      ? {
+          // Development without Logtail: use pino-pretty
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+          },
+        }
+      : undefined, // Production without Logtail: no transport (raw JSON to stdout)
 };
 
 const logger = pino(loggingOptions);
