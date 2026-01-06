@@ -94,6 +94,9 @@ function clientsPlugin(
           const callbackFn = a.callback;
           const ins = new callbackFn(playlistItem.options) as CallbackBase;
 
+          // Set the logger on the callback instance to use the client-scoped logger
+          ins.logger = log;
+
           callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
 
           validCallbacks.push({
@@ -114,7 +117,7 @@ function clientsPlugin(
       if (errors) {
         return { error: errors };
       }
-      _clients[clientName] = new StateMachine(playlist);
+      _clients[clientName] = new StateMachine(playlist, log);
       const client = _clients[clientName];
 
       await client.addCallbacks(validCallbacks);
