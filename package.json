@@ -7,7 +7,11 @@
     "start": "node dist/index.js",
     "build": "tsc -p ./tsconfig.json",
     "test": "ENV=test jest",
-    "test:watch": "ENV=test jest --watch"
+    "test:watch": "ENV=test jest --watch",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"*.{json,md}\"",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
   },
   "keywords": [],
   "author": "",
@@ -31,12 +35,14 @@
     "object-hash": "^3.0.0",
     "pino": "^8.11.0",
     "pino-pretty": "^10.0.0",
-    "puppeteer": "^23.10.4",
     "showdown": "^2.1.0",
     "sqlite3": "^5.1.6",
     "ts-import": "^5.0.0-beta.1",
     "ts-node": "^10.9.1",
     "zod": "^3.25.0"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^23.10.4"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",

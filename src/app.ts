@@ -14,6 +14,7 @@ import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
 import type { PossibleCallbacks, SupportedViewType } from "./types";
+import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
 import {
@@ -185,38 +186,46 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     app.log.info(`retrieved existing client: ${clientName}`);
 
     let data: RenderResponse;
-    if (callback === "next") {
-      data = await client.tick(viewTypeToUse);
-    } else {
-      const callbackInstance = client.getCallbackInstance(callback);
-      const playlistItem = client.getPlaylistItemById(callback);
-      if (!callbackInstance || !playlistItem) {
-        app.log.error(`callback not found: ${callback}`);
-        return res.notFound(serverMessages.callbackNotFound(callback));
-      }
-
-      // render may accept runtime options; use a typed cast to avoid `any`
-      type RenderWithOptions = (
-        viewType: SupportedViewType,
-        options?: Record<string, unknown>,
-      ) => Promise<RenderResponse>;
-
-      data = await (
-        callbackInstance as unknown as {
-          render: RenderWithOptions;
+    try {
+      if (callback === "next") {
+        data = await client.tick(viewTypeToUse);
+      } else {
+        const callbackInstance = client.getCallbackInstance(callback);
+        const playlistItem = client.getPlaylistItemById(callback);
+        if (!callbackInstance || !playlistItem) {
+          app.log.error(`callback not found: ${callback}`);
+          return res.notFound(serverMessages.callbackNotFound(callback));
         }
-      ).render(
-        viewTypeToUse,
-        playlistItem.options as Record<string, unknown> | undefined,
+
+        // render may accept runtime options; use a typed cast to avoid `any`
+        type RenderWithOptions = (
+          viewType: SupportedViewType,
+          options?: Record<string, unknown>,
+        ) => Promise<RenderResponse>;
+
+        data = await (
+          callbackInstance as unknown as {
+            render: RenderWithOptions;
+          }
+        ).render(
+          viewTypeToUse,
+          playlistItem.options as Record<string, unknown> | undefined,
+        );
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      app.log.error(
+        { error, clientName, viewType: viewTypeToUse },
+        "Error rendering callback",
       );
+      return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
+    const rendererType = getBrowserRendererType();
+
     app.log.info(
-      {
-        clientName,
-        viewTypeToUse,
-      },
-      "sending response",
+      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
     );
     return getResponseFromData(res, data);
   });
