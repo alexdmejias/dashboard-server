@@ -21,6 +21,8 @@ module.exports = {
   ],
   root: true,
   rules: {
-    indent: ["error", 2],
+    // Disable ESLint formatting rules that conflict with Prettier
+    indent: "off",
+    "@typescript-eslint/indent": "off",
   },
 };

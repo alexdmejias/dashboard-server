@@ -13,14 +13,13 @@ class DB {
     return new Promise((resolve, reject) => {
       this.db.run(script, (error: Error) => {
         if (error) {
-          logger.error('failed to run migration')
-          reject(error)
+          logger.error("failed to run migration");
+          reject(error);
         }
 
-        return resolve(true)
-      })
-
-    })
+        return resolve(true);
+      });
+    });
   }
 
   async getRecord<T>(type: SupportedDBCallbacks): Promise<T> {

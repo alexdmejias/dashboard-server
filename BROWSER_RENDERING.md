@@ -19,11 +19,13 @@ When using the Puppeteer renderer, the following optional environment variable c
 - `CHROMIUM_BIN`: Path to Chromium binary (optional, uses bundled Chromium if not specified)
 
 **Installation:**
+
 ```bash
 npm install puppeteer
 ```
 
 **Example configuration:**
+
 ```env
 BROWSER_RENDERER=puppeteer
 CHROMIUM_BIN=/usr/bin/chromium-browser  # Optional
@@ -39,6 +41,7 @@ When using the Cloudflare renderer, the following environment variables are requ
 **No additional installation required** - uses Cloudflare's remote rendering service.
 
 **Example configuration:**
+
 ```env
 BROWSER_RENDERER=cloudflare
 CLOUDFLARE_ACCOUNT_ID=your-account-id
@@ -79,13 +82,17 @@ To add a new browser rendering provider:
 Example:
 
 ```typescript
-import { BrowserRenderer, RenderOptions, RenderResult } from "../types/browser-renderer";
+import {
+  BrowserRenderer,
+  RenderOptions,
+  RenderResult,
+} from "../types/browser-renderer";
 
 class MyCustomRenderer implements BrowserRenderer {
   async renderPage(options: RenderOptions): Promise<RenderResult> {
     // Your implementation here
     const { htmlContent, imagePath, size } = options;
-    
+
     // Render the HTML and return the result
     return {
       path: imagePath,
@@ -100,12 +107,14 @@ export default MyCustomRenderer;
 ## Benefits
 
 ### Cloudflare Browser Rendering
+
 - No need to install Chromium/Puppeteer locally
 - Reduced server resource usage
 - Easier deployment and scaling
 - No browser binary maintenance
 
 ### Puppeteer (Local)
+
 - Works offline
 - No external API dependency
 - No usage costs
@@ -122,14 +131,18 @@ If you're migrating from the old Puppeteer-only setup:
 ## Troubleshooting
 
 ### Error: "Puppeteer is not installed"
+
 If you get this error, either:
+
 - Install Puppeteer: `npm install puppeteer`
 - Switch to Cloudflare renderer: `BROWSER_RENDERER=cloudflare`
 
 ### Error: "Cloudflare Browser Rendering requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+
 Make sure you've set both required environment variables in your `.env` file.
 
 ### Cloudflare API Errors
+
 - Check that your API token has the correct permissions
 - Verify your account ID is correct
 - Check Cloudflare's status page for service issues

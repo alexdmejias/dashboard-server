@@ -1,10 +1,14 @@
-import { BrowserRenderer, BrowserRendererType } from "../types/browser-renderer";
+import {
+  BrowserRenderer,
+  BrowserRendererType,
+} from "../types/browser-renderer";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import PuppeteerBrowserRenderer from "./PuppeteerBrowserRenderer";
 import logger from "../logger";
 
 export function createBrowserRenderer(): BrowserRenderer {
-  const rendererType = (process.env.BROWSER_RENDERER || "puppeteer") as BrowserRendererType;
+  const rendererType = (process.env.BROWSER_RENDERER ||
+    "puppeteer") as BrowserRendererType;
 
   logger.info(`Creating browser renderer: ${rendererType}`);
 

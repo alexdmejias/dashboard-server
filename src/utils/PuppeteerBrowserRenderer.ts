@@ -1,8 +1,16 @@
-import { BrowserRenderer, RenderOptions, RenderResult } from "../types/browser-renderer";
+import {
+  BrowserRenderer,
+  RenderOptions,
+  RenderResult,
+} from "../types/browser-renderer";
 
 class PuppeteerBrowserRenderer implements BrowserRenderer {
   async renderPage(options: RenderOptions): Promise<RenderResult> {
-    const { htmlContent, imagePath, size = { width: 1200, height: 825 } } = options;
+    const {
+      htmlContent,
+      imagePath,
+      size = { width: 1200, height: 825 },
+    } = options;
 
     let puppeteer;
     try {
