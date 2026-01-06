@@ -3,22 +3,24 @@ import * as dotenv from "dotenv";
 import "./instrument";
 dotenv.config();
 
+import fs from "node:fs/promises";
+import os from "node:os";
+import { resolve } from "node:path";
+import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fastifyView from "@fastify/view";
-import fastify, { FastifyReply } from "fastify";
-import fs from "node:fs/promises";
-import { resolve } from "node:path";
-// import { CallbackMessage } from "./base-callbacks/callbacks";
-import { RenderResponse } from "./base-callbacks/base";
-import logger, { loggingOptions } from "./logger";
-import { SupportedViewType } from "./types";
+import fastify, { type FastifyReply } from "fastify";
+import type { RenderResponse } from "./base-callbacks/base";
+import logger from "./logger";
+import clientsPlugin from "./plugins/clients";
+import type { PossibleCallbacks, SupportedViewType } from "./types";
+import { getBrowserRendererType } from "./utils/getBrowserRendererType";
+import getRenderedTemplate from "./utils/getRenderedTemplate";
+import getScreenshot from "./utils/getScreenshot";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
-
-import clientsPlugin from "./plugins/clients";
-import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 
 export const serverMessages = {
   healthGood: "ok",
@@ -31,13 +33,13 @@ export const serverMessages = {
   callbackNotFound: (callback: string) => `callback not found: ${callback}`,
 } as const;
 
-async function getApp(possibleCallbacks: any[] = []) {
-  if (!possibleCallbacks.length) {
+async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
+  if (!possibleCallbacks || !Object.keys(possibleCallbacks).length) {
     throw new Error("no callbacks provided");
   }
 
   const app = fastify({
-    logger: /* process.env.NODE_ENV === "test" ? undefined : */ loggingOptions,
+    loggerInstance: logger,
   });
 
   if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
@@ -56,7 +58,7 @@ async function getApp(possibleCallbacks: any[] = []) {
         message,
         statusCode: 500,
       });
-    }
+    },
   );
 
   app.decorateReply("notFound", function (this: FastifyReply, message: string) {
@@ -67,24 +69,27 @@ async function getApp(possibleCallbacks: any[] = []) {
     });
   });
 
-  app.addHook("onListen", async () => {
-    //   app.log.info("app is ready");
-    //   // await app.stateMachine.start();
-    await app.registerClient("inkplate");
-  });
-
+  // TODO make this a plugin
   async function getResponseFromData(res: FastifyReply, data: RenderResponse) {
     if (isSupportedImageViewType(data.viewType) && "imagePath" in data) {
       return res
         .type(`image/${data.viewType}`)
         .send(await fs.readFile(data.imagePath));
-    } else if (data.viewType === "html" && "html" in data) {
-      return res.type("text/html").send(data.html);
-    } else if (data.viewType === "json" && "json" in data) {
-      return res.type("application/json").send(data.json);
-    } else {
-      return res.send(data);
     }
+
+    if (data.viewType === "html") {
+      return res.type("text/html").send(data.html);
+    }
+
+    if (data.viewType === "json") {
+      return res.type("application/json").send(data.json);
+    }
+
+    if (data.viewType === "error") {
+      return res.internalServerError(data.error);
+    }
+
+    return res.send(data);
   }
 
   app.register(fastifyStatic, {
@@ -98,28 +103,57 @@ async function getApp(possibleCallbacks: any[] = []) {
     },
   });
 
-  app.get("/health", async (req, res) => {
-    return res.send({ statusCode: 200, message: serverMessages.healthGood });
+  app.register(fastifyCors);
+
+  app.get("/health", async (_req, res) => {
+    return res.send({
+      statusCode: 200,
+      message: serverMessages.healthGood,
+      possibleCallbacks: Object.keys(possibleCallbacks),
+      clients: app.getClients(),
+    });
   });
 
-  app.get<{
+  app.post<{
     Params: {
       clientName: string;
     };
+    Body: {
+      playlist?: {
+        id: string;
+        callbackName: string;
+        options?: Record<string, unknown>;
+      }[];
+    };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
+    const { playlist = [] } = req.body;
+
     const client = app.getClient(clientName);
+
     if (!client) {
-      await app.registerClient(clientName);
+      const clientRes = await app.registerClient(clientName, playlist);
+
+      if ("error" in clientRes) {
+        app.log.error(
+          { error: clientRes.error },
+          `error registering client: ${clientName}`,
+        );
+        return res.internalServerError(
+          `Error registering client "${clientName}": ${clientRes.error}`,
+        );
+      }
+      app.log.info(`created new client: ${clientName}`, clientRes);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
+        client: clientRes,
       };
     }
 
     app.log.info(`client already exists: ${clientName}`);
     return res.internalServerError(
-      serverMessages.duplicateClientName(clientName)
+      serverMessages.duplicateClientName(clientName),
     );
   });
 
@@ -135,7 +169,7 @@ async function getApp(possibleCallbacks: any[] = []) {
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
       return res.internalServerError(
-        serverMessages.viewTypeNotSupported(viewType)
+        serverMessages.viewTypeNotSupported(viewType),
       );
     }
 
@@ -147,31 +181,43 @@ async function getApp(possibleCallbacks: any[] = []) {
     if (!client) {
       app.log.error("client not found");
       return res.notFound(serverMessages.clientNotFound(clientName));
-    } else {
-      app.log.info(`retrieved existing client: ${clientName}`);
     }
+
+    app.log.info(`retrieved existing client: ${clientName}`);
 
     let data: RenderResponse;
     try {
       if (callback === "next") {
         data = await client.tick(viewTypeToUse);
-
-        client.advanceCallbackIndex();
       } else {
         const callbackInstance = client.getCallbackInstance(callback);
-        if (!callbackInstance) {
+        const playlistItem = client.getPlaylistItemById(callback);
+        if (!callbackInstance || !playlistItem) {
           app.log.error(`callback not found: ${callback}`);
           return res.notFound(serverMessages.callbackNotFound(callback));
         }
 
-        data = await callbackInstance.render(viewTypeToUse);
+        // render may accept runtime options; use a typed cast to avoid `any`
+        type RenderWithOptions = (
+          viewType: SupportedViewType,
+          options?: Record<string, unknown>,
+        ) => Promise<RenderResponse>;
+
+        data = await (
+          callbackInstance as unknown as {
+            render: RenderWithOptions;
+          }
+        ).render(
+          viewTypeToUse,
+          playlistItem.options as Record<string, unknown> | undefined,
+        );
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       app.log.error(
         { error, clientName, viewType: viewTypeToUse },
-        "Error rendering callback"
+        "Error rendering callback",
       );
       return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
@@ -179,9 +225,89 @@ async function getApp(possibleCallbacks: any[] = []) {
     const rendererType = getBrowserRendererType();
 
     app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`
+      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
     );
     return getResponseFromData(res, data);
+  });
+
+  app.post<{
+    Body: {
+      templateType: "liquid" | "ejs";
+      template: string;
+      templateData?: Record<string, unknown>;
+      screenDetails: {
+        width: number;
+        height: number;
+        bits?: number;
+        output: "html" | "png" | "bmp";
+      };
+    };
+  }>("/test-template", async (req, res) => {
+    const {
+      templateType,
+      template,
+      templateData = {},
+      screenDetails,
+    } = req.body;
+
+    if (!templateType || !template || !screenDetails) {
+      return res.code(400).send({ error: "invalid request body" });
+    }
+
+    try {
+      const ext = templateType === "liquid" ? "liquid" : "ejs";
+
+      // write the provided template body to a temporary template file.
+      // We write only the body; getRenderedTemplate will compose head/footer
+      // when given a template path.
+      const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
+        Math.random() * 1e9,
+      )}.${ext}`;
+      const tmpPath = resolve(os.tmpdir(), tmpName);
+      await fs.writeFile(tmpPath, template, "utf-8");
+
+      try {
+        if (screenDetails.output === "html") {
+          const renderedHtml = await getRenderedTemplate({
+            template: tmpPath,
+            data: templateData,
+            runtimeConfig: screenDetails,
+          });
+
+          return res.type("text/html").send(renderedHtml);
+        }
+
+        // image output (png or bmp) — use shared getScreenshot utility
+        const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
+        const fileName = `test-template-${Date.now()}.${extOut}`;
+        const imagePath = resolve(`./public/images/${fileName}`);
+
+        const width = screenDetails.width ?? 1200;
+        const height = screenDetails.height ?? 825;
+
+        const { buffer } = await getScreenshot({
+          template: tmpPath,
+          data: templateData,
+          runtimeConfig: screenDetails,
+          imagePath,
+          viewType: extOut,
+          size: { width, height },
+        });
+
+        const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
+        return res.type(contentType).send(buffer);
+      } finally {
+        // best-effort cleanup of the temp template
+        try {
+          await fs.unlink(tmpPath);
+        } catch (e) {
+          app.log.debug({ err: e }, "failed to remove temp template file");
+        }
+      }
+    } catch (err) {
+      app.log.error(err);
+      return res.internalServerError("Error rendering template");
+    }
   });
 
   // type TestParams = {
@@ -301,29 +427,29 @@ async function getApp(possibleCallbacks: any[] = []) {
   // //   return res.status(200).send("ok");
   // // });
 
-  // app.setErrorHandler(function (error, request, reply) {
-  //   // TODO temp disabling because errorCodes is undefined in raspberry
-  //   // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-  //   //   // Log error
-  //   //   this.log.error(error);
-  //   //   // Send error response
-  //   //   reply.status(404).send({ ok: false });
-  //   // } else {
-  //   //   // fastify will use parent error handler to handle this
-  //   //   Sentry.captureException(error);
-  //   //   reply.send(error);
-  //   // }
-  //   if (process.env.NODE_ENV === "production") {
-  //     // Sentry.captureException(error);
-  //   }
+  app.setErrorHandler((error, _request, reply) => {
+    // TODO temp disabling because errorCodes is undefined in raspberry
+    // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
+    //   // Log error
+    //   this.log.error(error);
+    //   // Send error response
+    //   reply.status(404).send({ ok: false });
+    // } else {
+    //   // fastify will use parent error handler to handle this
+    //   Sentry.captureException(error);
+    //   reply.send(error);
+    // }
+    if (process.env.NODE_ENV === "production") {
+      // Sentry.captureException(error);
+    }
 
-  //   // app.log.error(error);
+    app.log.error(error);
 
-  //   // reply.send({
-  //   //   statusCode: 500,
-  //   //   error,
-  //   // });
-  // });
+    reply.send({
+      statusCode: 500,
+      error,
+    });
+  });
 
   return app;
 }

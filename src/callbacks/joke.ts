@@ -1,25 +1,18 @@
-import CallbackBaseDB from "../base-callbacks/base-db";
+import CallbackBase from "../base-callbacks/base";
 
-type DBTableShape = { id: string; content: string };
 type Joke = { id: string; content: string[] };
 
-class CallbackJoke extends CallbackBaseDB<DBTableShape, Joke> {
+class CallbackJoke extends CallbackBase<Joke> {
   constructor() {
-    super({ name: "joke", dataFile: "jokes", template: "generic" });
+    super({ name: "joke", template: "generic" });
   }
 
-  transformer(data: DBTableShape): Joke {
-    return {
-      id: data.id,
-      content: data.content.split("\\n"),
-    };
-  }
-
-  get migration() {
-    return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
-        id INTEGER PRIMARY KEY,
-        content TEXT NOT NULL)`;
-  }
+  // transformer(data: DBTableShape): Joke {
+  //   return {
+  //     id: data.id,
+  //     content: data.content.split("\\n"),
+  //   };
+  // }
 }
 
 export default CallbackJoke;

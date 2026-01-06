@@ -1,12 +1,16 @@
-import { Jimp } from "jimp";
-import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
-import { ScreenshotSizeOption } from "../types";
+import { Jimp } from "jimp";
+import type { ScreenshotSizeOption } from "../types";
 import { createBrowserRenderer } from "./browserRendererFactory";
+import getRenderedTemplate from "./getRenderedTemplate";
 
-async function getScreenshot<T extends object>({
+async function getScreenshot<
+  T extends object = object,
+  U extends object = object,
+>({
   template,
   data,
+  runtimeConfig,
   imagePath,
   viewType,
   size = {
@@ -16,11 +20,16 @@ async function getScreenshot<T extends object>({
 }: {
   template: string;
   data: T;
+  runtimeConfig?: U;
   imagePath: string;
   viewType: string;
   size?: ScreenshotSizeOption;
 }) {
-  const renderedTemplate = getRenderedTemplate({ template, data });
+  const renderedTemplate = await getRenderedTemplate({
+    template,
+    data,
+    runtimeConfig,
+  });
 
   const renderer = createBrowserRenderer();
   const { buffer } = await renderer.renderPage({
@@ -34,7 +43,7 @@ async function getScreenshot<T extends object>({
     const image = await Jimp.read(imageBuffer);
 
     await image.write(imagePath as `{string}.{string}`);
-    return { path: imagePath, buffer: image.getBuffer(`image/bmp`) };
+    return { path: imagePath, buffer: image.getBuffer("image/bmp") };
   }
 
   return { path: imagePath, buffer };

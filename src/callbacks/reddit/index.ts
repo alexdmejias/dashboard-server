@@ -1,7 +1,5 @@
-import CallbackBase from "../base-callbacks/base";
-import base64Encode from "../utils/base64Encode";
-import logger from "../logger";
-import { z } from "zod";
+import { z } from "zod/v4";
+import CallbackBase from "../../base-callbacks/base";
 
 export interface RedditResponseRoot {
   kind: string;
@@ -17,12 +15,21 @@ export interface RedditResponseRoot {
 
 type RedditPost = RedditResponseRoot["data"]["children"][number]["data"][];
 
-const expectedConfig = z.object({
+export const expectedConfig = z.object({
   subreddit: z.string(),
+  title: z.string().optional(),
   qty: z.number().positive(),
 });
 
+type ConfigType = z.infer<typeof expectedConfig>;
+
 class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
+  static defaultOptions: ConfigType = {
+    title: "default reddit title",
+    qty: 3,
+    subreddit: "pets",
+  };
+
   constructor(options = {}) {
     super({
       name: "reddit",
@@ -31,25 +38,20 @@ class CallbackReddit extends CallbackBase<RedditPost, typeof expectedConfig> {
     });
   }
 
-  async getData() {
+  async getData(config: z.infer<typeof expectedConfig>) {
     try {
-      const subreddit = process.env.REDDIT_SUBREDDIT || "asknyc";
-      const qty = process.env.REDDIT_POST_QTY || 10;
-
-      if (!qty || !subreddit) {
-        throw new Error("missing reddit subreddit or reddit post qty");
-      }
+      const { qty, subreddit } = config;
 
       const dataRes = await fetch(
-        `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`
+        `https://reddit.com/r/${subreddit}/new.json?sort=new&limit=${qty}`,
       );
 
-      const json: RedditResponseRoot = await dataRes.json();
-      const posts = json.data.children.map((p) => ({
+      const json = (await dataRes.json()) as RedditResponseRoot;
+      const data = json.data.children.map((p) => ({
         title: p.data.title,
       }));
 
-      return posts;
+      return data;
     } catch (e) {
       return { error: e instanceof Error ? e.message : (e as string) };
     }

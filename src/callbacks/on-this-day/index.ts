@@ -1,5 +1,5 @@
-import CallbackBase from "../base-callbacks/base";
 import * as cheerio from "cheerio";
+import CallbackBase from "../../base-callbacks/base";
 
 type Link = { url: string; title: string };
 
@@ -12,7 +12,11 @@ type OnThisDayData = {
 
 class CallbackOnThisDay extends CallbackBase<OnThisDayData> {
   constructor() {
-    super({ name: "onThisDay", template: "on-this-day", cacheable: true });
+    super({
+      name: "onThisDay",
+      template: "on-this-day",
+      cacheable: true,
+    });
   }
 
   async getHTML() {

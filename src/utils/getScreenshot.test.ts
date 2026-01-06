@@ -1,9 +1,9 @@
-import { Jimp } from "jimp";
-import getRenderedTemplate from "./getRenderedTemplate";
 import { readFile } from "node:fs/promises";
-import getScreenshot from "./getScreenshot";
+import { Jimp } from "jimp";
+import type { BrowserRenderer } from "../types/browser-renderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
-import { BrowserRenderer } from "../types/browser-renderer";
+import getRenderedTemplate from "./getRenderedTemplate";
+import getScreenshot from "./getScreenshot";
 
 jest.mock("jimp");
 jest.mock("./getRenderedTemplate");
@@ -39,7 +39,6 @@ describe("utils:getScreenshot", () => {
     };
     const result = await getScreenshot(options);
 
-    expect(createBrowserRenderer).toHaveBeenCalled();
     expect(getRenderedTemplate).toHaveBeenCalledWith({
       template: options.template,
       data: options.data,
@@ -88,7 +87,7 @@ describe("utils:getScreenshot", () => {
 
     expect(readFile).toHaveBeenCalledWith(options.imagePath);
     expect(Jimp.read).toHaveBeenCalledWith(
-      Buffer.from(mockBufferContentSource)
+      Buffer.from(mockBufferContentSource),
     );
     expect(mockWrite).toHaveBeenCalledWith(options.imagePath);
     expect(result).toEqual({

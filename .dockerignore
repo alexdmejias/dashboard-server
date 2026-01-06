@@ -1,8 +1,11 @@
 node_modules
-.git
-.env.sample
-jest.config.js
-.vscode
+npm-debug.log
+Dockerfile
 .dockerignore
-.DS_STORE
-bruno-collection
+.git
+.gitignore
+*.md
+test
+src/**/*.test.*
+src/**/*.spec.*
+biome.json

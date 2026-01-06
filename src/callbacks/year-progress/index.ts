@@ -1,4 +1,4 @@
-import CallbackBase from "../base-callbacks/base";
+import CallbackBase from "../../base-callbacks/base";
 
 type Day = [number, number];
 type Days = Day[];
@@ -9,8 +9,8 @@ function getDaysInMonth(month: number, year: number) {
 }
 
 class CallbackYearProgress extends CallbackBase<YearProgressData> {
-  constructor() {
-    super({ name: "year", cacheable: true });
+  constructor(options = {}) {
+    super({ name: "year-progress", cacheable: true, receivedConfig: options });
   }
 
   getData() {

@@ -1,5 +1,5 @@
-import { z } from "zod";
-import CallbackBase from "../base-callbacks/base";
+import type { z } from "zod/v4";
+import type CallbackBase from "../base-callbacks/base";
 
 export const supportedImageViewTypes = ["png", "bmp"] as const;
 export const supportedTextViewTypes = ["html", "json"] as const;
@@ -27,16 +27,32 @@ export type TemplateGeneric<T> = {
   item: T;
 };
 
-export type PossibleTemplateData<T> = Promise<T | TemplateDataError>;
+export type PossibleTemplateData<T extends object = object> = Promise<
+  T | TemplateDataError
+>;
 
 export type DataFromCallback = TemplateDataError | any[] | Record<string, any>;
 export type PossibleCallback = {
-  callback: typeof CallbackBase;
-  options: z.AnyZodObject;
+  name: string;
+  callback: any; // import from a callback file
+  expectedConfig?: z.ZodObject<any>;
 };
+export type PossibleCallbacks = Record<string, PossibleCallback>;
 
-export * from "./weather-api";
 export * from "./browser-renderer";
+export type PlaylistItem = {
+  id: string;
+  callbackName: string; // name of the callback to be used
+  options?: object; // runtime options for the callback
+};
+export type Playlist = PlaylistItem[];
+
+export type ValidCallback = {
+  instance: CallbackBase;
+  id: string;
+  name: string;
+  expectedConfig?: z.ZodObject<any>;
+};
 
 declare module "fastify" {
   interface FastifyReply {

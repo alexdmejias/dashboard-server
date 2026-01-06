@@ -1,5 +1,6 @@
-import { WeatherApiResponseRoot } from "../types";
-import CallbackBase from "../base-callbacks/base";
+import { z } from "zod/v4";
+import CallbackBase from "../../base-callbacks/base";
+import type { WeatherApiResponseRoot } from "./types";
 
 type ForecastWeather = {
   max: number;
@@ -18,22 +19,37 @@ type TemplateDataWeather = {
   forecast: ForecastWeather[];
 };
 
-class CallbackWeather extends CallbackBase<TemplateDataWeather> {
-  constructor() {
+export const expectedConfig = z.object({
+  zipcode: z.string(),
+});
+
+type ConfigType = z.infer<typeof expectedConfig>;
+
+class CallbackWeather extends CallbackBase<
+  TemplateDataWeather,
+  typeof expectedConfig
+> {
+  static defaultOptions: ConfigType = {
+    zipcode: "10001",
+  };
+
+  constructor(options = {}) {
     super({
       name: "weather",
-      envVariablesNeeded: ["WEATHER_APIKEY", "WEATHER_ZIPCODE"],
+      expectedConfig,
+      envVariablesNeeded: ["WEATHER_APIKEY"],
+      receivedConfig: options,
     });
   }
 
-  async getWeather(): Promise<WeatherApiResponseRoot> {
-    const key = process.env.WEATHER_APIKEY;
-    const zipcode = process.env.WEATHER_ZIPCODE;
+  async getWeather(config: ConfigType) {
+    const key = process.env.WEATHER_APIKEY; // TODO move to runtime config
+    const { zipcode } = config;
 
     const data = await fetch(
-      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`
+      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
     );
-    return data.json();
+    return (await data.json()) as WeatherApiResponseRoot;
   }
 
   getToday(payload: WeatherApiResponseRoot): TodayWeather {
@@ -55,7 +71,7 @@ class CallbackWeather extends CallbackBase<TemplateDataWeather> {
         day: { maxtemp_f, mintemp_f, condition },
       } = dayData;
 
-      const date = new Date(dayData.date + " 00:00:00");
+      const date = new Date(`${dayData.date} 00:00:00`);
       return {
         max: maxtemp_f,
         low: mintemp_f,
@@ -70,11 +86,24 @@ class CallbackWeather extends CallbackBase<TemplateDataWeather> {
     return forecast;
   }
 
-  async getData() {
-    const weather = await this.getWeather();
+  async getData(config: ConfigType) {
+    this.logger.debug(
+      {
+        runtimeConfig: config,
+      },
+      "Fetching weather data",
+    );
+    const weather = await this.getWeather(config);
     const forecast = this.getForecast(weather);
     const today = this.getToday(weather);
 
+    this.logger.debug(
+      {
+        today,
+        forecast,
+      },
+      "Weather data fetched successfully",
+    );
     return {
       today,
       forecast,

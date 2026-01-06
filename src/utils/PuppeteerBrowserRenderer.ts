@@ -1,4 +1,4 @@
-import {
+import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
@@ -17,7 +17,7 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       puppeteer = await import("puppeteer");
     } catch (error) {
       throw new Error(
-        "Puppeteer is not installed. Install it with 'npm install puppeteer' or use a different renderer like 'cloudflare'."
+        "Puppeteer is not installed. Install it with 'npm install puppeteer' or use a different renderer like 'cloudflare'.",
       );
     }
 

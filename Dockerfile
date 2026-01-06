@@ -1,5 +1,6 @@
 FROM node:22-bookworm
 
+# Install Chromium and dependencies, then clean up apt cache to reduce image size
 RUN apt-get update && apt-get install -y \
     chromium \
     gconf-service \
@@ -39,18 +40,24 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     lsb-release \
     xdg-utils \
-    wget
+    wget && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/node/app
 
 COPY package*.json ./
 
-RUN npm install
+# Use npm ci if a lockfile exists, for clean and reproducible builds
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 COPY . .
 
 RUN npm run build
 
+# Expose the port your app listens on (update if not 3000)
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
 CMD [ "node", "dist/index.js" ]
-
-

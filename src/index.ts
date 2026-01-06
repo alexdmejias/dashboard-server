@@ -1,40 +1,65 @@
-import getApp from "./app";
 import * as dotenv from "dotenv";
+import getApp from "./app";
+import type { PossibleCallbacks } from "./types";
 
 dotenv.config();
 
 const start = async () => {
-  const callbacks = [
-    {
-      name: "reddit",
-      options: {
-        subreddit: "astoria",
-        qty: 3,
-      },
-    },
-    {
-      name: "reddit",
-      options: {
-        subreddit: "asknyc",
-        qty: 5,
-      },
-    },
-    { name: "weather" },
-    { name: "year-progress" },
+  const callbacks: { callbackName: string }[] = [
+    { callbackName: "reddit" },
+    { callbackName: "weather" },
+    { callbackName: "year-progress" },
   ];
-  const possibleCallbacks = [];
+  const possibleCallbacks: PossibleCallbacks = {};
 
   for await (const callback of callbacks) {
-    const asyncResult = await import(`./callbacks/${callback.name}`);
-    possibleCallbacks.push({
+    const asyncResult = await import(
+      `./callbacks/${callback.callbackName}/index.ts`
+    );
+    possibleCallbacks[callback.callbackName] = {
+      name: callback.callbackName,
+      expectedConfig: asyncResult.expectedConfig,
       callback: asyncResult.default,
-      options: callback.options,
-    });
+    };
   }
 
   const app = await getApp(possibleCallbacks);
   try {
-    await app.listen({ port: process.env.PORT || 3333, host: "0.0.0.0" });
+    const port = process.env.PORT || 3333;
+    await app.listen({ port, host: "0.0.0.0" });
+
+    app.inject({
+      path: "/register/inkplate",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: {
+        playlist: [
+          {
+            id: "astoria",
+            callbackName: "reddit",
+            options: {
+              qty: 2,
+              title: "astoria posts",
+              subreddit: "astoria",
+            },
+          },
+          {
+            id: "asknyc",
+            callbackName: "reddit",
+            options: {
+              qty: 10,
+              subreddit: "asknyc",
+            },
+          },
+          {
+            id: "cal",
+            callbackName: "year-progress",
+          },
+        ],
+      },
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

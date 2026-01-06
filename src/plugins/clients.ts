@@ -1,52 +1,123 @@
-import { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
+import { ZodError, z } from "zod/v4";
+import type CallbackBase from "../base-callbacks/base";
 import StateMachine from "../stateMachine";
-import CallbackBase from "../base-callbacks/base";
-import CallbackBaseDB from "../base-callbacks/base-db";
-import { PossibleCallback } from "../types";
+import type { Playlist, PossibleCallbacks, ValidCallback } from "../types";
 
 declare module "fastify" {
   interface FastifyInstance {
     getClient(clientName: string): StateMachine;
-    registerClient(clientName: string): Promise<StateMachine>;
+    getClients(): Record<string, StateMachine>;
+    registerClient(
+      clientName: string,
+      playlist: Playlist,
+    ): Promise<StateMachine | { error: string }>;
   }
+}
+
+// TODO should this move to a higher level fastify schema validation?
+function validatePlaylist(
+  _fastify: FastifyInstance,
+  playlist: Playlist,
+  possibleCallbacks: PossibleCallbacks,
+) {
+  const validPlaylist = z
+    .array(
+      z.object({
+        id: z.string().min(1, "ID must be a non-empty string"),
+        callbackName: z.literal(Object.keys(possibleCallbacks)),
+        options: z.object().optional().default({}),
+      }),
+    )
+    .min(1, "Playlist must contain at least one item")
+    .check((ctx) => {
+      const callbackIds = ctx.value.map((item) => item.id);
+      if (callbackIds.length !== new Set(callbackIds).size) {
+        ctx.issues.push({
+          code: "custom",
+          message: "No duplicates playlist item IDs allowed.",
+          input: ctx.value,
+          continue: true,
+        });
+      }
+    });
+
+  return validPlaylist.safeParse(playlist);
 }
 
 function clientsPlugin(
   fastify: FastifyInstance,
   options: {
-    possibleCallbacks: PossibleCallback[];
+    possibleCallbacks: PossibleCallbacks;
   },
-  done: () => void
+  done: () => void,
 ) {
   const { possibleCallbacks } = options;
-  const clients: Record<string, StateMachine> = {};
+  const _clients: Record<string, StateMachine> = {};
 
-  fastify.decorate("getClient", function (clientName: string) {
-    return clients[clientName];
-  });
+  fastify.decorate("getClients", () => {
+    const data: Record<string, any> = {};
 
-  fastify.decorate("registerClient", async function (clientName: string) {
-    fastify.log.info(`registering client: ${clientName}`);
-    clients[clientName] = new StateMachine();
-    const client = clients[clientName];
-    fastify.log.info(`created new client: ${clientName}`);
-
-    const validCallbacks: (CallbackBase | CallbackBaseDB)[] = [];
-    possibleCallbacks.forEach((callback) => {
-      try {
-        const ins = new callback.callback(callback.options);
-        validCallbacks.push(ins);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error(e);
-        }
-      }
+    Object.keys(_clients).forEach((clientName) => {
+      data[clientName] = _clients[clientName].toString();
     });
 
-    await client.addCallbacks(validCallbacks);
-    return client;
+    return data;
   });
+
+  fastify.decorate("getClient", (clientName: string) => _clients[clientName]);
+
+  fastify.decorate(
+    "registerClient",
+    async (clientName: string, playlist: Playlist) => {
+      fastify.log.info(`registering client: ${clientName}...`);
+      fastify.log.info("validating playlist");
+      const result = validatePlaylist(fastify, playlist, possibleCallbacks);
+      if (!result.success) {
+        return {
+          error: `Error while validating playlist object, ${z.prettifyError(
+            result.error,
+          )} `,
+        };
+      }
+
+      const validCallbacks: ValidCallback[] = [];
+
+      let errors = "";
+      for (const playlistItem of playlist) {
+        try {
+          const a = possibleCallbacks[playlistItem.callbackName];
+          const callbackFn = a.callback;
+          const ins = new callbackFn(playlistItem.options) as CallbackBase;
+
+          callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
+
+          validCallbacks.push({
+            instance: ins,
+            id: playlistItem.id,
+            name: a.name,
+            expectedConfig: a.expectedConfig,
+          });
+        } catch (e) {
+          errors += `Error while validating item "${playlistItem.id}" ${
+            e instanceof ZodError
+              ? z.prettifyError(e).replaceAll(/\n/g, "")
+              : (e as Error).message
+          }}`;
+        }
+      }
+
+      if (errors) {
+        return { error: errors };
+      }
+      _clients[clientName] = new StateMachine(playlist);
+      const client = _clients[clientName];
+
+      await client.addCallbacks(validCallbacks);
+      return client;
+    },
+  );
 
   done();
 }
