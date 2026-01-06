@@ -50,7 +50,7 @@ describe("CloudflareBrowserRenderer", () => {
     const result = await renderer.renderPage(options);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `https://api.cloudflare.com/client/v4/accounts/${mockAccountId}/browser/rendering`,
+      `https://api.cloudflare.com/client/v4/accounts/${mockAccountId}/browser-rendering/screenshot`,
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -94,7 +94,7 @@ describe("CloudflareBrowserRenderer", () => {
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
-    expect(body.options.viewport).toEqual({
+    expect(body.viewport).toEqual({
       width: 1200,
       height: 825,
     });
