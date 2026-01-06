@@ -1,15 +1,16 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
 import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import PuppeteerBrowserRenderer from "./PuppeteerBrowserRenderer";
 
-jest.mock("./CloudflareBrowserRenderer");
-jest.mock("./PuppeteerBrowserRenderer");
+vi.mock("./CloudflareBrowserRenderer");
+vi.mock("./PuppeteerBrowserRenderer");
 
 describe("browserRendererFactory", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
   });
 

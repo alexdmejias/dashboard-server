@@ -1,13 +1,14 @@
+import { describe, it, expect, vi, type Mock } from 'vitest'
 import fastify, { FastifyError, errorCodes } from "fastify";
 import getApp, { serverMessages } from "./app";
 import CallbackBase from "./base-callbacks/base";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 
-jest.mock("node:fs/promises", () => ({
-  readFile: jest.fn(),
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn(),
 }));
-jest.mock("./utils/getScreenshot");
-jest.mock("./utils/getRenderedTemplate");
+vi.mock("./utils/getScreenshot");
+vi.mock("./utils/getRenderedTemplate");
 
 class DummyCallback extends CallbackBase {
   constructor() {
@@ -17,6 +18,13 @@ class DummyCallback extends CallbackBase {
     return { text: "dummy" };
   }
 }
+
+const dummyCallbacks = {
+  dummy: {
+    name: "dummy",
+    callback: DummyCallback,
+  },
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function testServerInternalError(output: any, message: string) {
@@ -34,7 +42,7 @@ describe("app", () => {
   // });
 
   it("should 200 /health", async () => {
-    const app = await getApp([DummyCallback]);
+    const app = await getApp(dummyCallbacks);
 
     const output = await app.inject({
       method: "GET",
@@ -42,7 +50,7 @@ describe("app", () => {
     });
 
     expect(output.statusCode).toBe(200);
-    expect(output.json()).toStrictEqual({
+    expect(output.json()).toMatchObject({
       message: serverMessages.healthGood,
       statusCode: 200,
     });
@@ -50,31 +58,58 @@ describe("app", () => {
 
   describe("register", () => {
     it("should 200 /register/:clientName", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
       const clientName = "testClient";
       const output = await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: {
+          playlist: [
+            {
+              id: "1",
+              callbackName: "dummy",
+              options: {},
+            },
+          ],
+        },
       });
       expect(output.statusCode).toBe(200);
-      expect(output.json()).toStrictEqual({
+      expect(output.json()).toMatchObject({
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
       });
     });
 
     it("should 500 duplicate client name", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
       const clientName = "testClient";
 
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: {
+          playlist: [
+            {
+              id: "1",
+              callbackName: "dummy",
+              options: {},
+            },
+          ],
+        },
       });
 
       const output = await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: {
+          playlist: [
+            {
+              id: "1",
+              callbackName: "dummy",
+              options: {},
+            },
+          ],
+        },
       });
       testServerInternalError(
         output,
@@ -85,7 +120,7 @@ describe("app", () => {
 
   describe("/display/:clientName/:viewType", () => {
     it("should 404 on /display", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
 
       const output = await app.inject({
         method: "GET",
@@ -102,7 +137,7 @@ describe("app", () => {
     });
 
     it("should 404 on /display/notRegistered/png", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
 
       const clientName = "notRegistered";
       const output = await app.inject({
@@ -119,13 +154,22 @@ describe("app", () => {
     });
 
     it("should 500 on /display/:clientName/unknownViewType", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
 
       const clientName = "testClient";
       const unknownViewType = "unknownViewType";
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: {
+          playlist: [
+            {
+              id: "1",
+              callbackName: "dummy",
+              options: {},
+            },
+          ],
+        },
       });
       const output = await app.inject({
         method: "GET",
@@ -141,16 +185,25 @@ describe("app", () => {
     });
 
     it("should 404 on /display/:clientName/:viewType/", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(dummyCallbacks);
 
       const clientName = "testClient";
       const viewType = "html";
       const mockedHtml = "dummy page";
-      (getRenderedTemplate as jest.Mock).mockReturnValue(mockedHtml);
+      (getRenderedTemplate as Mock).mockReturnValue(mockedHtml);
 
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: {
+          playlist: [
+            {
+              id: "dummy",
+              callbackName: "dummy",
+              options: {},
+            },
+          ],
+        },
       });
       const output = await app.inject({
         method: "GET",
