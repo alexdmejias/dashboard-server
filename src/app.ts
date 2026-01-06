@@ -129,13 +129,16 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const { clientName } = req.params;
     const { playlist = [] } = req.body;
 
+    // Create child logger with clientId for all logs in this request
+    const log = req.log.child({ clientId: clientName });
+
     const client = app.getClient(clientName);
 
     if (!client) {
       const clientRes = await app.registerClient(clientName, playlist);
 
       if ("error" in clientRes) {
-        app.log.error(
+        log.error(
           { error: clientRes.error },
           `error registering client: ${clientName}`,
         );
@@ -143,7 +146,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
       }
-      app.log.info(`created new client: ${clientName}`, clientRes);
+      log.info(`created new client: ${clientName}`, clientRes);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -151,7 +154,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       };
     }
 
-    app.log.info(`client already exists: ${clientName}`);
+    log.info(`client already exists: ${clientName}`);
     return res.internalServerError(
       serverMessages.duplicateClientName(clientName),
     );
@@ -166,8 +169,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   }>("/display/:clientName/:viewType/:callback?", async (req, res) => {
     const { clientName, viewType, callback = "next" } = req.params;
 
+    // Create child logger with clientId for all logs in this request
+    const log = req.log.child({ clientId: clientName });
+
     if (!isSupportedViewType(viewType)) {
-      app.log.error(`viewType not supported: ${viewType}`);
+      log.error(`viewType not supported: ${viewType}`);
       return res.internalServerError(
         serverMessages.viewTypeNotSupported(viewType),
       );
@@ -179,11 +185,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
     if (!client) {
-      app.log.error("client not found");
+      log.error("client not found");
       return res.notFound(serverMessages.clientNotFound(clientName));
     }
 
-    app.log.info(`retrieved existing client: ${clientName}`);
+    log.info(`retrieved existing client: ${clientName}`);
 
     let data: RenderResponse;
     try {
@@ -193,7 +199,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         const callbackInstance = client.getCallbackInstance(callback);
         const playlistItem = client.getPlaylistItemById(callback);
         if (!callbackInstance || !playlistItem) {
-          app.log.error(`callback not found: ${callback}`);
+          log.error(`callback not found: ${callback}`);
           return res.notFound(serverMessages.callbackNotFound(callback));
         }
 
@@ -215,7 +221,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      app.log.error(
+      log.error(
         { error, clientName, viewType: viewTypeToUse },
         "Error rendering callback",
       );
@@ -224,7 +230,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const rendererType = getBrowserRendererType();
 
-    app.log.info(
+    log.info(
       `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
     );
     return getResponseFromData(res, data);

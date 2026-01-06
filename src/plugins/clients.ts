@@ -71,8 +71,11 @@ function clientsPlugin(
   fastify.decorate(
     "registerClient",
     async (clientName: string, playlist: Playlist) => {
-      fastify.log.info(`registering client: ${clientName}...`);
-      fastify.log.info("validating playlist");
+      // Create child logger with clientId for all logs related to this client registration
+      const log = fastify.log.child({ clientId: clientName });
+
+      log.info(`registering client: ${clientName}...`);
+      log.info("validating playlist");
       const result = validatePlaylist(fastify, playlist, possibleCallbacks);
       if (!result.success) {
         return {
@@ -90,6 +93,9 @@ function clientsPlugin(
           const a = possibleCallbacks[playlistItem.callbackName];
           const callbackFn = a.callback;
           const ins = new callbackFn(playlistItem.options) as CallbackBase;
+
+          // Set the logger on the callback instance to use the client-scoped logger
+          ins.logger = log;
 
           callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
 
@@ -111,7 +117,7 @@ function clientsPlugin(
       if (errors) {
         return { error: errors };
       }
-      _clients[clientName] = new StateMachine(playlist);
+      _clients[clientName] = new StateMachine(playlist, log);
       const client = _clients[clientName];
 
       await client.addCallbacks(validCallbacks);

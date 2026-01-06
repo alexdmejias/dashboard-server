@@ -1,3 +1,4 @@
+import type { Logger } from "pino";
 import type CallbackBase from "./base-callbacks/base";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
@@ -18,8 +19,9 @@ export type Config = {
 class StateMachine {
   callbacks: Record<string, { name: string; instance: CallbackBase }>;
   #config: Config;
+  #logger: Logger;
 
-  constructor(playlist: Playlist = []) {
+  constructor(playlist: Playlist = [], childLogger?: Logger) {
     this.callbacks = {};
     this.#config = {
       message: "",
@@ -27,6 +29,7 @@ class StateMachine {
       currCallbackIndex: 0,
       playlist,
     };
+    this.#logger = childLogger || logger;
   }
 
   toString() {
@@ -68,7 +71,7 @@ class StateMachine {
         name: cb.name,
         instance: cb.instance,
       };
-      logger.info(`added callback ${cb.name} with key: ${cb.id}`);
+      this.#logger.info(`added callback ${cb.name} with key: ${cb.id}`);
     }
   }
 
@@ -92,7 +95,7 @@ class StateMachine {
     const playlistItem = this.#config.playlist[this.#config.currCallbackIndex];
 
     if (!playlistItem) {
-      logger.error("no playlist item found for current index");
+      this.#logger.error("no playlist item found for current index");
       return {
         error: "no playlist item found for current index",
         viewType: "error",
@@ -100,7 +103,7 @@ class StateMachine {
     }
     const selectedInstance = this.getCallbackInstance(playlistItem.id);
     if (!selectedInstance) {
-      logger.error(`callback not found: ${playlistItem.callbackName}`);
+      this.#logger.error(`callback not found: ${playlistItem.callbackName}`);
       return {
         error: `callback not found: ${playlistItem.callbackName}`,
         viewType: "error",
@@ -116,7 +119,9 @@ class StateMachine {
     if (this.#config.currCallbackIndex + 1 > this.#config.playlist.length) {
       this.#config.currCallbackIndex = 0;
     }
-    logger.debug(`currCallbackIndex is now ${this.#config.currCallbackIndex}`);
+    this.#logger.debug(
+      `currCallbackIndex is now ${this.#config.currCallbackIndex}`,
+    );
   }
 }
 
