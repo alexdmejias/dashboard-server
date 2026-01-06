@@ -139,9 +139,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName,
       "POST",
       `/register/${clientName}`,
+      "incoming",
       undefined,
       undefined,
-      req.id
+      req.id,
+      req.headers as Record<string, string | string[]>
     );
 
     if (!client) {
@@ -203,9 +205,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName,
       "GET",
       `/display/${clientName}/${viewType}/${callback}`,
+      "outgoing",
       undefined,
       undefined,
-      req.id
+      req.id,
+      req.headers as Record<string, string | string[]>
     );
 
     if (!isSupportedViewType(viewType)) {
@@ -291,9 +295,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName,
       "GET",
       `/display/${clientName}/${viewType}/${callback}`,
+      "outgoing",
       200,
       responseTime,
-      req.id
+      req.id,
+      req.headers as Record<string, string | string[]>
     );
     
     return getResponseFromData(res, data);

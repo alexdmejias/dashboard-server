@@ -21,9 +21,11 @@ declare module "fastify" {
       clientName: string,
       method: string,
       url: string,
+      direction: "incoming" | "outgoing",
       statusCode?: number,
       responseTime?: number,
-      reqId?: string
+      reqId?: string,
+      headers?: Record<string, string | string[]>
     ): void;
   }
 }
@@ -59,9 +61,11 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       clientName: string,
       method: string,
       url: string,
+      direction: "incoming" | "outgoing",
       statusCode?: number,
       responseTime?: number,
-      reqId?: string
+      reqId?: string,
+      headers?: Record<string, string | string[]>
     ) => {
       if (!clientRequests.has(clientName)) {
         clientRequests.set(clientName, []);
@@ -71,9 +75,11 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
         timestamp: new Date().toISOString(),
         method,
         url,
+        direction,
         statusCode,
         responseTime,
         reqId,
+        headers,
       });
       // Keep only last 50 requests per client
       if (requests.length > 50) {

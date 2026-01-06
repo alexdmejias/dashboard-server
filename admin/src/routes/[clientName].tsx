@@ -1,6 +1,6 @@
 import { useParams, A } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
-import { For, Show } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { fetchClientDetail, fetchClientLogs, fetchClientRequests } from "../lib/api";
 
 interface ClientLog {
@@ -14,9 +14,70 @@ interface ClientRequest {
   timestamp: string;
   method: string;
   url: string;
+  direction: "incoming" | "outgoing";
   statusCode?: number;
   responseTime?: number;
   reqId: string;
+  headers?: Record<string, string | string[]>;
+}
+
+// Component for collapsible headers
+function HeadersPopover(props: { headers?: Record<string, string | string[]> }) {
+  const [isOpen, setIsOpen] = createSignal(false);
+  
+  return (
+    <Show when={props.headers && Object.keys(props.headers).length > 0}>
+      <div class="relative inline-block">
+        <button
+          onClick={() => setIsOpen(!isOpen())}
+          class="btn btn-xs btn-ghost"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Headers
+        </button>
+        <Show when={isOpen()}>
+          <div class="absolute z-10 mt-2 w-80 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-96 overflow-y-auto right-0">
+            <div class="p-4">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold">Request Headers</h3>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  class="btn btn-xs btn-circle btn-ghost"
+                >
+                  ✕
+                </button>
+              </div>
+              <div class="space-y-2">
+                <For each={Object.entries(props.headers!)}>
+                  {([key, value]) => (
+                    <div class="text-xs">
+                      <div class="font-mono font-semibold text-primary">{key}:</div>
+                      <div class="font-mono ml-2 break-all">
+                        {Array.isArray(value) ? value.join(", ") : value}
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        </Show>
+      </div>
+    </Show>
+  );
 }
 
 export default function ClientDetail() {
@@ -169,10 +230,12 @@ export default function ClientDetail() {
                       <thead>
                         <tr>
                           <th>Time</th>
+                          <th>Direction</th>
                           <th>Method</th>
                           <th>URL</th>
                           <th>Status</th>
                           <th>Response Time</th>
+                          <th>Headers</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -183,18 +246,60 @@ export default function ClientDetail() {
                                 {formatDate(request.timestamp)}
                               </td>
                               <td>
-                                <span class="badge badge-sm">
+                                <span
+                                  class={`badge badge-sm ${
+                                    request.direction === "incoming"
+                                      ? "badge-info"
+                                      : "badge-accent"
+                                  }`}
+                                >
+                                  {request.direction === "incoming" ? "→ IN" : "← OUT"}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="badge badge-sm badge-ghost">
                                   {request.method}
                                 </span>
                               </td>
-                              <td class="font-mono text-xs">{request.url}</td>
+                              <td class="font-mono text-xs">
+                                <Show
+                                  when={request.url.startsWith("/display/")}
+                                  fallback={<span>{request.url}</span>}
+                                >
+                                  <a
+                                    href={request.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="link link-primary hover:link-accent"
+                                    title="Click to view what was displayed"
+                                  >
+                                    {request.url}
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      class="h-3 w-3 inline ml-1"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                      />
+                                    </svg>
+                                  </a>
+                                </Show>
+                              </td>
                               <td>
                                 <span
                                   class={`badge badge-sm ${
                                     request.statusCode &&
                                     request.statusCode < 400
                                       ? "badge-success"
-                                      : "badge-error"
+                                      : request.statusCode
+                                        ? "badge-error"
+                                        : "badge-ghost"
                                   }`}
                                 >
                                   {request.statusCode ?? "N/A"}
@@ -204,6 +309,9 @@ export default function ClientDetail() {
                                 {request.responseTime
                                   ? `${request.responseTime.toFixed(2)}ms`
                                   : "N/A"}
+                              </td>
+                              <td>
+                                <HeadersPopover headers={request.headers} />
                               </td>
                             </tr>
                           )}
