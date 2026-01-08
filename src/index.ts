@@ -55,8 +55,16 @@ const start = async () => {
             },
           },
           {
-            id: "cal",
+            id: "year",
             callbackName: "year-progress",
+          },
+          {
+            id: "cal",
+            callbackName: "calendar",
+            options: {
+              title: "alex",
+              calendarId: ["primary"],
+            },
           },
         ],
       },

@@ -1,51 +1,3 @@
-/**
- * Google Calendar Callback
- *
- * Fetches events from Google Calendar for the next 7 days and displays them in a weekly view.
- *
- * ## Setup Instructions
- *
- * ### 1. Create Google Cloud Project & Enable Calendar API
- * - Go to https://console.cloud.google.com/
- * - Create a new project or select existing one
- * - Enable the Google Calendar API for your project
- * - Navigate to "Credentials" and create OAuth 2.0 Client ID
- * - Download the credentials JSON
- *
- * ### 2. Get Refresh Token
- * You can use the OAuth 2.0 Playground to get a refresh token:
- * - Go to https://developers.google.com/oauthplayground/
- * - Click the gear icon (settings) in the top right
- * - Check "Use your own OAuth credentials"
- * - Enter your Client ID and Client Secret
- * - In the left panel, select "Calendar API v3"
- * - Select the scope: https://www.googleapis.com/auth/calendar.readonly
- * - Click "Authorize APIs"
- * - Sign in with your Google account and grant permissions
- * - Click "Exchange authorization code for tokens"
- * - Copy the "Refresh token"
- *
- * ### 3. Set Environment Variables
- * Add these to your .env file:
- * - GOOGLE_CLIENT_ID: Your OAuth 2.0 Client ID
- * - GOOGLE_CLIENT_SECRET: Your OAuth 2.0 Client Secret
- * - GOOGLE_REFRESH_TOKEN: The refresh token from step 2
- *
- * ### 4. Usage
- * The callback accepts the following runtime configuration:
- * - calendarId: (optional) A single calendar ID or an array of calendar IDs (default: 'primary')
- *   Examples:
- *   - Single: "primary"
- *   - Multiple: ["primary", "family@group.calendar.google.com", "work@company.com"]
- * - maxEventsPerDay: (optional) Maximum number of events to show per day (default: 5)
- *
- * ### 5. Multiple Calendars
- * To combine events from multiple calendars (e.g., personal and family):
- * - Set calendarId to an array of calendar IDs
- * - Events from all calendars will be merged and sorted by start time
- * - The maxEventsPerDay limit applies to the total number of events per day across all calendars
- */
-
 import { google } from "googleapis";
 import { z } from "zod/v4";
 import CallbackBase from "../../base-callbacks/base";
@@ -60,12 +12,11 @@ type CalendarEvent = {
 
 type DayEvents = {
   date: string; // formatted date string (e.g., "Mon Jan 5")
-  dayOfWeek: string; // e.g., "Monday"
   events: CalendarEvent[];
 };
 
 type CalendarData = {
-  days: DayEvents[]; // 7 days starting from today
+  days: DayEvents[]; // configurable window starting from today
 };
 
 export const expectedConfig = z.object({
@@ -74,6 +25,8 @@ export const expectedConfig = z.object({
     .default("primary")
     .transform((val) => (Array.isArray(val) ? val : [val])),
   maxEventsPerDay: z.number().default(5),
+  daysToFetch: z.number().int().min(1).max(30).default(7),
+  title: z.string().optional(),
 });
 
 type ConfigType = z.infer<typeof expectedConfig>;
@@ -85,6 +38,8 @@ class CallbackCalendar extends CallbackBase<
   static defaultOptions: ConfigType = {
     calendarId: ["primary"],
     maxEventsPerDay: 5,
+    daysToFetch: 7,
+    title: "Weekly Calendar",
   };
 
   constructor(options = {}) {
@@ -118,7 +73,7 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Fetches calendar events for the next 7 days from a single calendar
+   * Fetches calendar events from a single calendar within the specified time range
    */
   async getCalendarEventsFromSingle(
     calendarId: string,
@@ -151,18 +106,20 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Fetches calendar events for the next 7 days from multiple calendars
+   * Fetches calendar events for the configured range from multiple calendars
    */
   async getCalendarEvents(config: ConfigType) {
     try {
       const now = new Date();
       const endDate = new Date();
-      endDate.setDate(now.getDate() + 7);
+      endDate.setDate(now.getDate() + config.daysToFetch);
 
       // Calculate per-calendar limit to avoid fetching too many events
       // Divide total capacity by number of calendars for more efficient fetching
-      const calendarIds = config.calendarId;
-      const totalCapacity = config.maxEventsPerDay * 7;
+      const calendarIds = Array.isArray(config.calendarId)
+        ? config.calendarId
+        : [config.calendarId];
+      const totalCapacity = config.maxEventsPerDay * config.daysToFetch;
       // Use ceil to ensure we get enough events even with uneven distribution
       // Note: May fetch slightly more than totalCapacity across all calendars
       const perCalendarLimit = Math.ceil(totalCapacity / calendarIds.length);
@@ -218,38 +175,8 @@ class CallbackCalendar extends CallbackBase<
    */
   private formatDate(date: Date): string {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
 
-    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
-  }
-
-  /**
-   * Get full day of week name
-   */
-  private getDayOfWeek(date: Date): string {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    return days[date.getDay()];
+    return `${days[date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
   }
 
   /**
@@ -291,19 +218,20 @@ class CallbackCalendar extends CallbackBase<
     events: GoogleCalendarEvent[],
     config: ConfigType,
   ): CalendarData {
-    // Create array of next 7 days
+    const daysToFetch = config.daysToFetch;
+
+    // Create array of the configured window of days
     const days: DayEvents[] = [];
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < daysToFetch; i++) {
       const date = new Date(now);
       date.setDate(now.getDate() + i);
 
       days.push({
         date: this.formatDate(date),
-        dayOfWeek: this.getDayOfWeek(date),
         events: [],
       });
     }
@@ -319,7 +247,7 @@ class CallbackCalendar extends CallbackBase<
         (startDay.getTime() - now.getTime()) / MS_PER_DAY,
       );
 
-      if (dayIndex >= 0 && dayIndex < 7) {
+      if (dayIndex >= 0 && dayIndex < daysToFetch) {
         const isAllDay = this.isAllDayEvent(event);
         const endStr = event.end?.dateTime || event.end?.date;
         if (!endStr) {
