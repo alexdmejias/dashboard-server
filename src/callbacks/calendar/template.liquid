@@ -1,0 +1,35 @@
+<div class="layout layout--row">
+  <div class="flex flex--col w--full p--2 gap--small">
+    <span class="title">{{ data.title | default: runtimeConfig.title }}</span>
+
+    <div class="grid grid--cols-7 gap--xsmall">
+      {% for day in data.days %}
+      <div class="calendar-day ">
+        <div class="day-header p--1 text--center rounded--xsmall mb--2 bg-black">
+          <span class="label label--inverted">{{ day.date }}</span>
+        </div>
+
+        <div class="day-events flex flex--col gap--small">
+          {% if day.events.size > 0 %}
+            {% for event in day.events %}
+              <div class="item">
+                <div class="meta"></div>
+                <div class="content">
+                  <span class="title title--small">{{ event.title }}</span>
+                  <div class="flex gap--small">
+                    {% if event.allDay %}
+                      <span class="label label--small label--underline">All Day</span>
+                      {% else %}
+                      <span class="label label--small label--underline">{{ event.start }} - {{ event.end }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

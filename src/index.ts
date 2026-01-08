@@ -9,6 +9,7 @@ const start = async () => {
     { callbackName: "reddit" },
     { callbackName: "weather" },
     { callbackName: "year-progress" },
+    { callbackName: "calendar" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
   const currentExtension = __filename.endsWith(".ts") ? "ts" : "js";
@@ -41,8 +42,8 @@ const start = async () => {
             id: "astoria",
             callbackName: "reddit",
             options: {
-              qty: 2,
-              title: "astoria posts",
+              qty: 10,
+              title: "/r/astoria",
               subreddit: "astoria",
             },
           },
@@ -51,12 +52,21 @@ const start = async () => {
             callbackName: "reddit",
             options: {
               qty: 10,
+              title: "/r/asknyc",
               subreddit: "asknyc",
             },
           },
           {
-            id: "cal",
+            id: "year",
             callbackName: "year-progress",
+          },
+          {
+            id: "cal",
+            callbackName: "calendar",
+            options: {
+              title: "alex",
+              calendarId: ["primary"],
+            },
           },
         ],
       },
