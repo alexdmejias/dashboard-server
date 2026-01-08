@@ -231,10 +231,9 @@ class CallbackBase<
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     // allow callers to supply runtime options (e.g. from a playlist item).
-    const runtimeOptions =
-      typeof options !== "undefined" ? options : this.receivedConfig;
+    const runtimeConfig = this.#buildRuntimeConfig(options);
     const data = await this.getData(
-      runtimeOptions as unknown as Record<string, unknown>,
+      runtimeConfig as unknown as Record<string, unknown>,
     );
 
     let templateOverride: string | undefined;
@@ -266,7 +265,7 @@ class CallbackBase<
           imagePath: await this.#renderAsImage({
             viewType,
             data,
-            runtimeConfig: runtimeOptions as ExpectedConfig,
+            runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
           }),
@@ -279,7 +278,7 @@ class CallbackBase<
         imagePath: await this.#renderAsImage({
           viewType,
           data,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
           imagePath: screenshotPath,
           templateOverride,
         }),
@@ -293,7 +292,7 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
         }),
       };
     }
@@ -340,6 +339,35 @@ class CallbackBase<
       data,
       runtimeConfig,
     });
+  }
+
+  #buildRuntimeConfig(options?: unknown) {
+    const merged =
+      typeof options === "undefined"
+        ? this.receivedConfig
+        : this.#mergeWithReceivedConfig(options);
+
+    if (!this.expectedConfig) {
+      return merged;
+    }
+
+    return this.expectedConfig.parse(merged);
+  }
+
+  #mergeWithReceivedConfig(options: unknown) {
+    if (
+      typeof options === "object" &&
+      options !== null &&
+      typeof this.receivedConfig === "object" &&
+      this.receivedConfig !== null
+    ) {
+      return {
+        ...(this.receivedConfig as Record<string, unknown>),
+        ...(options as Record<string, unknown>),
+      };
+    }
+
+    return options;
   }
 
   #resolveTemplate(name: string, template?: string): string {
