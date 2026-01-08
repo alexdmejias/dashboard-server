@@ -6,7 +6,7 @@
     "dev": "tsx --watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc -p ./tsconfig.json",
-    "test": "ENV=test jest",
+    "test": "ENV=test jest --maxWorkers=2",
     "test:watch": "ENV=test jest --watch"
   },
   "keywords": [],
