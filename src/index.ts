@@ -41,8 +41,8 @@ const start = async () => {
             id: "astoria",
             callbackName: "reddit",
             options: {
-              qty: 2,
-              title: "astoria posts",
+              qty: 10,
+              title: "/r/astoria",
               subreddit: "astoria",
             },
           },
@@ -51,6 +51,7 @@ const start = async () => {
             callbackName: "reddit",
             options: {
               qty: 10,
+              title: "/r/asknyc",
               subreddit: "asknyc",
             },
           },
