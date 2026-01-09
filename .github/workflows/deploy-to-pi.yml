@@ -14,6 +14,10 @@ jobs:
       - name: Checkout code
         uses:  actions/checkout@v4
 
+      - name: Restore .env file
+        run: |
+          cp $HOME/.env-dashboard ./dashboard-server/dashboard-server/.env
+
       - name: Setup Node.js
         run: |
           export NVM_DIR="$HOME/.nvm"
