@@ -15,6 +15,7 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
     let puppeteer: any;
     try {
       // Dynamic import to handle optional dependency
+      // Using a variable prevents TypeScript from resolving the module at compile time
       const puppeteerModule = "puppeteer";
       puppeteer = await import(puppeteerModule);
     } catch (error) {
