@@ -247,19 +247,33 @@ class CallbackBase<
     }
 
     if (isSupportedImageViewType(viewType)) {
-      if (this.cacheable && templateOverride !== "error") {
-        const newDataCache = objectHash(data);
-        const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.${viewType}`,
-        );
-        if (newDataCache === this.oldDataCache) {
+      try {
+        if (this.cacheable && templateOverride !== "error") {
+          const newDataCache = objectHash(data);
+          const screenshotPath = getImagesPath(
+            `${this.name}-${newDataCache}.${viewType}`,
+          );
+          if (newDataCache === this.oldDataCache) {
+            return {
+              viewType,
+              imagePath: screenshotPath,
+            };
+          }
+
+          this.oldDataCache = newDataCache;
           return {
             viewType,
-            imagePath: screenshotPath,
+            imagePath: await this.#renderAsImage({
+              viewType,
+              data,
+              runtimeConfig: runtimeConfig as ExpectedConfig,
+              imagePath: screenshotPath,
+              templateOverride,
+            }),
           };
         }
 
-        this.oldDataCache = newDataCache;
+        const screenshotPath = getImagesPath(`image.${viewType}`);
         return {
           viewType,
           imagePath: await this.#renderAsImage({
@@ -270,19 +284,18 @@ class CallbackBase<
             templateOverride,
           }),
         };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          { error, callback: this.name },
+          "Browser rendering failed",
+        );
+        return {
+          viewType: "error",
+          error: errorMessage,
+        };
       }
-
-      const screenshotPath = getImagesPath(`image.${viewType}`);
-      return {
-        viewType,
-        imagePath: await this.#renderAsImage({
-          viewType,
-          data,
-          runtimeConfig: runtimeConfig as ExpectedConfig,
-          imagePath: screenshotPath,
-          templateOverride,
-        }),
-      };
     }
 
     if (viewType === "html") {

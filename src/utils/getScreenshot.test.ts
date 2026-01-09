@@ -115,4 +115,19 @@ describe("utils:getScreenshot", () => {
       size: { width: 1200, height: 825 },
     });
   });
+
+  it("should propagate browser renderer errors", async () => {
+    const errorMessage =
+      "Cloudflare Browser Rendering failed: 401 Unauthorized - Invalid credentials";
+    mockRenderPage.mockRejectedValue(new Error(errorMessage));
+
+    const options = {
+      template: "testTemplate",
+      data: { key: "value" },
+      imagePath: "/path/to/image.png",
+      viewType: "png",
+    };
+
+    await expect(getScreenshot(options)).rejects.toThrow(errorMessage);
+  });
 });
