@@ -49,7 +49,7 @@ describe("CloudflareBrowserRenderer", () => {
     const result = await renderer.renderPage(options);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `https://api.cloudflare.com/client/v4/accounts/${mockAccountId}/browser/rendering`,
+      `https://api.cloudflare.com/client/v4/accounts/${mockAccountId}/browser-rendering/screenshot`,
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -93,7 +93,7 @@ describe("CloudflareBrowserRenderer", () => {
     const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
-    expect(body.options.viewport).toEqual({
+    expect(body.viewport).toEqual({
       width: 1200,
       height: 825,
     });
@@ -113,7 +113,25 @@ describe("CloudflareBrowserRenderer", () => {
     };
 
     await expect(renderer.renderPage(options)).rejects.toThrow(
-      "Cloudflare Browser Rendering failed"
+      "Cloudflare Browser Rendering failed: 401 Unauthorized - Invalid credentials"
+    );
+  });
+
+  it("should throw error with detailed message for different error codes", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: jest.fn().mockResolvedValue("Rate limit exceeded"),
+    });
+
+    const options = {
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    };
+
+    await expect(renderer.renderPage(options)).rejects.toThrow(
+      "Cloudflare Browser Rendering failed: 403 Forbidden - Rate limit exceeded"
     );
   });
 });
