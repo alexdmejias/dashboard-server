@@ -53,6 +53,57 @@ function validatePlaylist(
   return validPlaylist.safeParse(playlist);
 }
 
+async function createClientFromPlaylist(
+  fastify: FastifyInstance,
+  clientName: string,
+  playlist: Playlist,
+  possibleCallbacks: PossibleCallbacks,
+): Promise<StateMachine | { error: string }> {
+  fastify.log.info("validating playlist");
+  const result = validatePlaylist(fastify, playlist, possibleCallbacks);
+  if (!result.success) {
+    return {
+      error: `Error while validating playlist object, ${z.prettifyError(
+        result.error,
+      )} `,
+    };
+  }
+
+  const validCallbacks: ValidCallback[] = [];
+
+  let errors = "";
+  for (const playlistItem of playlist) {
+    try {
+      const a = possibleCallbacks[playlistItem.callbackName];
+      const callbackFn = a.callback;
+      const ins = new callbackFn(playlistItem.options) as CallbackBase;
+
+      callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
+
+      validCallbacks.push({
+        instance: ins,
+        id: playlistItem.id,
+        name: a.name,
+        expectedConfig: a.expectedConfig,
+      });
+    } catch (e) {
+      errors += `Error while validating item "${playlistItem.id}" ${
+        e instanceof ZodError
+          ? z.prettifyError(e).replaceAll(/\n/g, "")
+          : (e as Error).message
+      }}`;
+    }
+  }
+
+  if (errors) {
+    return { error: errors };
+  }
+
+  const client = new StateMachine(playlist);
+  await client.addCallbacks(validCallbacks);
+  return client;
+}
+
 function clientsPlugin(
   fastify: FastifyInstance,
   options: {
@@ -104,49 +155,19 @@ function clientsPlugin(
     "registerClient",
     async (clientName: string, playlist: Playlist) => {
       fastify.log.info(`registering client: ${clientName}...`);
-      fastify.log.info("validating playlist");
-      const result = validatePlaylist(fastify, playlist, possibleCallbacks);
-      if (!result.success) {
-        return {
-          error: `Error while validating playlist object, ${z.prettifyError(
-            result.error,
-          )} `,
-        };
+      
+      const client = await createClientFromPlaylist(
+        fastify,
+        clientName,
+        playlist,
+        possibleCallbacks,
+      );
+
+      if ("error" in client) {
+        return client;
       }
 
-      const validCallbacks: ValidCallback[] = [];
-
-      let errors = "";
-      for (const playlistItem of playlist) {
-        try {
-          const a = possibleCallbacks[playlistItem.callbackName];
-          const callbackFn = a.callback;
-          const ins = new callbackFn(playlistItem.options) as CallbackBase;
-
-          callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
-
-          validCallbacks.push({
-            instance: ins,
-            id: playlistItem.id,
-            name: a.name,
-            expectedConfig: a.expectedConfig,
-          });
-        } catch (e) {
-          errors += `Error while validating item "${playlistItem.id}" ${
-            e instanceof ZodError
-              ? z.prettifyError(e).replaceAll(/\n/g, "")
-              : (e as Error).message
-          }}`;
-        }
-      }
-
-      if (errors) {
-        return { error: errors };
-      }
-      _clients[clientName] = new StateMachine(playlist);
-      const client = _clients[clientName];
-
-      await client.addCallbacks(validCallbacks);
+      _clients[clientName] = client;
 
       // Broadcast client update to all SSE connections
       fastify.broadcastClientsUpdate();
@@ -159,51 +180,20 @@ function clientsPlugin(
     "updateClientPlaylist",
     async (clientName: string, playlist: Playlist) => {
       fastify.log.info(`updating playlist for client: ${clientName}...`);
-      fastify.log.info("validating playlist");
-      const result = validatePlaylist(fastify, playlist, possibleCallbacks);
-      if (!result.success) {
-        return {
-          error: `Error while validating playlist object, ${z.prettifyError(
-            result.error,
-          )} `,
-        };
+      
+      const client = await createClientFromPlaylist(
+        fastify,
+        clientName,
+        playlist,
+        possibleCallbacks,
+      );
+
+      if ("error" in client) {
+        return client;
       }
 
-      const validCallbacks: ValidCallback[] = [];
-
-      let errors = "";
-      for (const playlistItem of playlist) {
-        try {
-          const a = possibleCallbacks[playlistItem.callbackName];
-          const callbackFn = a.callback;
-          const ins = new callbackFn(playlistItem.options) as CallbackBase;
-
-          callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
-
-          validCallbacks.push({
-            instance: ins,
-            id: playlistItem.id,
-            name: a.name,
-            expectedConfig: a.expectedConfig,
-          });
-        } catch (e) {
-          errors += `Error while validating item "${playlistItem.id}" ${
-            e instanceof ZodError
-              ? z.prettifyError(e).replaceAll(/\n/g, "")
-              : (e as Error).message
-          }}`;
-        }
-      }
-
-      if (errors) {
-        return { error: errors };
-      }
-
-      // Create new state machine with updated playlist
-      _clients[clientName] = new StateMachine(playlist);
-      const client = _clients[clientName];
-
-      await client.addCallbacks(validCallbacks);
+      // Replace existing client with updated one
+      _clients[clientName] = client;
 
       // Broadcast client update to all SSE connections
       fastify.broadcastClientsUpdate();

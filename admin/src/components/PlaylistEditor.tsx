@@ -14,6 +14,16 @@ interface AvailableCallback {
   expectedConfig?: any;
 }
 
+// Shared utility function for parsing JSON options
+function parseOptions(optionsStr: string): { result: Record<string, unknown>; error?: string } {
+  try {
+    const parsed = JSON.parse(optionsStr);
+    return { result: parsed };
+  } catch (e) {
+    return { result: {}, error: e instanceof Error ? e.message : "Invalid JSON" };
+  }
+}
+
 export function PlaylistEditor(props: { clientName: string; initialPlaylist: PlaylistItem[] }) {
   const [playlist, setPlaylist] = createSignal<PlaylistItem[]>([...props.initialPlaylist]);
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null);
@@ -21,6 +31,7 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
   const [newItem, setNewItem] = createSignal<PlaylistItem>({ id: "", callbackName: "", options: {} });
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal(false);
+  const [jsonError, setJsonError] = createSignal<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -68,6 +79,7 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
     setNewItem({ id: "", callbackName: "", options: {} });
     setIsAddingNew(false);
     setError(null);
+    setJsonError(null);
   };
 
   const handleRemove = (index: number) => {
@@ -103,12 +115,10 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
     setEditingIndex(null);
   };
 
-  const parseOptions = (optionsStr: string): Record<string, unknown> => {
-    try {
-      return JSON.parse(optionsStr);
-    } catch {
-      return {};
-    }
+  const handleOptionsInput = (value: string) => {
+    const { result, error } = parseOptions(value);
+    setNewItem({ ...newItem(), options: result });
+    setJsonError(error || null);
   };
 
   return (
@@ -242,18 +252,23 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
                 <span class="label-text">Options (JSON)</span>
               </label>
               <textarea
-                class="textarea textarea-bordered font-mono text-sm"
+                class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? 'textarea-error' : ''}`}
                 placeholder='{"key": "value"}'
                 value={JSON.stringify(newItem().options || {}, null, 2)}
-                onInput={(e) => setNewItem({ ...newItem(), options: parseOptions(e.currentTarget.value) })}
+                onInput={(e) => handleOptionsInput(e.currentTarget.value)}
                 rows={3}
               />
+              <Show when={jsonError()}>
+                <label class="label">
+                  <span class="label-text-alt text-error">{jsonError()}</span>
+                </label>
+              </Show>
             </div>
             <div class="flex gap-2 mt-4">
-              <button onClick={handleAddCallback} class="btn btn-primary">
+              <button onClick={handleAddCallback} class="btn btn-primary" disabled={!!jsonError()}>
                 Add
               </button>
-              <button onClick={() => setIsAddingNew(false)} class="btn btn-ghost">
+              <button onClick={() => { setIsAddingNew(false); setJsonError(null); }} class="btn btn-ghost">
                 Cancel
               </button>
             </div>
@@ -284,13 +299,12 @@ function EditablePlaylistItem(props: {
   onCancel: () => void;
 }) {
   const [editedItem, setEditedItem] = createSignal<PlaylistItem>({ ...props.item });
+  const [jsonError, setJsonError] = createSignal<string | null>(null);
 
-  const parseOptions = (optionsStr: string): Record<string, unknown> => {
-    try {
-      return JSON.parse(optionsStr);
-    } catch {
-      return {};
-    }
+  const handleOptionsInput = (value: string) => {
+    const { result, error } = parseOptions(value);
+    setEditedItem({ ...editedItem(), options: result });
+    setJsonError(error || null);
   };
 
   return (
@@ -330,14 +344,19 @@ function EditablePlaylistItem(props: {
           <span class="label-text">Options (JSON)</span>
         </label>
         <textarea
-          class="textarea textarea-bordered font-mono text-sm"
+          class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? 'textarea-error' : ''}`}
           value={JSON.stringify(editedItem().options || {}, null, 2)}
-          onInput={(e) => setEditedItem({ ...editedItem(), options: parseOptions(e.currentTarget.value) })}
+          onInput={(e) => handleOptionsInput(e.currentTarget.value)}
           rows={3}
         />
+        <Show when={jsonError()}>
+          <label class="label">
+            <span class="label-text-alt text-error">{jsonError()}</span>
+          </label>
+        </Show>
       </div>
       <div class="flex gap-2 mt-4">
-        <button onClick={() => props.onSave(editedItem())} class="btn btn-primary">
+        <button onClick={() => props.onSave(editedItem())} class="btn btn-primary" disabled={!!jsonError()}>
           Save
         </button>
         <button onClick={props.onCancel} class="btn btn-ghost">
