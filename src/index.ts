@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import * as dotenv from "dotenv";
 import getApp from "./app";
 import type { PossibleCallbacks } from "./types";
@@ -30,47 +32,15 @@ const start = async () => {
     const port = process.env.PORT || 3333;
     await app.listen({ port, host: "0.0.0.0" });
 
-    app.inject({
-      path: "/register/inkplate",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: {
-        playlist: [
-          {
-            id: "astoria",
-            callbackName: "reddit",
-            options: {
-              qty: 10,
-              title: "/r/astoria",
-              subreddit: "astoria",
-            },
-          },
-          {
-            id: "asknyc",
-            callbackName: "reddit",
-            options: {
-              qty: 10,
-              title: "/r/asknyc",
-              subreddit: "asknyc",
-            },
-          },
-          {
-            id: "year",
-            callbackName: "year-progress",
-          },
-          {
-            id: "cal",
-            callbackName: "calendar",
-            options: {
-              title: "alex",
-              calendarId: ["primary"],
-            },
-          },
-        ],
-      },
-    });
+    if (existsSync("./init-payload.json")) {
+      const fileContents = await readFile("./init-payload.json", "utf-8");
+      const initPayload = JSON.parse(fileContents) as any[];
+      initPayload.forEach(async (item) => {
+        await app.inject(item);
+      });
+    }
+
+    app.log.info(`Server running on port ${port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

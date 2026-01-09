@@ -6,3 +6,4 @@ dist
 keys/*.json
 data/*.json
 !data/*.sample.json
+init-payload.json
