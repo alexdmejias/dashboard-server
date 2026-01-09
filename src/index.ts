@@ -38,6 +38,10 @@ const start = async () => {
       initPayload.forEach(async (item) => {
         await app.inject(item);
       });
+    } else {
+      app.log.warn(
+        "No init-payload.json file found. Skipping initial payload injection.",
+      );
     }
 
     app.log.info(`Server running on port ${port}`);

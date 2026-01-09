@@ -2,14 +2,14 @@
   <div class="flex flex--col w--full p--2 gap--small">
     <span class="title">{{ data.title | default: runtimeConfig.title }}</span>
 
-    <div class="grid grid--cols-7 gap--xsmall">
+    <div class="grid grid--cols-7 gap--xsmall h--min-64">
       {% for day in data.days %}
       <div class="calendar-day ">
         <div class="day-header p--1 text--center rounded--xsmall mb--2 bg-black">
           <span class="label label--inverted">{{ day.date }}</span>
         </div>
 
-        <div class="day-events flex flex--col gap--small">
+        <div class="day-events flex flex--col gap--small h--full rounded-b--xsmall">
           {% if day.events.size > 0 %}
             {% for event in day.events %}
               <div class="item">
@@ -33,3 +33,11 @@
     </div>
   </div>
 </div>
+<style>
+  .day-events {
+    border: 1px dashed black;
+    border-top: 0;
+    padding-top: 30px;
+    margin-top: -25px;
+  }
+</style>
