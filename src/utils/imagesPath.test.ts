@@ -64,24 +64,18 @@ describe("imagesPath utilities", () => {
       expect(existsSync(file2)).toBe(true);
     });
 
-    it("should remove oldest files when over the limit", () => {
+    it("should remove oldest files when over the limit", async () => {
       // Create files with slight delays to ensure different mtimes
       const file1 = getImagesPath("test1.png");
       writeFileSync(file1, "test data 1");
 
       // Small delay to ensure different mtime
-      const start = Date.now();
-      while (Date.now() - start < 10) {
-        // busy wait
-      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
       const file2 = getImagesPath("test2.png");
       writeFileSync(file2, "test data 2");
 
-      const start2 = Date.now();
-      while (Date.now() - start2 < 10) {
-        // busy wait
-      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
       const file3 = getImagesPath("test3.png");
       writeFileSync(file3, "test data 3");
