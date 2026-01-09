@@ -423,6 +423,93 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     return res.send({ clients });
   });
 
+  // Get available callbacks
+  app.get("/api/callbacks", async (_req, res) => {
+    const callbacks = Object.entries(possibleCallbacks).map(([key, value]) => ({
+      id: key,
+      name: value.name,
+      expectedConfig: value.expectedConfig,
+    }));
+    return res.send({ callbacks });
+  });
+
+  // Update client playlist
+  app.put<{
+    Params: {
+      clientName: string;
+    };
+    Body: {
+      playlist: {
+        id: string;
+        callbackName: string;
+        options?: Record<string, unknown>;
+      }[];
+    };
+  }>("/api/clients/:clientName/playlist", async (req, res) => {
+    const { clientName } = req.params;
+    const { playlist } = req.body;
+
+    if (!playlist || !Array.isArray(playlist)) {
+      return res.code(400).send({
+        error: "Bad Request",
+        message: "playlist must be an array",
+        statusCode: 400,
+      });
+    }
+
+    const client = app.getClient(clientName);
+    if (!client) {
+      app.log.error(`client not found: ${clientName}`);
+      return res.notFound(serverMessages.clientNotFound(clientName));
+    }
+
+    // Log the update request
+    app.logClientRequest(
+      clientName,
+      "PUT",
+      `/api/clients/${clientName}/playlist`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>
+    );
+
+    const clientRes = await app.updateClientPlaylist(clientName, playlist);
+
+    if ("error" in clientRes) {
+      app.log.error(
+        { error: clientRes.error },
+        `error updating playlist for client: ${clientName}`,
+      );
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Error updating playlist: ${clientRes.error}`,
+        req.id
+      );
+      return res.code(400).send({
+        error: "Bad Request",
+        message: clientRes.error,
+        statusCode: 400,
+      });
+    }
+
+    app.log.info(`updated playlist for client: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "info",
+      `Playlist updated successfully`,
+      req.id
+    );
+
+    return res.send({
+      statusCode: 200,
+      message: `Successfully updated playlist for ${clientName}`,
+      client: clientRes.toString(),
+    });
+  });
+
   // type TestParams = {
   //   name: string;
   //   viewType: SupportedViewTypes;

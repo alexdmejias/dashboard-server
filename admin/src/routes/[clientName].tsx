@@ -2,6 +2,7 @@ import { useParams, A } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import { For, Show, createSignal } from "solid-js";
 import { fetchClientDetail, fetchClientLogs, fetchClientRequests } from "../lib/api";
+import { PlaylistEditor } from "../components/PlaylistEditor";
 
 interface ClientLog {
   timestamp: string;
@@ -205,6 +206,14 @@ export default function ClientDetail() {
                 </table>
               </div>
             </div>
+          </div>
+
+          {/* Playlist Editor */}
+          <div class="mb-6">
+            <PlaylistEditor 
+              clientName={clientName()} 
+              initialPlaylist={clientQuery.data?.config?.playlist || []} 
+            />
           </div>
 
           {/* Requests Table */}

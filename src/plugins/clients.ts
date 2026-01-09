@@ -13,6 +13,10 @@ declare module "fastify" {
       clientName: string,
       playlist: Playlist,
     ): Promise<StateMachine | { error: string }>;
+    updateClientPlaylist(
+      clientName: string,
+      playlist: Playlist,
+    ): Promise<StateMachine | { error: string }>;
     broadcastClientsUpdate(): void;
     addSSEConnection(reply: FastifyReply): void;
     removeSSEConnection(reply: FastifyReply): void;
@@ -139,6 +143,63 @@ function clientsPlugin(
       if (errors) {
         return { error: errors };
       }
+      _clients[clientName] = new StateMachine(playlist);
+      const client = _clients[clientName];
+
+      await client.addCallbacks(validCallbacks);
+
+      // Broadcast client update to all SSE connections
+      fastify.broadcastClientsUpdate();
+
+      return client;
+    },
+  );
+
+  fastify.decorate(
+    "updateClientPlaylist",
+    async (clientName: string, playlist: Playlist) => {
+      fastify.log.info(`updating playlist for client: ${clientName}...`);
+      fastify.log.info("validating playlist");
+      const result = validatePlaylist(fastify, playlist, possibleCallbacks);
+      if (!result.success) {
+        return {
+          error: `Error while validating playlist object, ${z.prettifyError(
+            result.error,
+          )} `,
+        };
+      }
+
+      const validCallbacks: ValidCallback[] = [];
+
+      let errors = "";
+      for (const playlistItem of playlist) {
+        try {
+          const a = possibleCallbacks[playlistItem.callbackName];
+          const callbackFn = a.callback;
+          const ins = new callbackFn(playlistItem.options) as CallbackBase;
+
+          callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
+
+          validCallbacks.push({
+            instance: ins,
+            id: playlistItem.id,
+            name: a.name,
+            expectedConfig: a.expectedConfig,
+          });
+        } catch (e) {
+          errors += `Error while validating item "${playlistItem.id}" ${
+            e instanceof ZodError
+              ? z.prettifyError(e).replaceAll(/\n/g, "")
+              : (e as Error).message
+          }}`;
+        }
+      }
+
+      if (errors) {
+        return { error: errors };
+      }
+
+      // Create new state machine with updated playlist
       _clients[clientName] = new StateMachine(playlist);
       const client = _clients[clientName];
 

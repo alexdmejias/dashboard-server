@@ -53,3 +53,33 @@ export async function fetchClientRequests(clientName: string) {
   }
   return response.json();
 }
+
+export async function fetchAvailableCallbacks() {
+  const response = await fetch("/api/callbacks", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch available callbacks");
+  }
+  return response.json();
+}
+
+export async function updateClientPlaylist(
+  clientName: string,
+  playlist: {
+    id: string;
+    callbackName: string;
+    options?: Record<string, unknown>;
+  }[]
+) {
+  const response = await fetch(`/api/clients/${clientName}/playlist`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ playlist }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update playlist");
+  }
+  return response.json();
+}
