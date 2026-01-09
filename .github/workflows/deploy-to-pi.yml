@@ -16,7 +16,7 @@ jobs:
 
       - name: Restore .env file
         run: |
-          cp $HOME/.env-dashboard ./dashboard-server/dashboard-server/.env
+          cp $HOME/env-dashboard ./projects/dashboard-server/dashboard-server/.env
 
       - name: Setup Node.js
         run: |
