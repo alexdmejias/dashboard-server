@@ -17,6 +17,9 @@ jobs:
       - name: Restore .env file
         run: cp $HOME/env-dashboard .env
 
+      - name: Restore init-payload.json file
+        run: cp $HOME/init-payload.json init-payload.json
+
       - name: Setup Node.js
         run: |
           export NVM_DIR="$HOME/.nvm"

@@ -24,6 +24,7 @@ export const loggingOptions: LoggerOptions = {
             target: "@logtail/pino",
             options: {
               sourceToken: process.env.LOGTAIL_SOURCE_TOKEN,
+              options: { endpoint: process.env.LOGTAIL_ENDPOINT || undefined },
             },
           },
         ],
