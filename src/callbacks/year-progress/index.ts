@@ -14,10 +14,19 @@ class CallbackYearProgress extends CallbackBase<YearProgressData> {
   }
 
   getData() {
-    const date = new Date();
-    const currMonth = date.getMonth();
-    const currDate = date.getDate();
-    const currYear = date.getFullYear();
+    // Get current date in New York timezone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    
+    const parts = formatter.formatToParts(new Date());
+    const currYear = parseInt(parts.find(p => p.type === 'year')!.value);
+    const currMonth = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
+    const currDate = parseInt(parts.find(p => p.type === 'day')!.value);
+
     const result: Days = [];
 
     for (let m = 0; m < 12; m++) {
@@ -31,8 +40,17 @@ class CallbackYearProgress extends CallbackBase<YearProgressData> {
       }
     }
 
+    // Format date string in EST
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
     return Promise.resolve({
-      date: date.toDateString(),
+      date: dateFormatter.format(new Date()),
       days: result,
     });
   }
