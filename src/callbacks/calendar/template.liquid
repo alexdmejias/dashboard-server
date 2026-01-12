@@ -9,24 +9,90 @@
           <span class="label label--inverted">{{ day.date }}</span>
         </div>
 
-        <div class="day-events flex flex--col gap--small h--full rounded-b--xsmall">
-          {% if day.events.size > 0 %}
-            {% for event in day.events %}
-              <div class="item">
-                <div class="meta"></div>
-                <div class="content">
-                  <span class="title title--small">{{ event.title }}</span>
-                  <div class="flex gap--small">
-                    {% if event.allDay %}
-                      <span class="label label--small label--underline">All Day</span>
-                      {% else %}
-                      <span class="label label--small label--underline">{{ event.start }} - {{ event.end }}</span>
-                    {% endif %}
+        <div class="day-events flex flex--col gap--xsmall h--full rounded-b--xsmall p--xsmall">
+          <!-- All Day Events -->
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
+              <span class="label label--xsmall label--muted">All Day</span>
+            </div>
+            {% if day.eventsByCategory.allDay.size > 0 %}
+              {% for event in day.eventsByCategory.allDay %}
+                <div class="item mb--xsmall">
+                  <div class="content">
+                    <span class="title title--xsmall">{{ event.title }}</span>
                   </div>
                 </div>
-              </div>
-            {% endfor %}
-          {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <!-- Morning Events -->
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
+              <span class="label label--xsmall label--muted">Morning</span>
+            </div>
+            {% if day.eventsByCategory.morning.size > 0 %}
+              {% for event in day.eventsByCategory.morning %}
+                <div class="item mb--xsmall">
+                  <div class="content">
+                    <span class="title title--xsmall">{{ event.title }}</span>
+                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <!-- Afternoon Events -->
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
+              <span class="label label--xsmall label--muted">Afternoon</span>
+            </div>
+            {% if day.eventsByCategory.afternoon.size > 0 %}
+              {% for event in day.eventsByCategory.afternoon %}
+                <div class="item mb--xsmall">
+                  <div class="content">
+                    <span class="title title--xsmall">{{ event.title }}</span>
+                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <!-- Evening Events -->
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
+              <span class="label label--xsmall label--muted">Evening</span>
+            </div>
+            {% if day.eventsByCategory.evening.size > 0 %}
+              {% for event in day.eventsByCategory.evening %}
+                <div class="item mb--xsmall">
+                  <div class="content">
+                    <span class="title title--xsmall">{{ event.title }}</span>
+                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <!-- Night Events -->
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
+              <span class="label label--xsmall label--muted">Night</span>
+            </div>
+            {% if day.eventsByCategory.night.size > 0 %}
+              {% for event in day.eventsByCategory.night %}
+                <div class="item mb--xsmall">
+                  <div class="content">
+                    <span class="title title--xsmall">{{ event.title }}</span>
+                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -39,5 +105,14 @@
     border-top: 0;
     padding-top: 30px;
     margin-top: -25px;
+  }
+  
+  .event-category {
+    min-height: 40px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .event-category:last-child {
+    border-bottom: none;
   }
 </style>
