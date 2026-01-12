@@ -8,11 +8,21 @@ type CalendarEvent = {
   start: string; // ISO date string
   end: string; // ISO date string
   allDay: boolean;
+  category: "allDay" | "morning" | "afternoon" | "evening" | "night";
+};
+
+type EventsByCategory = {
+  allDay: CalendarEvent[];
+  morning: CalendarEvent[];
+  afternoon: CalendarEvent[];
+  evening: CalendarEvent[];
+  night: CalendarEvent[];
 };
 
 type DayEvents = {
   date: string; // formatted date string (e.g., "Mon Jan 5")
   events: CalendarEvent[];
+  eventsByCategory: EventsByCategory;
 };
 
 type CalendarData = {
@@ -212,6 +222,35 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
+   * Categorize event by time of day based on start time
+   * Morning: 5:00 AM - 11:59 AM
+   * Afternoon: 12:00 PM - 4:59 PM
+   * Evening: 5:00 PM - 8:59 PM
+   * Night: 9:00 PM - 4:59 AM
+   */
+  private categorizeEventByTime(
+    event: GoogleCalendarEvent,
+    isAllDay: boolean,
+  ): CalendarEvent["category"] {
+    if (isAllDay) {
+      return "allDay";
+    }
+
+    const startDate = this.getEventStart(event);
+    const hour = startDate.getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return "morning";
+    } else if (hour >= 12 && hour < 17) {
+      return "afternoon";
+    } else if (hour >= 17 && hour < 21) {
+      return "evening";
+    } else {
+      return "night";
+    }
+  }
+
+  /**
    * Transform Google Calendar API response to our data structure
    */
   private transformEvents(
@@ -233,6 +272,13 @@ class CallbackCalendar extends CallbackBase<
       days.push({
         date: this.formatDate(date),
         events: [],
+        eventsByCategory: {
+          allDay: [],
+          morning: [],
+          afternoon: [],
+          evening: [],
+          night: [],
+        },
       });
     }
 
@@ -272,11 +318,15 @@ class CallbackCalendar extends CallbackBase<
           start: startFormatted,
           end: endFormatted,
           allDay: isAllDay,
+          category: this.categorizeEventByTime(event, isAllDay),
         };
 
         // Respect maxEventsPerDay limit
         if (days[dayIndex].events.length < config.maxEventsPerDay) {
           days[dayIndex].events.push(calendarEvent);
+          days[dayIndex].eventsByCategory[calendarEvent.category].push(
+            calendarEvent,
+          );
         }
       }
     }
