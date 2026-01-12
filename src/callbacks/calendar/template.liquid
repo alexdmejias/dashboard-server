@@ -9,15 +9,15 @@
           <span class="label label--inverted">{{ day.date }}</span>
         </div>
 
-        <div class="day-events flex flex--col gap--xsmall h--full rounded-b--xsmall">
+        <div class="day-events flex flex--col gap--xsmall h--full rounded-b--xsmall p--xsmall">
           <!-- All Day Events -->
-          <div class="event-category">
-            <div class="category-header">
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
               <span class="label label--xsmall label--muted">All Day</span>
             </div>
             {% if day.eventsByCategory.allDay.size > 0 %}
               {% for event in day.eventsByCategory.allDay %}
-                <div class="item item--compact">
+                <div class="item mb--xsmall">
                   <div class="content">
                     <span class="title title--xsmall">{{ event.title }}</span>
                   </div>
@@ -27,13 +27,13 @@
           </div>
 
           <!-- Morning Events -->
-          <div class="event-category">
-            <div class="category-header">
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
               <span class="label label--xsmall label--muted">Morning</span>
             </div>
             {% if day.eventsByCategory.morning.size > 0 %}
               {% for event in day.eventsByCategory.morning %}
-                <div class="item item--compact">
+                <div class="item mb--xsmall">
                   <div class="content">
                     <span class="title title--xsmall">{{ event.title }}</span>
                     <span class="label label--xsmall">{{ event.start }}</span>
@@ -44,13 +44,13 @@
           </div>
 
           <!-- Afternoon Events -->
-          <div class="event-category">
-            <div class="category-header">
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
               <span class="label label--xsmall label--muted">Afternoon</span>
             </div>
             {% if day.eventsByCategory.afternoon.size > 0 %}
               {% for event in day.eventsByCategory.afternoon %}
-                <div class="item item--compact">
+                <div class="item mb--xsmall">
                   <div class="content">
                     <span class="title title--xsmall">{{ event.title }}</span>
                     <span class="label label--xsmall">{{ event.start }}</span>
@@ -61,13 +61,13 @@
           </div>
 
           <!-- Evening Events -->
-          <div class="event-category">
-            <div class="category-header">
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
               <span class="label label--xsmall label--muted">Evening</span>
             </div>
             {% if day.eventsByCategory.evening.size > 0 %}
               {% for event in day.eventsByCategory.evening %}
-                <div class="item item--compact">
+                <div class="item mb--xsmall">
                   <div class="content">
                     <span class="title title--xsmall">{{ event.title }}</span>
                     <span class="label label--xsmall">{{ event.start }}</span>
@@ -78,13 +78,13 @@
           </div>
 
           <!-- Night Events -->
-          <div class="event-category">
-            <div class="category-header">
+          <div class="event-category p--xsmall">
+            <div class="mb--xsmall">
               <span class="label label--xsmall label--muted">Night</span>
             </div>
             {% if day.eventsByCategory.night.size > 0 %}
               {% for event in day.eventsByCategory.night %}
-                <div class="item item--compact">
+                <div class="item mb--xsmall">
                   <div class="content">
                     <span class="title title--xsmall">{{ event.title }}</span>
                     <span class="label label--xsmall">{{ event.start }}</span>
@@ -109,19 +109,10 @@
   
   .event-category {
     min-height: 40px;
-    padding: 8px 4px;
     border-bottom: 1px solid #eee;
   }
   
   .event-category:last-child {
     border-bottom: none;
-  }
-  
-  .category-header {
-    margin-bottom: 4px;
-  }
-  
-  .item--compact {
-    margin-bottom: 4px;
   }
 </style>
