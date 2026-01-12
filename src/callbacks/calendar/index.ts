@@ -321,7 +321,7 @@ class CallbackCalendar extends CallbackBase<
           category: this.categorizeEventByTime(event, isAllDay),
         };
 
-        // Respect maxEventsPerDay limit
+        // Respect maxEventsPerDay limit for both events array and eventsByCategory
         if (days[dayIndex].events.length < config.maxEventsPerDay) {
           days[dayIndex].events.push(calendarEvent);
           days[dayIndex].eventsByCategory[calendarEvent.category].push(
