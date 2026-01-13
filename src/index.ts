@@ -12,6 +12,7 @@ const start = async () => {
     { callbackName: "weather" },
     { callbackName: "year-progress" },
     { callbackName: "calendar" },
+    { callbackName: "todoist" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
   const currentExtension = __filename.endsWith(".ts") ? "ts" : "js";

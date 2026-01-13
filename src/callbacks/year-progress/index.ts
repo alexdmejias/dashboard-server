@@ -15,17 +15,22 @@ class CallbackYearProgress extends CallbackBase<YearProgressData> {
 
   getData() {
     // Get current date in New York timezone
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
     });
-    
+
     const parts = formatter.formatToParts(new Date());
-    const currYear = parseInt(parts.find(p => p.type === 'year')!.value);
-    const currMonth = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
-    const currDate = parseInt(parts.find(p => p.type === 'day')!.value);
+    const currYear = Number.parseInt(
+      parts.find((p) => p.type === "year")!.value,
+    );
+    const currMonth =
+      Number.parseInt(parts.find((p) => p.type === "month")!.value) - 1; // 0-indexed
+    const currDate = Number.parseInt(
+      parts.find((p) => p.type === "day")!.value,
+    );
 
     const result: Days = [];
 
@@ -41,12 +46,12 @@ class CallbackYearProgress extends CallbackBase<YearProgressData> {
     }
 
     // Format date string in EST
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    const dateFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
 
     return Promise.resolve({

@@ -1,0 +1,23 @@
+<div class="layout layout--col p--8">
+  <span class="title">{{ runtimeConfig.title | default: data.title | default: "Todoist" }}</span>
+  <div class="columns">
+    {% assign sectionGroups = data.sections | default: data %}
+    {% assign hasItems = false %}
+    {% for section in sectionGroups %}
+      {% if section.items and section.items.size > 0 %}
+        {% assign hasItems = true %}
+        <div class="column gap p--2.5 bg--gray-65 2bit:bg--gray-75 4bit:bg--gray-70 rounded--medium text--center">
+          <span class="label text-stroke">{{section.name}}</span>
+          {% for item in section.items %}
+            <div class="flex flex--center p--2.5 rounded--small bg--white w--full">
+                <span class="label">{{ item.content }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+    {% unless hasItems %}
+      <div class="empty">No tasks</div>
+    {% endunless %}
+  </div>
+</div>
