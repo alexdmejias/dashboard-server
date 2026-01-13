@@ -1,20 +1,20 @@
-import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
+import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { writeFile } from "node:fs/promises";
 
 jest.mock("node:fs/promises");
 
-describe("CloudflareBrowserRenderer", () => {
-  const mockAccountId = "test-account-id";
-  const mockApiToken = "test-api-token";
+describe("BrowserlessIOBrowserRenderer", () => {
+  const mockToken = "test-token";
+  const mockEndpoint = "https://chrome.browserless.io";
 
-  let renderer: CloudflareBrowserRenderer;
+  let renderer: BrowserlessIOBrowserRenderer;
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    renderer = new CloudflareBrowserRenderer({
-      accountId: mockAccountId,
-      apiToken: mockApiToken,
+    renderer = new BrowserlessIOBrowserRenderer({
+      token: mockToken,
+      endpoint: mockEndpoint,
     });
     originalFetch = global.fetch;
     (writeFile as jest.Mock).mockResolvedValue(undefined);
@@ -25,10 +25,10 @@ describe("CloudflareBrowserRenderer", () => {
   });
 
   it("should create a renderer with provided credentials", () => {
-    expect(renderer).toBeInstanceOf(CloudflareBrowserRenderer);
+    expect(renderer).toBeInstanceOf(BrowserlessIOBrowserRenderer);
   });
 
-  it("should call Cloudflare API with correct parameters", async () => {
+  it("should call Browserless.io API with correct parameters", async () => {
     const mockBuffer = Buffer.from("test screenshot");
     const mockArrayBuffer = mockBuffer.buffer.slice(
       mockBuffer.byteOffset,
@@ -49,11 +49,11 @@ describe("CloudflareBrowserRenderer", () => {
     const result = await renderer.renderPage(options);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `https://api.cloudflare.com/client/v4/accounts/${mockAccountId}/browser-rendering/screenshot`,
+      `${mockEndpoint}/screenshot`,
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: `Bearer ${mockApiToken}`,
+          Authorization: `Bearer ${mockToken}`,
           "Content-Type": "application/json",
         }),
         body: expect.stringContaining("viewport"),
@@ -93,10 +93,36 @@ describe("CloudflareBrowserRenderer", () => {
     const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
-    expect(body.viewport).toEqual({
+    expect(body.options.viewport).toEqual({
       width: 1200,
       height: 825,
     });
+  });
+
+  it("should include fullPage and type options in the request", async () => {
+    const mockBuffer = Buffer.from("test screenshot");
+    const mockArrayBuffer = mockBuffer.buffer.slice(
+      mockBuffer.byteOffset,
+      mockBuffer.byteOffset + mockBuffer.byteLength
+    );
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+    });
+
+    const options = {
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    };
+
+    await renderer.renderPage(options);
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall[1].body);
+
+    expect(body.options.fullPage).toBe(false);
+    expect(body.options.type).toBe("png");
   });
 
   it("should throw error when API request fails", async () => {
@@ -104,7 +130,7 @@ describe("CloudflareBrowserRenderer", () => {
       ok: false,
       status: 401,
       statusText: "Unauthorized",
-      text: jest.fn().mockResolvedValue("Invalid credentials"),
+      text: jest.fn().mockResolvedValue("Invalid token"),
     });
 
     const options = {
@@ -113,7 +139,7 @@ describe("CloudflareBrowserRenderer", () => {
     };
 
     await expect(renderer.renderPage(options)).rejects.toThrow(
-      "Cloudflare Browser Rendering failed"
+      "Browserless.io rendering failed"
     );
   });
 });
