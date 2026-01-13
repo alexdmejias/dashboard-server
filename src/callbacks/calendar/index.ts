@@ -182,6 +182,11 @@ class CallbackCalendar extends CallbackBase<
 
   /**
    * Get current date at midnight in New York timezone
+   * 
+   * This method extracts the current calendar day in New York timezone and creates
+   * a Date object representing midnight of that day. The Date object itself is in
+   * the local timezone, but represents the correct calendar day from New York's perspective.
+   * This is used for date arithmetic to calculate day differences.
    */
   private getNowInNewYork(): Date {
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -196,17 +201,23 @@ class CallbackCalendar extends CallbackBase<
     const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
     const day = parseInt(parts.find(p => p.type === 'day')!.value);
     
-    // Create date at midnight in New York timezone
+    // Create date at midnight for the New York calendar day
+    // Note: The Date object is in local timezone but represents NY's calendar day
     const date = new Date(year, month, day, 0, 0, 0, 0);
     return date;
   }
 
   /**
    * Parse a date string (YYYY-MM-DD) in New York timezone
+   * 
+   * For all-day events, Google Calendar provides dates in YYYY-MM-DD format without
+   * timezone information. This method parses such dates as calendar days, which is
+   * appropriate for all-day events. The resulting Date object is used only for date
+   * arithmetic (calculating which day slot the event belongs to).
    */
   private parseDateInNewYork(dateStr: string): Date {
     const [year, month, day] = dateStr.split('-').map(Number);
-    // Create date at midnight, month is 0-indexed
+    // Create date at midnight for the calendar day, month is 0-indexed
     return new Date(year, month - 1, day, 0, 0, 0, 0);
   }
 
