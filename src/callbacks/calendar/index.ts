@@ -181,6 +181,36 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
+   * Get current date at midnight in New York timezone
+   */
+  private getNowInNewYork(): Date {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    
+    const parts = formatter.formatToParts(new Date());
+    const year = parseInt(parts.find(p => p.type === 'year')!.value);
+    const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
+    const day = parseInt(parts.find(p => p.type === 'day')!.value);
+    
+    // Create date at midnight in New York timezone
+    const date = new Date(year, month, day, 0, 0, 0, 0);
+    return date;
+  }
+
+  /**
+   * Parse a date string (YYYY-MM-DD) in New York timezone
+   */
+  private parseDateInNewYork(dateStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Create date at midnight, month is 0-indexed
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  /**
    * Format date as "Mon Jan 5"
    */
   private formatDate(date: Date): string {
@@ -218,6 +248,12 @@ class CallbackCalendar extends CallbackBase<
     if (!startStr) {
       throw new Error("Event has no start date");
     }
+    
+    // For all-day events, parse in New York timezone
+    if (event.start?.date && !event.start?.dateTime) {
+      return this.parseDateInNewYork(startStr);
+    }
+    
     return new Date(startStr);
   }
 
@@ -261,8 +297,7 @@ class CallbackCalendar extends CallbackBase<
 
     // Create array of the configured window of days
     const days: DayEvents[] = [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const now = this.getNowInNewYork();
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     for (let i = 0; i < daysToFetch; i++) {
