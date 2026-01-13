@@ -195,11 +195,10 @@ class CallbackCalendar extends CallbackBase<
   private formatTime(date: Date): string {
     let hours = date.getHours();
     const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
     hours = hours ? hours : 12; // 0 should be 12
     const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
-    return `${hours}:${minutesStr} ${ampm}`;
+    return `${hours}:${minutesStr}`;
   }
 
   /**
@@ -241,13 +240,14 @@ class CallbackCalendar extends CallbackBase<
 
     if (hour >= 5 && hour < 12) {
       return "morning";
-    } else if (hour >= 12 && hour < 17) {
-      return "afternoon";
-    } else if (hour >= 17 && hour < 21) {
-      return "evening";
-    } else {
-      return "night";
     }
+    if (hour >= 12 && hour < 17) {
+      return "afternoon";
+    }
+    if (hour >= 17 && hour < 21) {
+      return "evening";
+    }
+    return "night";
   }
 
   /**
