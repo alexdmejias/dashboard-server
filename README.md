@@ -165,6 +165,52 @@ Run unit tests with:
 npm test
 ```
 
+## Template Development with Storybook
+
+Storybook allows you to iterate on callback templates without registering devices or making API requests.
+
+### Running Storybook
+
+```bash
+npm run storybook
+```
+
+This opens `http://localhost:6006` where you can:
+- Browse all callback templates
+- View different data scenarios (empty states, long text, edge cases)
+- Adjust data values in real-time with interactive controls
+- Test templates without running the full server
+
+### Adding Stories for New Callbacks
+
+1. Create `src/callbacks/yourCallback/yourCallback.stories.ts`
+2. Define fixtures inline (co-located with stories)
+3. Use story helpers to reduce boilerplate:
+
+```typescript
+import { createCallbackMeta, createSampleStory } from '../../storybook/story-helpers';
+import CallbackYour from './index';
+
+const fixtures = {
+  default: { /* your data */ }
+};
+
+const config = {
+  CallbackClass: CallbackYour,
+  title: 'Callbacks/YourCallback',
+  callbackPath: __dirname,
+};
+
+export default createCallbackMeta(config);
+export const Default = createSampleStory(config, fixtures.default);
+```
+
+### Story Types
+
+- **Sample stories**: Use static fixture data (fast, no API calls)
+- **Live stories**: Call real APIs via `getData()` (requires env vars)
+- **Interactive stories**: Use Storybook controls to adjust data dynamically
+
 ## Development notes & TODOs
 
 - Callbacks and templates are intentionally lightweight — add more unit tests and a CI pipeline.
