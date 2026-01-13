@@ -42,11 +42,11 @@ describe("CallbackCalendar", () => {
   });
 
   describe("timezone handling", () => {
-    it("should parse all-day events in New York timezone", () => {
+    it("should parse all-day events as calendar days", () => {
       // Access private method for testing via type assertion
-      const parseDateInNewYork = (callback as any).parseDateInNewYork.bind(callback);
+      const parseDate = (callback as any).parseDate.bind(callback);
       
-      const date = parseDateInNewYork("2026-01-20");
+      const date = parseDate("2026-01-20");
       
       expect(date.getFullYear()).toBe(2026);
       expect(date.getMonth()).toBe(0); // January is 0
@@ -56,10 +56,10 @@ describe("CallbackCalendar", () => {
       expect(date.getSeconds()).toBe(0);
     });
 
-    it("should get current date at midnight in New York timezone", () => {
-      const getNowInNewYork = (callback as any).getNowInNewYork.bind(callback);
+    it("should get current date at midnight in the configured timezone", () => {
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
       
-      const now = getNowInNewYork();
+      const now = getNowInTimezone('America/New_York');
       
       expect(now.getHours()).toBe(0);
       expect(now.getMinutes()).toBe(0);
@@ -67,19 +67,19 @@ describe("CallbackCalendar", () => {
       expect(now.getMilliseconds()).toBe(0);
     });
 
-    it("should use New York timezone for all-day event parsing regardless of server timezone", () => {
+    it("should parse dates consistently regardless of server timezone", () => {
       const originalTZ = process.env.TZ;
 
       try {
-        const parseDateInNewYork = (callback as any).parseDateInNewYork.bind(callback);
+        const parseDate = (callback as any).parseDate.bind(callback);
         
         // Test with UTC timezone
         process.env.TZ = "UTC";
-        const dateUTC = parseDateInNewYork("2026-01-20");
+        const dateUTC = parseDate("2026-01-20");
 
         // Test with Asia/Tokyo timezone (UTC+9)
         process.env.TZ = "Asia/Tokyo";
-        const dateTokyo = parseDateInNewYork("2026-01-20");
+        const dateTokyo = parseDate("2026-01-20");
 
         // Both should parse to the same date
         expect(dateUTC.getFullYear()).toBe(dateTokyo.getFullYear());
@@ -93,6 +93,25 @@ describe("CallbackCalendar", () => {
           delete process.env.TZ;
         }
       }
+    });
+
+    it("should support configurable timezone", () => {
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
+      
+      // Get current date in different timezones
+      const nyNow = getNowInTimezone('America/New_York');
+      const tokyoNow = getNowInTimezone('Asia/Tokyo');
+      const londonNow = getNowInTimezone('Europe/London');
+      
+      // All should be valid dates
+      expect(nyNow).toBeInstanceOf(Date);
+      expect(tokyoNow).toBeInstanceOf(Date);
+      expect(londonNow).toBeInstanceOf(Date);
+      
+      // All should have midnight times
+      expect(nyNow.getHours()).toBe(0);
+      expect(tokyoNow.getHours()).toBe(0);
+      expect(londonNow.getHours()).toBe(0);
     });
 
     it("should handle all-day events correctly when server is in UTC", () => {
@@ -174,10 +193,10 @@ describe("CallbackCalendar", () => {
   describe("transformEvents", () => {
     it("should place all-day events on the correct day", () => {
       const transformEvents = (callback as any).transformEvents.bind(callback);
-      const getNowInNewYork = (callback as any).getNowInNewYork.bind(callback);
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
       
       // Get today's date in New York
-      const today = getNowInNewYork();
+      const today = getNowInTimezone('America/New_York');
       const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
@@ -196,6 +215,7 @@ describe("CallbackCalendar", () => {
         calendarId: ["primary"],
         maxEventsPerDay: 5,
         daysToFetch: 7,
+        timezone: "America/New_York",
       };
 
       const result = transformEvents(events, config);
@@ -203,6 +223,40 @@ describe("CallbackCalendar", () => {
       // The event should appear on day 0 (today)
       expect(result.days[0].events.length).toBe(1);
       expect(result.days[0].events[0].title).toBe("All Day Event Today");
+    });
+
+    it("should use configured timezone for day calculations", () => {
+      const transformEvents = (callback as any).transformEvents.bind(callback);
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
+      
+      // Get today's date in Tokyo timezone
+      const today = getNowInTimezone('Asia/Tokyo');
+      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      // All-day event for today
+      const events: GoogleCalendarEvent[] = [
+        {
+          summary: "All Day Event Tokyo",
+          start: { date: todayStr },
+          end: { date: tomorrowStr },
+        },
+      ];
+
+      const config = {
+        calendarId: ["primary"],
+        maxEventsPerDay: 5,
+        daysToFetch: 7,
+        timezone: "Asia/Tokyo",
+      };
+
+      const result = transformEvents(events, config);
+
+      // The event should appear on day 0 (today in Tokyo time)
+      expect(result.days[0].events.length).toBe(1);
+      expect(result.days[0].events[0].title).toBe("All Day Event Tokyo");
     });
   });
 

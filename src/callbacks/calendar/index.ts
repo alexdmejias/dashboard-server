@@ -37,6 +37,7 @@ export const expectedConfig = z.object({
   maxEventsPerDay: z.number().default(5),
   daysToFetch: z.number().int().min(1).max(30).default(7),
   title: z.string().optional(),
+  timezone: z.string().default("America/New_York"),
 });
 
 type ConfigType = z.infer<typeof expectedConfig>;
@@ -50,6 +51,7 @@ class CallbackCalendar extends CallbackBase<
     maxEventsPerDay: 5,
     daysToFetch: 7,
     title: "Weekly Calendar",
+    timezone: "America/New_York",
   };
 
   constructor(options = {}) {
@@ -181,16 +183,16 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Get current date at midnight in New York timezone
+   * Get current date at midnight in the specified timezone
    * 
-   * This method extracts the current calendar day in New York timezone and creates
+   * This method extracts the current calendar day in the specified timezone and creates
    * a Date object representing midnight of that day. The Date object itself is in
-   * the local timezone, but represents the correct calendar day from New York's perspective.
+   * the local timezone, but represents the correct calendar day from the target timezone's perspective.
    * This is used for date arithmetic to calculate day differences.
    */
-  private getNowInNewYork(): Date {
+  private getNowInTimezone(timezone: string): Date {
     const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
+      timeZone: timezone,
       year: 'numeric',
       month: 'numeric',
       day: 'numeric'
@@ -201,21 +203,21 @@ class CallbackCalendar extends CallbackBase<
     const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
     const day = parseInt(parts.find(p => p.type === 'day')!.value);
     
-    // Create date at midnight for the New York calendar day
-    // Note: The Date object is in local timezone but represents NY's calendar day
+    // Create date at midnight for the calendar day in the specified timezone
+    // Note: The Date object is in local timezone but represents the target timezone's calendar day
     const date = new Date(year, month, day, 0, 0, 0, 0);
     return date;
   }
 
   /**
-   * Parse a date string (YYYY-MM-DD) in New York timezone
+   * Parse a date string (YYYY-MM-DD) as a calendar day
    * 
    * For all-day events, Google Calendar provides dates in YYYY-MM-DD format without
    * timezone information. This method parses such dates as calendar days, which is
    * appropriate for all-day events. The resulting Date object is used only for date
    * arithmetic (calculating which day slot the event belongs to).
    */
-  private parseDateInNewYork(dateStr: string): Date {
+  private parseDate(dateStr: string): Date {
     const [year, month, day] = dateStr.split('-').map(Number);
     // Create date at midnight for the calendar day, month is 0-indexed
     return new Date(year, month - 1, day, 0, 0, 0, 0);
@@ -260,9 +262,9 @@ class CallbackCalendar extends CallbackBase<
       throw new Error("Event has no start date");
     }
     
-    // For all-day events, parse in New York timezone
+    // For all-day events, parse as calendar day
     if (event.start?.date && !event.start?.dateTime) {
-      return this.parseDateInNewYork(startStr);
+      return this.parseDate(startStr);
     }
     
     return new Date(startStr);
@@ -308,7 +310,7 @@ class CallbackCalendar extends CallbackBase<
 
     // Create array of the configured window of days
     const days: DayEvents[] = [];
-    const now = this.getNowInNewYork();
+    const now = this.getNowInTimezone(config.timezone);
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     for (let i = 0; i < daysToFetch; i++) {
