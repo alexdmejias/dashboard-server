@@ -214,8 +214,12 @@ class CallbackCalendar extends CallbackBase<
    * 
    * For all-day events, Google Calendar provides dates in YYYY-MM-DD format without
    * timezone information. This method parses such dates as calendar days, which is
-   * appropriate for all-day events. The resulting Date object is used only for date
-   * arithmetic (calculating which day slot the event belongs to).
+   * appropriate for all-day events. 
+   * 
+   * The resulting Date object is created in the local timezone at midnight for the 
+   * specified calendar day. It is used only for date arithmetic (calculating which 
+   * day slot the event belongs to) in conjunction with getNowInTimezone(), ensuring 
+   * consistent day-based comparisons.
    */
   private parseDate(dateStr: string): Date {
     const [year, month, day] = dateStr.split('-').map(Number);
