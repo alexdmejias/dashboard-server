@@ -10,89 +10,32 @@
         </div>
 
         <div class="day-events flex flex--col gap--xsmall h--full rounded-b--xsmall p--xsmall">
-          <!-- All Day Events -->
-          <div class="event-category p--xsmall">
-            <div class="mb--xsmall">
-              <span class="label label--xsmall label--muted">All Day</span>
-            </div>
-            {% if day.eventsByCategory.allDay.size > 0 %}
-              {% for event in day.eventsByCategory.allDay %}
-                <div class="item mb--xsmall">
-                  <div class="content">
-                    <span class="title title--xsmall">{{ event.title }}</span>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-          </div>
+          {% assign categories = "allDay:All Day:false|morning:Morning:true|afternoon:Afternoon:true|evening:Evening:true|night:Night:true" | split: "|" %}
+          {% for category in categories %}
+            {% assign parts = category | split: ":" %}
+            {% assign categoryKey = parts[0] %}
+            {% assign categoryLabel = parts[1] %}
+            {% assign showTimes = parts[2] %}
+            {% assign events = day.eventsByCategory[categoryKey] %}
 
-          <!-- Morning Events -->
-          <div class="event-category p--xsmall">
-            <div class="mb--xsmall">
-              <span class="label label--xsmall label--muted">Morning</span>
-            </div>
-            {% if day.eventsByCategory.morning.size > 0 %}
-              {% for event in day.eventsByCategory.morning %}
-                <div class="item mb--xsmall">
-                  <div class="content">
-                    <span class="title title--xsmall">{{ event.title }}</span>
-                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
+            <div class="event-category p--xsmall">
+              <div class="mb--xsmall WASD">
+                <span class="label label--xsmall label--muted">{{ categoryLabel }}</span>
+              </div>
+              {% if events and events.size > 0 %}
+                {% for event in events %}
+                  <div class="item mb--xsmall p--1">
+                    <div class="content text--center">
+                      <p class="value value--xsmall">{{ event.title }}</p>
+                      {% if showTimes == "true" %}
+                        <p class="value value--xsmall flex">{{ event.start }} - {{ event.end }}</p>
+                      {% endif %}
+                    </div>
                   </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-          </div>
-
-          <!-- Afternoon Events -->
-          <div class="event-category p--xsmall">
-            <div class="mb--xsmall">
-              <span class="label label--xsmall label--muted">Afternoon</span>
+                {% endfor %}
+              {% endif %}
             </div>
-            {% if day.eventsByCategory.afternoon.size > 0 %}
-              {% for event in day.eventsByCategory.afternoon %}
-                <div class="item mb--xsmall">
-                  <div class="content">
-                    <span class="title title--xsmall">{{ event.title }}</span>
-                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-          </div>
-
-          <!-- Evening Events -->
-          <div class="event-category p--xsmall">
-            <div class="mb--xsmall">
-              <span class="label label--xsmall label--muted">Evening</span>
-            </div>
-            {% if day.eventsByCategory.evening.size > 0 %}
-              {% for event in day.eventsByCategory.evening %}
-                <div class="item mb--xsmall">
-                  <div class="content">
-                    <span class="title title--xsmall">{{ event.title }}</span>
-                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-          </div>
-
-          <!-- Night Events -->
-          <div class="event-category p--xsmall">
-            <div class="mb--xsmall">
-              <span class="label label--xsmall label--muted">Night</span>
-            </div>
-            {% if day.eventsByCategory.night.size > 0 %}
-              {% for event in day.eventsByCategory.night %}
-                <div class="item mb--xsmall">
-                  <div class="content">
-                    <span class="title title--xsmall">{{ event.title }}</span>
-                    <span class="label label--xsmall">{{ event.start }} - {{ event.end }}</span>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-          </div>
+          {% endfor %}
         </div>
       </div>
       {% endfor %}
@@ -106,13 +49,16 @@
     padding-top: 30px;
     margin-top: -25px;
   }
-  
+
   .event-category {
     min-height: 40px;
     border-bottom: 1px solid #eee;
   }
-  
+
   .event-category:last-child {
     border-bottom: none;
+  }
+  .WASD {
+    text-align: center;
   }
 </style>
