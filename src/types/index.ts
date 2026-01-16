@@ -39,6 +39,7 @@ export type PossibleCallback = {
 };
 export type PossibleCallbacks = Record<string, PossibleCallback>;
 
+export * from "./browser-renderer";
 export type PlaylistItem = {
   id: string;
   callbackName: string; // name of the callback to be used

@@ -14,6 +14,7 @@ import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
 import type { PossibleCallbacks, SupportedViewType } from "./types";
+import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
 import {
@@ -143,7 +144,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       undefined,
       undefined,
       req.id,
-      req.headers as Record<string, string | string[]>
+      req.headers as Record<string, string | string[]>,
     );
 
     if (!client) {
@@ -158,7 +159,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           clientName,
           "error",
           `Error registering client: ${clientRes.error}`,
-          req.id
+          req.id,
         );
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
@@ -168,8 +169,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       app.logClientActivity(
         clientName,
         "info",
-        `Client registered successfully`,
-        req.id
+        "Client registered successfully",
+        req.id,
       );
       return {
         statusCode: 200,
@@ -179,12 +180,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
 
     app.log.info(`client already exists: ${clientName}`);
-    app.logClientActivity(
-      clientName,
-      "warn",
-      `Client already exists`,
-      req.id
-    );
+    app.logClientActivity(clientName, "warn", "Client already exists", req.id);
     return res.internalServerError(
       serverMessages.duplicateClientName(clientName),
     );
@@ -209,7 +205,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       undefined,
       undefined,
       req.id,
-      req.headers as Record<string, string | string[]>
+      req.headers as Record<string, string | string[]>,
     );
 
     if (!isSupportedViewType(viewType)) {
@@ -218,7 +214,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         clientName,
         "error",
         `Unsupported viewType: ${viewType}`,
-        req.id
+        req.id,
       );
       return res.internalServerError(
         serverMessages.viewTypeNotSupported(viewType),
@@ -232,12 +228,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
-      app.logClientActivity(
-        clientName,
-        "error",
-        `Client not found`,
-        req.id
-      );
+      app.logClientActivity(clientName, "error", "Client not found", req.id);
       return res.notFound(serverMessages.clientNotFound(clientName));
     }
 
@@ -246,50 +237,58 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName,
       "info",
       `Displaying ${callback} as ${viewTypeToUse}`,
-      req.id
+      req.id,
     );
 
     let data: RenderResponse;
-    if (callback === "next") {
-      data = await client.tick(viewTypeToUse);
-    } else {
-      const callbackInstance = client.getCallbackInstance(callback);
-      const playlistItem = client.getPlaylistItemById(callback);
-      if (!callbackInstance || !playlistItem) {
-        app.log.error(`callback not found: ${callback}`);
-        app.logClientActivity(
-          clientName,
-          "error",
-          `Callback not found: ${callback}`,
-          req.id
-        );
-        return res.notFound(serverMessages.callbackNotFound(callback));
-      }
-
-      // render may accept runtime options; use a typed cast to avoid `any`
-      type RenderWithOptions = (
-        viewType: SupportedViewType,
-        options?: Record<string, unknown>,
-      ) => Promise<RenderResponse>;
-
-      data = await (
-        callbackInstance as unknown as {
-          render: RenderWithOptions;
+    try {
+      if (callback === "next") {
+        data = await client.tick(viewTypeToUse);
+      } else {
+        const callbackInstance = client.getCallbackInstance(callback);
+        const playlistItem = client.getPlaylistItemById(callback);
+        if (!callbackInstance || !playlistItem) {
+          app.log.error(`callback not found: ${callback}`);
+          app.logClientActivity(
+            clientName,
+            "error",
+            `Callback not found: ${callback}`,
+            req.id,
+          );
+          return res.notFound(serverMessages.callbackNotFound(callback));
         }
-      ).render(
-        viewTypeToUse,
-        playlistItem.options as Record<string, unknown> | undefined,
+
+        // render may accept runtime options; use a typed cast to avoid `any`
+        type RenderWithOptions = (
+          viewType: SupportedViewType,
+          options?: Record<string, unknown>,
+        ) => Promise<RenderResponse>;
+
+        data = await (
+          callbackInstance as unknown as {
+            render: RenderWithOptions;
+          }
+        ).render(
+          viewTypeToUse,
+          playlistItem.options as Record<string, unknown> | undefined,
+        );
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      app.log.error(
+        { error, clientName, viewType: viewTypeToUse },
+        "Error rendering callback",
       );
+      return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
+    const rendererType = getBrowserRendererType();
+
     app.log.info(
-      {
-        clientName,
-        viewTypeToUse,
-      },
-      "sending response",
+      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
     );
-    
+
     const responseTime = Date.now() - startTime;
     app.logClientRequest(
       clientName,
@@ -299,9 +298,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       200,
       responseTime,
       req.id,
-      req.headers as Record<string, string | string[]>
+      req.headers as Record<string, string | string[]>,
     );
-    
+
     return getResponseFromData(res, data);
   });
 
@@ -472,7 +471,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       undefined,
       undefined,
       req.id,
-      req.headers as Record<string, string | string[]>
+      req.headers as Record<string, string | string[]>,
     );
 
     const clientRes = await app.updateClientPlaylist(clientName, playlist);
@@ -486,7 +485,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         clientName,
         "error",
         `Error updating playlist: ${clientRes.error}`,
-        req.id
+        req.id,
       );
       return res.code(400).send({
         error: "Bad Request",
@@ -499,8 +498,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     app.logClientActivity(
       clientName,
       "info",
-      `Playlist updated successfully`,
-      req.id
+      "Playlist updated successfully",
+      req.id,
     );
 
     return res.send({

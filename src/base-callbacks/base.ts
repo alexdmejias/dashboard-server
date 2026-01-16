@@ -3,7 +3,7 @@ import path from "node:path";
 import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
-import DB from "../db";
+// import DB from "../db";
 import logger from "../logger";
 import type {
   PossibleTemplateData,
@@ -130,7 +130,10 @@ class CallbackBase<
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
@@ -206,22 +209,22 @@ class CallbackBase<
     return result.data as ConfigType;
   }
 
-  async getDBData<DBTableShape>(
-    tableName: string,
-    transformer?: (tableRow: DBTableShape) => TemplateData,
-  ): PossibleTemplateData<TemplateData> {
-    try {
-      const data = await DB.getRecord<DBTableShape>(tableName);
+  // async getDBData<DBTableShape>(
+  //   tableName: string,
+  //   transformer?: (tableRow: DBTableShape) => TemplateData,
+  // ): PossibleTemplateData<TemplateData> {
+  //   try {
+  //     const data = await DB.getRecord<DBTableShape>(tableName);
 
-      if (!data) {
-        throw new Error(`${this.name}: no data received`);
-      }
+  //     if (!data) {
+  //       throw new Error(`${this.name}: no data received`);
+  //     }
 
-      return transformer ? transformer(data) : (data as TemplateData);
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : (e as string) };
-    }
-  }
+  //     return transformer ? transformer(data) : (data as TemplateData);
+  //   } catch (e) {
+  //     return { error: e instanceof Error ? e.message : (e as string) };
+  //   }
+  // }
 
   async render(
     viewType: SupportedViewType,
@@ -231,10 +234,9 @@ class CallbackBase<
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     // allow callers to supply runtime options (e.g. from a playlist item).
-    const runtimeOptions =
-      typeof options !== "undefined" ? options : this.receivedConfig;
+    const runtimeConfig = this.#buildRuntimeConfig(options);
     const data = await this.getData(
-      runtimeOptions as unknown as Record<string, unknown>,
+      runtimeConfig as unknown as Record<string, unknown>,
     );
 
     let templateOverride: string | undefined;
@@ -266,7 +268,7 @@ class CallbackBase<
           imagePath: await this.#renderAsImage({
             viewType,
             data,
-            runtimeConfig: runtimeOptions as ExpectedConfig,
+            runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
           }),
@@ -279,7 +281,7 @@ class CallbackBase<
         imagePath: await this.#renderAsImage({
           viewType,
           data,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
           imagePath: screenshotPath,
           templateOverride,
         }),
@@ -293,7 +295,7 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
         }),
       };
     }
@@ -340,6 +342,35 @@ class CallbackBase<
       data,
       runtimeConfig,
     });
+  }
+
+  #buildRuntimeConfig(options?: unknown) {
+    const merged =
+      typeof options === "undefined"
+        ? this.receivedConfig
+        : this.#mergeWithReceivedConfig(options);
+
+    if (!this.expectedConfig) {
+      return merged;
+    }
+
+    return this.expectedConfig.parse(merged);
+  }
+
+  #mergeWithReceivedConfig(options: unknown) {
+    if (
+      typeof options === "object" &&
+      options !== null &&
+      typeof this.receivedConfig === "object" &&
+      this.receivedConfig !== null
+    ) {
+      return {
+        ...(this.receivedConfig as Record<string, unknown>),
+        ...(options as Record<string, unknown>),
+      };
+    }
+
+    return options;
   }
 
   #resolveTemplate(name: string, template?: string): string {

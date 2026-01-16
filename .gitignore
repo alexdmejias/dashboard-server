@@ -12,4 +12,5 @@ admin/.solid
 admin/.output
 admin/dist
 db.sqlite
+init-payload.json
 *.sqlite

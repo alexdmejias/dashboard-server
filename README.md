@@ -98,6 +98,45 @@ Create a `.env` file at the project root or export env vars. Example keys used b
 
 Other per-callback env variables are declared in each callback under `envVariablesNeeded`.
 
+## Logging Configuration
+
+The server uses [Pino](https://getpino.io/) for logging with support for remote log management via [Better Stack](https://betterstack.com/) (formerly Logtail).
+
+### Local Logging
+
+By default, logs are displayed in the console with pretty formatting via `pino-pretty`. You can control the log level using the `LOG_LEVEL` environment variable:
+
+```bash
+LOG_LEVEL=info npm run dev
+```
+
+Available log levels: `trace`, `debug`, `info`, `warn`, `error`, `fatal`
+
+### Remote Logging with Better Stack
+
+Better Stack provides a centralized logging platform with search, filtering, and retention capabilities. It's useful for production environments and debugging issues remotely.
+
+**Setting up Better Stack:**
+
+1. Sign up for a free account at [betterstack.com](https://betterstack.com/)
+2. Navigate to the Logs section at [logs.betterstack.com](https://logs.betterstack.com/)
+3. Create a new source and copy your source token
+4. Add the token to your `.env` file:
+
+```bash
+LOGTAIL_SOURCE_TOKEN=your_source_token_here
+```
+
+5. Restart your server
+
+**Free Tier:** Better Stack offers a generous free tier with 1GB of logs per month and 3-day retention, perfect for small projects and development.
+
+When the `LOGTAIL_SOURCE_TOKEN` is configured, logs are sent to both:
+- **Console** (with pino-pretty formatting) - for local development
+- **Better Stack** - for remote viewing and persistence
+
+You can view and search your logs in real-time through the Better Stack dashboard, which provides filtering, querying, and alerting capabilities.
+
 ## How it works (high level)
 
 1. The server registers callbacks listed in `src/index.ts` (it dynamically imports `./callbacks/{name}/index.ts`).
