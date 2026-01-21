@@ -130,7 +130,10 @@ class CallbackBase<
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
