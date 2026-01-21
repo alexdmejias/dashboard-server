@@ -1,7 +1,5 @@
 // import * as Sentry from "@sentry/node";
-import * as dotenv from "dotenv";
 import "./instrument";
-dotenv.config();
 
 import fs from "node:fs/promises";
 import os from "node:os";

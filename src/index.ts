@@ -1,10 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import * as dotenv from "dotenv";
 import getApp from "./app";
 import type { PossibleCallbacks } from "./types";
-
-dotenv.config();
 
 const start = async () => {
   const callbacks: { callbackName: string }[] = [
