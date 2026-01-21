@@ -1,5 +1,9 @@
-import { createSignal, For, Show, createMemo } from "solid-js";
-import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import {
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from "@tanstack/solid-query";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
 
 interface PlaylistItem {
@@ -15,20 +19,38 @@ interface AvailableCallback {
 }
 
 // Shared utility function for parsing JSON options
-function parseOptions(optionsStr: string): { result: Record<string, unknown>; error?: string } {
+function parseOptions(optionsStr: string): {
+  result: Record<string, unknown>;
+  error?: string;
+} {
   try {
     const parsed = JSON.parse(optionsStr);
     return { result: parsed };
   } catch (e) {
-    return { result: {}, error: e instanceof Error ? e.message : "Invalid JSON" };
+    return {
+      result: {},
+      error: e instanceof Error ? e.message : "Invalid JSON",
+    };
   }
 }
 
-export function PlaylistEditor(props: { clientName: string; initialPlaylist: PlaylistItem[] }) {
-  const [playlist, setPlaylist] = createSignal<PlaylistItem[]>([...props.initialPlaylist]);
+export function PlaylistEditor(props: {
+  clientName: string;
+  initialPlaylist: PlaylistItem[];
+}) {
+  const [playlist, setPlaylist] = createSignal<PlaylistItem[]>([
+    ...props.initialPlaylist,
+  ]);
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null);
   const [isAddingNew, setIsAddingNew] = createSignal(false);
-  const [newItem, setNewItem] = createSignal<PlaylistItem>({ id: "", callbackName: "", options: {} });
+  const [newItem, setNewItem] = createSignal<PlaylistItem>({
+    id: "",
+    callbackName: "",
+    options: {},
+  });
+  const [newItemOptionsInput, setNewItemOptionsInput] = createSignal<string>(
+    JSON.stringify({}, null, 2),
+  );
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal(false);
   const [jsonError, setJsonError] = createSignal<string | null>(null);
@@ -68,15 +90,20 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
       setError("ID and Callback Name are required");
       return;
     }
-    
     // Check for duplicate ID
-    if (playlist().some(p => p.id === item.id)) {
+    if (playlist().some((p) => p.id === item.id)) {
       setError("ID must be unique");
       return;
     }
-
-    setPlaylist([...playlist(), { ...item }]);
+    // Parse options from input
+    const { result, error: optionsError } = parseOptions(newItemOptionsInput());
+    if (optionsError) {
+      setJsonError(optionsError);
+      return;
+    }
+    setPlaylist([...playlist(), { ...item, options: result }]);
     setNewItem({ id: "", callbackName: "", options: {} });
+    setNewItemOptionsInput(JSON.stringify({}, null, 2));
     setIsAddingNew(false);
     setError(null);
     setJsonError(null);
@@ -89,14 +116,20 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
   const handleMoveUp = (index: number) => {
     if (index === 0) return;
     const newPlaylist = [...playlist()];
-    [newPlaylist[index - 1], newPlaylist[index]] = [newPlaylist[index], newPlaylist[index - 1]];
+    [newPlaylist[index - 1], newPlaylist[index]] = [
+      newPlaylist[index],
+      newPlaylist[index - 1],
+    ];
     setPlaylist(newPlaylist);
   };
 
   const handleMoveDown = (index: number) => {
     if (index === playlist().length - 1) return;
     const newPlaylist = [...playlist()];
-    [newPlaylist[index], newPlaylist[index + 1]] = [newPlaylist[index + 1], newPlaylist[index]];
+    [newPlaylist[index], newPlaylist[index + 1]] = [
+      newPlaylist[index + 1],
+      newPlaylist[index],
+    ];
     setPlaylist(newPlaylist);
   };
 
@@ -116,20 +149,31 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
   };
 
   const handleOptionsInput = (value: string) => {
-    const { result, error } = parseOptions(value);
-    setNewItem({ ...newItem(), options: result });
+    setNewItemOptionsInput(value);
+    const { error } = parseOptions(value);
     setJsonError(error || null);
+    // Do not update newItem().options until add
   };
 
   return (
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <h2 class="card-title">Playlist Editor</h2>
-        
+
         <Show when={error()}>
           <div class="alert alert-error">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>{error()}</span>
           </div>
@@ -137,8 +181,18 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
 
         <Show when={success()}>
           <div class="alert alert-success">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>Playlist updated successfully!</span>
           </div>
@@ -154,9 +208,17 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
                   <div class="flex items-center gap-2 p-4 border border-base-300 rounded-lg">
                     <div class="flex-1">
                       <div class="font-bold">{item.id}</div>
-                      <div class="text-sm text-gray-500">{item.callbackName}</div>
-                      <Show when={item.options && Object.keys(item.options).length > 0}>
-                        <div class="text-xs font-mono mt-1">{JSON.stringify(item.options)}</div>
+                      <div class="text-sm text-gray-500">
+                        {item.callbackName}
+                      </div>
+                      <Show
+                        when={
+                          item.options && Object.keys(item.options).length > 0
+                        }
+                      >
+                        <div class="text-xs font-mono mt-1">
+                          {JSON.stringify(item.options)}
+                        </div>
                       </Show>
                     </div>
                     <div class="flex gap-1">
@@ -226,7 +288,9 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
                   placeholder="unique-id"
                   class="input input-bordered"
                   value={newItem().id}
-                  onInput={(e) => setNewItem({ ...newItem(), id: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setNewItem({ ...newItem(), id: e.currentTarget.value })
+                  }
                 />
               </div>
               <div class="form-control">
@@ -236,7 +300,12 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
                 <select
                   class="select select-bordered"
                   value={newItem().callbackName}
-                  onChange={(e) => setNewItem({ ...newItem(), callbackName: e.currentTarget.value })}
+                  onChange={(e) =>
+                    setNewItem({
+                      ...newItem(),
+                      callbackName: e.currentTarget.value,
+                    })
+                  }
                 >
                   <option value="">Select callback...</option>
                   <For each={callbacksQuery.data?.callbacks || []}>
@@ -252,9 +321,9 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
                 <span class="label-text">Options (JSON)</span>
               </label>
               <textarea
-                class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? 'textarea-error' : ''}`}
+                class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? "textarea-error" : ""}`}
                 placeholder='{"key": "value"}'
-                value={JSON.stringify(newItem().options || {}, null, 2)}
+                value={newItemOptionsInput()}
                 onInput={(e) => handleOptionsInput(e.currentTarget.value)}
                 rows={3}
               />
@@ -265,10 +334,20 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
               </Show>
             </div>
             <div class="flex gap-2 mt-4">
-              <button onClick={handleAddCallback} class="btn btn-primary" disabled={!!jsonError()}>
+              <button
+                onClick={handleAddCallback}
+                class="btn btn-primary"
+                disabled={!!jsonError()}
+              >
                 Add
               </button>
-              <button onClick={() => { setIsAddingNew(false); setJsonError(null); }} class="btn btn-ghost">
+              <button
+                onClick={() => {
+                  setIsAddingNew(false);
+                  setJsonError(null);
+                }}
+                class="btn btn-ghost"
+              >
                 Cancel
               </button>
             </div>
@@ -276,14 +355,14 @@ export function PlaylistEditor(props: { clientName: string; initialPlaylist: Pla
         </Show>
 
         {/* Save Button */}
-        <div class="divider"></div>
+        <div class="divider" />
         <button
           onClick={handleSave}
           class="btn btn-success"
           disabled={updateMutation.isPending}
         >
           <Show when={updateMutation.isPending}>
-            <span class="loading loading-spinner"></span>
+            <span class="loading loading-spinner" />
           </Show>
           Save Playlist
         </button>
@@ -298,13 +377,28 @@ function EditablePlaylistItem(props: {
   onSave: (item: PlaylistItem) => void;
   onCancel: () => void;
 }) {
-  const [editedItem, setEditedItem] = createSignal<PlaylistItem>({ ...props.item });
+  const [editedItem, setEditedItem] = createSignal<PlaylistItem>({
+    ...props.item,
+  });
+  const [optionsInput, setOptionsInput] = createSignal<string>(
+    JSON.stringify(props.item.options || {}, null, 2),
+  );
   const [jsonError, setJsonError] = createSignal<string | null>(null);
 
   const handleOptionsInput = (value: string) => {
-    const { result, error } = parseOptions(value);
-    setEditedItem({ ...editedItem(), options: result });
+    setOptionsInput(value);
+    const { error } = parseOptions(value);
     setJsonError(error || null);
+    // Do not update editedItem().options until save
+  };
+
+  const handleSave = () => {
+    const { result, error } = parseOptions(optionsInput());
+    if (error) {
+      setJsonError(error);
+      return;
+    }
+    props.onSave({ ...editedItem(), options: result });
   };
 
   return (
@@ -319,7 +413,9 @@ function EditablePlaylistItem(props: {
             type="text"
             class="input input-bordered"
             value={editedItem().id}
-            onInput={(e) => setEditedItem({ ...editedItem(), id: e.currentTarget.value })}
+            onInput={(e) =>
+              setEditedItem({ ...editedItem(), id: e.currentTarget.value })
+            }
           />
         </div>
         <div class="form-control">
@@ -329,7 +425,12 @@ function EditablePlaylistItem(props: {
           <select
             class="select select-bordered"
             value={editedItem().callbackName}
-            onChange={(e) => setEditedItem({ ...editedItem(), callbackName: e.currentTarget.value })}
+            onChange={(e) =>
+              setEditedItem({
+                ...editedItem(),
+                callbackName: e.currentTarget.value,
+              })
+            }
           >
             <For each={props.availableCallbacks}>
               {(callback) => (
@@ -344,8 +445,8 @@ function EditablePlaylistItem(props: {
           <span class="label-text">Options (JSON)</span>
         </label>
         <textarea
-          class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? 'textarea-error' : ''}`}
-          value={JSON.stringify(editedItem().options || {}, null, 2)}
+          class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? "textarea-error" : ""}`}
+          value={optionsInput()}
           onInput={(e) => handleOptionsInput(e.currentTarget.value)}
           rows={3}
         />
@@ -356,7 +457,11 @@ function EditablePlaylistItem(props: {
         </Show>
       </div>
       <div class="flex gap-2 mt-4">
-        <button onClick={() => props.onSave(editedItem())} class="btn btn-primary" disabled={!!jsonError()}>
+        <button
+          onClick={handleSave}
+          class="btn btn-primary"
+          disabled={!!jsonError()}
+        >
           Save
         </button>
         <button onClick={props.onCancel} class="btn btn-ghost">
