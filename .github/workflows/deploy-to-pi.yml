@@ -39,6 +39,12 @@ jobs:
       #     npm test
       #   continue-on-error:  true  # Don't fail deployment if tests fail
 
+      - name: Build admin app
+        run: |
+          cd admin
+          npm install --silent
+          npm run build
+
       - name: Restart PM2 app
         run: |
           export NVM_DIR="$HOME/.nvm"
