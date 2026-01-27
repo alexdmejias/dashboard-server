@@ -8,7 +8,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:admin\"",
-    "dev:server": "tsx --env-file=./.env ]--watch src --ignore 'src/**/*.test.ts, admin/' src/index.ts",
+    "dev:server": "tsx --env-file=./.env --watch src --ignore 'src/**/*.test.ts, admin/' src/index.ts",
     "dev:admin": "cd admin && npm install --silent && npm run dev",
     "start": "tsx --env-file=./.env src/index.ts",
     "test": "ENV=test jest --maxWorkers=2",
