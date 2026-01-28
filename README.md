@@ -1,3 +1,4 @@
+1. endpoint to register heart beat from device or register when the last request was made
 1.should add a picture callback to display images/movies/gifs
 2.switch to vitest
 3. move pupperter to docker image
@@ -55,7 +56,7 @@ You can also run individual build steps:
 
 ### Admin Interface
 
-The server includes a web-based admin interface for monitoring connected clients in real-time. 
+The server includes a web-based admin interface for monitoring connected clients in real-time.
 
 **Development**: Access at `http://localhost:3001` (Vite dev server with HMR)
 **Production**: Access at `http://localhost:3333/` (served by Fastify)
