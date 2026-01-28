@@ -3,7 +3,7 @@ import path from "node:path";
 import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
-import DB from "../db";
+// import DB from "../db";
 import logger from "../logger";
 import type {
   PossibleTemplateData,
@@ -130,7 +130,10 @@ class CallbackBase<
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
@@ -206,22 +209,22 @@ class CallbackBase<
     return result.data as ConfigType;
   }
 
-  async getDBData<DBTableShape>(
-    tableName: string,
-    transformer?: (tableRow: DBTableShape) => TemplateData,
-  ): PossibleTemplateData<TemplateData> {
-    try {
-      const data = await DB.getRecord<DBTableShape>(tableName);
+  // async getDBData<DBTableShape>(
+  //   tableName: string,
+  //   transformer?: (tableRow: DBTableShape) => TemplateData,
+  // ): PossibleTemplateData<TemplateData> {
+  //   try {
+  //     const data = await DB.getRecord<DBTableShape>(tableName);
 
-      if (!data) {
-        throw new Error(`${this.name}: no data received`);
-      }
+  //     if (!data) {
+  //       throw new Error(`${this.name}: no data received`);
+  //     }
 
-      return transformer ? transformer(data) : (data as TemplateData);
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : (e as string) };
-    }
-  }
+  //     return transformer ? transformer(data) : (data as TemplateData);
+  //   } catch (e) {
+  //     return { error: e instanceof Error ? e.message : (e as string) };
+  //   }
+  // }
 
   async render(
     viewType: SupportedViewType,

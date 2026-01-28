@@ -1,10 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import * as dotenv from "dotenv";
 import getApp from "./app";
 import type { PossibleCallbacks } from "./types";
-
-dotenv.config();
 
 const start = async () => {
   const callbacks: { callbackName: string }[] = [
@@ -12,6 +9,7 @@ const start = async () => {
     { callbackName: "weather" },
     { callbackName: "year-progress" },
     { callbackName: "calendar" },
+    { callbackName: "todoist" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
   const currentExtension = __filename.endsWith(".ts") ? "ts" : "js";
@@ -38,6 +36,10 @@ const start = async () => {
       initPayload.forEach(async (item) => {
         await app.inject(item);
       });
+    } else {
+      app.log.warn(
+        "No init-payload.json file found. Skipping initial payload injection.",
+      );
     }
 
     app.log.info(`Server running on port ${port}`);

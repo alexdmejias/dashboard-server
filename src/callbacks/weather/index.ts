@@ -47,7 +47,7 @@ class CallbackWeather extends CallbackBase<
     const { zipcode } = config;
 
     const data = await fetch(
-      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
+      `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
     );
     return (await data.json()) as WeatherApiResponseRoot;
   }
@@ -60,7 +60,7 @@ class CallbackWeather extends CallbackBase<
       current: payload.current.temp_f,
       condition: {
         text: payload.current.condition.text,
-        image: `http:${payload.current.condition.icon}`,
+        image: `https:${payload.current.condition.icon}`,
       },
     };
   }
