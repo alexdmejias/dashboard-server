@@ -6,7 +6,7 @@
     {% for section in sectionGroups %}
       {% if section.items and section.items.size > 0 %}
         {% assign hasItems = true %}
-        <div class="column gap p--2.5 bg--gray-65 2bit:bg--gray-75 4bit:bg--gray-70 rounded--medium text--center">
+        <div class="column gap p--2.5 bg--gray-10 rounded--medium text--center">
           <span class="label text-stroke">{{section.name}}</span>
           {% for item in section.items %}
             <div class="flex flex--center p--2.5 rounded--small bg--white w--full">
