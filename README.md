@@ -178,7 +178,40 @@ flowchart LR
   classDef infra fill:#f8f9fa,stroke:#ddd
   class ImageStore,ImageServer infra
 ```
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastifyServer as Fastify Server
+    participant CallbackLoader as Callback Loader (src/index.ts)
+    participant Callback as Callback (src/callbacks/*)
+    participant TemplateRenderer as Renderer (getRenderedTemplate)
+    participant EjsOrLiquid as EJS/Liquid Engine
+    participant Puppeteer as (optional) Puppeteer
+    participant FileStorage as Image Storage
 
+    Note over FastifyServer: Server starts up
+    FastifyServer->>CallbackLoader: Dynamically import/initialize callbacks
+    CallbackLoader->>Callback: Register callback metadata, config, template
+
+    Note over User, FastifyServer: User issues HTTP request (/display/... or /test-template)
+    User->>FastifyServer: Send HTTP API request
+
+    FastifyServer->>Callback: Invoke callback (getData), validate config
+    Callback-->>FastifyServer: Return data
+
+    FastifyServer->>TemplateRenderer: getRenderedTemplate({ template, data, runtimeConfig })
+    TemplateRenderer->>EjsOrLiquid: Render using correct engine
+    EjsOrLiquid-->>TemplateRenderer: Return rendered HTML
+
+    alt Output is HTML
+        TemplateRenderer-->>FastifyServer: Return HTML
+        FastifyServer->>User: Send HTML response
+    else Output is PNG/BMP
+        TemplateRenderer->>Puppeteer: Render HTML and capture screenshot
+        Puppeteer->>FileStorage: Write image to /public/images
+        FastifyServer->>User: Send image URL or binary response
+    end
+```
 Notes
 - Code: callbacks live under `src/callbacks/` and templates under the callbacks' template files (e.g. `template.ejs`).
 - Rendering: the renderer logic is in `src/utils/getScreenshot.ts` and related utilities (Puppeteer is used to render and capture screenshots).
