@@ -20,16 +20,17 @@
 
             <div class="event-category p--xsmall">
               <div class="mb--xsmall WASD">
-                <span class="label label--xsmall label--muted">{{ categoryLabel }}</span>
+                <span class="label label--xsmall label--muted gray-35">{{ categoryLabel }}</span>
               </div>
               {% if events and events.size > 0 %}
                 {% for event in events %}
                   <div class="item mb--xsmall p--1">
                     <div class="content text--center">
-                      <p class="value value--xsmall">{{ event.title }}</p>
-                      {% if showTimes == "true" %}
-                        <p class="value value--xsmall flex">{{ event.start }} - {{ event.end }}</p>
-                      {% endif %}
+                      <span class="label label--base label--inverted p-1">{{event.title}}
+                        {% if showTimes == "true" %}
+                          {{ event.start }} - {{ event.end }}
+                        {% endif %}
+                      </span>
                     </div>
                   </div>
                 {% endfor %}
@@ -60,5 +61,12 @@
   }
   .WASD {
     text-align: center;
+  }
+
+  .content {
+    display: flex;
+    align-items: center;
+    background-color: black;
+    color: white;
   }
 </style>

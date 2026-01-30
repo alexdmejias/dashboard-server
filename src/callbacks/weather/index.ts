@@ -78,7 +78,7 @@ class CallbackWeather extends CallbackBase<
         date: date.toDateString().slice(0, -5),
         condition: {
           text: condition.text,
-          image: `http:${condition.icon}`,
+          image: `https:${condition.icon}`,
         },
       };
     });
