@@ -123,8 +123,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist?: {
         id: string;
-        callbackName: string;
-        options?: Record<string, unknown>;
+        layout: "full" | "split";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/register/:clientName", async (req, res) => {
@@ -438,8 +441,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist: {
         id: string;
-        callbackName: string;
-        options?: Record<string, unknown>;
+        layout: "full" | "split";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/api/clients/:clientName/playlist", async (req, res) => {

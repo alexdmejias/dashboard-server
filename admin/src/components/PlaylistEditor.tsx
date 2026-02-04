@@ -8,8 +8,11 @@ import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
 
 interface PlaylistItem {
   id: string;
-  callbackName: string;
-  options?: Record<string, unknown>;
+  layout: "full" | "split";
+  callbacks: Array<{
+    name: string;
+    options?: Record<string, unknown>;
+  }>;
 }
 
 interface AvailableCallback {

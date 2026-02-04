@@ -33,8 +33,17 @@ function validatePlaylist(
     .array(
       z.object({
         id: z.string().min(1, "ID must be a non-empty string"),
-        callbackName: z.literal(Object.keys(possibleCallbacks)),
-        options: z.object().optional().default({}),
+        layout: z.enum(["full", "split"], {
+          errorMap: () => ({ message: "Layout must be 'full' or 'split'" }),
+        }),
+        callbacks: z
+          .array(
+            z.object({
+              name: z.string().min(1, "Callback name must be a non-empty string"),
+              options: z.record(z.unknown()).optional(),
+            }),
+          )
+          .min(1, "Callbacks array must contain at least one callback"),
       }),
     )
     .min(1, "Playlist must contain at least one item")
@@ -47,6 +56,38 @@ function validatePlaylist(
           input: ctx.value,
           continue: true,
         });
+      }
+
+      // Validate layout-specific callback counts
+      for (const item of ctx.value) {
+        if (item.layout === "full" && item.callbacks.length !== 1) {
+          ctx.issues.push({
+            code: "custom",
+            message: `Playlist item "${item.id}" with layout "full" must have exactly 1 callback, found ${item.callbacks.length}`,
+            input: item,
+            continue: true,
+          });
+        }
+        if (item.layout === "split" && item.callbacks.length !== 2) {
+          ctx.issues.push({
+            code: "custom",
+            message: `Playlist item "${item.id}" with layout "split" must have exactly 2 callbacks, found ${item.callbacks.length}`,
+            input: item,
+            continue: true,
+          });
+        }
+
+        // Validate that all callback names exist in possibleCallbacks
+        for (const callback of item.callbacks) {
+          if (!(callback.name in possibleCallbacks)) {
+            ctx.issues.push({
+              code: "custom",
+              message: `Callback "${callback.name}" in playlist item "${item.id}" does not exist in available callbacks`,
+              input: callback,
+              continue: true,
+            });
+          }
+        }
       }
     });
 
@@ -73,25 +114,30 @@ async function createClientFromPlaylist(
 
   let errors = "";
   for (const playlistItem of playlist) {
-    try {
-      const a = possibleCallbacks[playlistItem.callbackName];
-      const callbackFn = a.callback;
-      const ins = new callbackFn(playlistItem.options) as CallbackBase;
+    for (const callback of playlistItem.callbacks) {
+      try {
+        const callbackDef = possibleCallbacks[callback.name];
+        const callbackFn = callbackDef.callback;
+        const ins = new callbackFn(callback.options) as CallbackBase;
 
-      callbackFn.checkRuntimeConfig(a.expectedConfig, playlistItem.options);
+        callbackFn.checkRuntimeConfig(callbackDef.expectedConfig, callback.options);
 
-      validCallbacks.push({
-        instance: ins,
-        id: playlistItem.id,
-        name: a.name,
-        expectedConfig: a.expectedConfig,
-      });
-    } catch (e) {
-      errors += `Error while validating item "${playlistItem.id}" ${
-        e instanceof ZodError
-          ? z.prettifyError(e).replaceAll(/\n/g, "")
-          : (e as Error).message
-      }}`;
+        // Create unique ID: playlistItemId-callbackName
+        const uniqueId = `${playlistItem.id}-${callback.name}`;
+
+        validCallbacks.push({
+          instance: ins,
+          id: uniqueId,
+          name: callbackDef.name,
+          expectedConfig: callbackDef.expectedConfig,
+        });
+      } catch (e) {
+        errors += `Error while validating callback "${callback.name}" in item "${playlistItem.id}": ${
+          e instanceof ZodError
+            ? z.prettifyError(e).replaceAll(/\n/g, "")
+            : (e as Error).message
+        } `;
+      }
     }
   }
 
