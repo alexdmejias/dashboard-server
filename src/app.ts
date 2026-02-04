@@ -263,14 +263,15 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         }
 
         // Find the playlist item that contains this callback
-        // The callback ID format is: playlistItemId-callbackName
+        // The callback ID format is: playlistItemId-callbackName-index
         // So we need to find which playlist item this belongs to
         let playlistItem: PlaylistItem | undefined;
         let callbackOptions: Record<string, unknown> | undefined;
         
         for (const item of client.getConfig().playlist) {
-          for (const cb of item.callbacks) {
-            const expectedCallbackId = `${item.id}-${cb.name}`;
+          for (let i = 0; i < item.callbacks.length; i++) {
+            const cb = item.callbacks[i];
+            const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
             if (expectedCallbackId === callback) {
               playlistItem = item;
               callbackOptions = cb.options as Record<string, unknown> | undefined;

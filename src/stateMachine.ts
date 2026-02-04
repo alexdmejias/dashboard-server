@@ -101,7 +101,7 @@ class StateMachine {
 
     // For layouts, we need to render all callbacks and combine them
     const callbackIds = playlistItem.callbacks.map(
-      (cb) => `${playlistItem.id}-${cb.name}`
+      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`
     );
 
     // Get all callback instances for this playlist item

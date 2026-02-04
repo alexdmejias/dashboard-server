@@ -114,7 +114,8 @@ async function createClientFromPlaylist(
 
   let errors = "";
   for (const playlistItem of playlist) {
-    for (const callback of playlistItem.callbacks) {
+    for (let callbackIndex = 0; callbackIndex < playlistItem.callbacks.length; callbackIndex++) {
+      const callback = playlistItem.callbacks[callbackIndex];
       try {
         const callbackDef = possibleCallbacks[callback.name];
         const callbackFn = callbackDef.callback;
@@ -122,8 +123,9 @@ async function createClientFromPlaylist(
 
         callbackFn.checkRuntimeConfig(callbackDef.expectedConfig, callback.options);
 
-        // Create unique ID: playlistItemId-callbackName
-        const uniqueId = `${playlistItem.id}-${callback.name}`;
+        // Create unique ID: playlistItemId-callbackName-index
+        // Include index to support multiple instances of the same callback
+        const uniqueId = `${playlistItem.id}-${callback.name}-${callbackIndex}`;
 
         validCallbacks.push({
           instance: ins,

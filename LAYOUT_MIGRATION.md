@@ -43,7 +43,8 @@ This document summarizes the implementation of the layout-based playlist system 
 
 #### Client Creation (`src/plugins/clients.ts`)
 - Updated `createClientFromPlaylist()` to loop through callbacks array
-- Generates unique callback IDs: `${playlistItem.id}-${callbackName}`
+- Generates unique callback IDs: `${playlistItem.id}-${callbackName}-${index}`
+- Index ensures uniqueness when same callback appears multiple times
 - Validates each callback's options independently
 
 #### StateMachine (`src/stateMachine.ts`)
@@ -234,10 +235,34 @@ The migration script ensures backward compatibility:
    - Split layout requires HTML rendering to combine callbacks
    - The system will return an error if attempting split layout with non-HTML view types
 
-2. **Callback ID format changed**
-   - Old format: Callback ID = Playlist Item ID
-   - New format: Callback ID = `${playlistItemId}-${callbackName}`
-   - Direct callback access via URL must use new format
+2. **Callback ID format**
+   - Format: Callback ID = `${playlistItemId}-${callbackName}-${index}`
+   - Index starts at 0 for first callback in the array
+   - Allows same callback to appear multiple times with different options
+   - Direct callback access via URL must use format with index
+
+**Example with duplicate callbacks:**
+```bash
+# Register client with two weather callbacks
+curl -X POST http://localhost:3000/register/test-client \
+  -H "Content-Type: application/json" \
+  -d '{
+    "playlist": [{
+      "id": "one",
+      "layout": "split",
+      "callbacks": [
+        {"name": "weather", "options": {"zipcode": "94103"}},
+        {"name": "weather", "options": {"zipcode": "10001"}}
+      ]
+    }]
+  }'
+
+# Access first weather callback (index 0)
+curl http://localhost:3000/display/test-client/html/one-weather-0
+
+# Access second weather callback (index 1)
+curl http://localhost:3000/display/test-client/html/one-weather-1
+```
 
 ## Performance Considerations
 
