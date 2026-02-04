@@ -23,5 +23,25 @@
       "source.organizeImports.biome": "explicit",
       "source.fixAll.biome": "explicit"
     }
-  }
+  },
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#b02241",
+    "activityBar.background": "#b02241",
+    "activityBar.foreground": "#e7e7e7",
+    "activityBar.inactiveForeground": "#e7e7e799",
+    "activityBarBadge.background": "#14350a",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "commandCenter.border": "#e7e7e799",
+    "sash.hoverBorder": "#b02241",
+    "statusBar.background": "#851a31",
+    "statusBar.foreground": "#e7e7e7",
+    "statusBarItem.hoverBackground": "#b02241",
+    "statusBarItem.remoteBackground": "#851a31",
+    "statusBarItem.remoteForeground": "#e7e7e7",
+    "titleBar.activeBackground": "#851a31",
+    "titleBar.activeForeground": "#e7e7e7",
+    "titleBar.inactiveBackground": "#851a3199",
+    "titleBar.inactiveForeground": "#e7e7e799"
+  },
+  "peacock.color": "#851a31"
 }

@@ -8,11 +8,21 @@ type CalendarEvent = {
   start: string; // ISO date string
   end: string; // ISO date string
   allDay: boolean;
+  category: "allDay" | "morning" | "afternoon" | "evening" | "night";
+};
+
+type EventsByCategory = {
+  allDay: CalendarEvent[];
+  morning: CalendarEvent[];
+  afternoon: CalendarEvent[];
+  evening: CalendarEvent[];
+  night: CalendarEvent[];
 };
 
 type DayEvents = {
   date: string; // formatted date string (e.g., "Mon Jan 5")
   events: CalendarEvent[];
+  eventsByCategory: EventsByCategory;
 };
 
 type CalendarData = {
@@ -27,6 +37,7 @@ export const expectedConfig = z.object({
   maxEventsPerDay: z.number().default(5),
   daysToFetch: z.number().int().min(1).max(30).default(7),
   title: z.string().optional(),
+  timezone: z.string().default("America/New_York"),
 });
 
 type ConfigType = z.infer<typeof expectedConfig>;
@@ -40,6 +51,7 @@ class CallbackCalendar extends CallbackBase<
     maxEventsPerDay: 5,
     daysToFetch: 7,
     title: "Weekly Calendar",
+    timezone: "America/New_York",
   };
 
   constructor(options = {}) {
@@ -171,6 +183,51 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
+   * Get current date at midnight in the specified timezone
+   * 
+   * This method extracts the current calendar day in the specified timezone and creates
+   * a Date object representing midnight of that day. The Date object itself is in
+   * the local timezone, but represents the correct calendar day from the target timezone's perspective.
+   * This is used for date arithmetic to calculate day differences.
+   */
+  private getNowInTimezone(timezone: string): Date {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    
+    const parts = formatter.formatToParts(new Date());
+    const year = parseInt(parts.find(p => p.type === 'year')!.value);
+    const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
+    const day = parseInt(parts.find(p => p.type === 'day')!.value);
+    
+    // Create date at midnight for the calendar day in the specified timezone
+    // Note: The Date object is in local timezone but represents the target timezone's calendar day
+    const date = new Date(year, month, day, 0, 0, 0, 0);
+    return date;
+  }
+
+  /**
+   * Parse a date string (YYYY-MM-DD) as a calendar day
+   * 
+   * For all-day events, Google Calendar provides dates in YYYY-MM-DD format without
+   * timezone information. This method parses such dates as calendar days, which is
+   * appropriate for all-day events. 
+   * 
+   * The resulting Date object is created in the local timezone at midnight for the 
+   * specified calendar day. It is used only for date arithmetic (calculating which 
+   * day slot the event belongs to) in conjunction with getNowInTimezone(), ensuring 
+   * consistent day-based comparisons.
+   */
+  private parseDate(dateStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Create date at midnight for the calendar day, month is 0-indexed
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  /**
    * Format date as "Mon Jan 5"
    */
   private formatDate(date: Date): string {
@@ -185,11 +242,10 @@ class CallbackCalendar extends CallbackBase<
   private formatTime(date: Date): string {
     let hours = date.getHours();
     const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
     hours = hours ? hours : 12; // 0 should be 12
     const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
-    return `${hours}:${minutesStr} ${ampm}`;
+    return `${hours}:${minutesStr}`;
   }
 
   /**
@@ -208,7 +264,43 @@ class CallbackCalendar extends CallbackBase<
     if (!startStr) {
       throw new Error("Event has no start date");
     }
+    
+    // For all-day events, parse as calendar day
+    if (event.start?.date && !event.start?.dateTime) {
+      return this.parseDate(startStr);
+    }
+    
     return new Date(startStr);
+  }
+
+  /**
+   * Categorize event by time of day based on start time
+   * Morning: 5:00 AM - 11:59 AM
+   * Afternoon: 12:00 PM - 4:59 PM
+   * Evening: 5:00 PM - 8:59 PM
+   * Night: 9:00 PM - 4:59 AM
+   */
+  private categorizeEventByTime(
+    event: GoogleCalendarEvent,
+    isAllDay: boolean,
+  ): CalendarEvent["category"] {
+    if (isAllDay) {
+      return "allDay";
+    }
+
+    const startDate = this.getEventStart(event);
+    const hour = startDate.getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return "morning";
+    }
+    if (hour >= 12 && hour < 17) {
+      return "afternoon";
+    }
+    if (hour >= 17 && hour < 21) {
+      return "evening";
+    }
+    return "night";
   }
 
   /**
@@ -222,8 +314,7 @@ class CallbackCalendar extends CallbackBase<
 
     // Create array of the configured window of days
     const days: DayEvents[] = [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const now = this.getNowInTimezone(config.timezone);
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
     for (let i = 0; i < daysToFetch; i++) {
@@ -233,6 +324,13 @@ class CallbackCalendar extends CallbackBase<
       days.push({
         date: this.formatDate(date),
         events: [],
+        eventsByCategory: {
+          allDay: [],
+          morning: [],
+          afternoon: [],
+          evening: [],
+          night: [],
+        },
       });
     }
 
@@ -272,11 +370,15 @@ class CallbackCalendar extends CallbackBase<
           start: startFormatted,
           end: endFormatted,
           allDay: isAllDay,
+          category: this.categorizeEventByTime(event, isAllDay),
         };
 
-        // Respect maxEventsPerDay limit
+        // Respect maxEventsPerDay limit for both events array and eventsByCategory
         if (days[dayIndex].events.length < config.maxEventsPerDay) {
           days[dayIndex].events.push(calendarEvent);
+          days[dayIndex].eventsByCategory[calendarEvent.category].push(
+            calendarEvent,
+          );
         }
       }
     }

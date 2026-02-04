@@ -2,9 +2,8 @@ module.exports = {
   apps: [
     {
       name: "dashboard-server",
-      script: "./dist/index.js",
-      // cwd is omitted - PM2 will use the directory from which it's started
-      // This makes the config portable and works with GitHub Actions
+      script: "npm",
+      args: "start",
       instances: 1,
       autorestart: true,
       watch: false,

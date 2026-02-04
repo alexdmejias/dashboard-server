@@ -3,7 +3,7 @@ import path from "node:path";
 import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
-import DB from "../db";
+// import DB from "../db";
 import logger from "../logger";
 import type {
   PossibleTemplateData,
@@ -12,9 +12,9 @@ import type {
   SupportedViewType,
   TemplateDataError,
 } from "../types";
+import { getBrowserRendererType } from "../utils/getBrowserRendererType";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import getScreenshot from "../utils/getScreenshot";
-import { getBrowserRendererType } from "../utils/getBrowserRendererType";
 import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 
@@ -131,7 +131,10 @@ class CallbackBase<
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
@@ -207,22 +210,22 @@ class CallbackBase<
     return result.data as ConfigType;
   }
 
-  async getDBData<DBTableShape>(
-    tableName: string,
-    transformer?: (tableRow: DBTableShape) => TemplateData,
-  ): PossibleTemplateData<TemplateData> {
-    try {
-      const data = await DB.getRecord<DBTableShape>(tableName);
+  // async getDBData<DBTableShape>(
+  //   tableName: string,
+  //   transformer?: (tableRow: DBTableShape) => TemplateData,
+  // ): PossibleTemplateData<TemplateData> {
+  //   try {
+  //     const data = await DB.getRecord<DBTableShape>(tableName);
 
-      if (!data) {
-        throw new Error(`${this.name}: no data received`);
-      }
+  //     if (!data) {
+  //       throw new Error(`${this.name}: no data received`);
+  //     }
 
-      return transformer ? transformer(data) : (data as TemplateData);
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : (e as string) };
-    }
-  }
+  //     return transformer ? transformer(data) : (data as TemplateData);
+  //   } catch (e) {
+  //     return { error: e instanceof Error ? e.message : (e as string) };
+  //   }
+  // }
 
   async render(
     viewType: SupportedViewType,
@@ -248,19 +251,39 @@ class CallbackBase<
     }
 
     if (isSupportedImageViewType(viewType)) {
-      if (this.cacheable && templateOverride !== "error") {
-        const newDataCache = objectHash(data);
-        const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.${viewType}`,
-        );
-        if (newDataCache === this.oldDataCache) {
+      try {
+        if (this.cacheable && templateOverride !== "error") {
+          const newDataCache = objectHash(data);
+          const screenshotPath = getImagesPath(
+            `${this.name}-${newDataCache}.${viewType}`,
+          );
+          if (newDataCache === this.oldDataCache) {
+            return {
+              viewType,
+              imagePath: screenshotPath,
+            };
+          }
+
+          this.oldDataCache = newDataCache;
           return {
             viewType,
-            imagePath: screenshotPath,
+            imagePath: await this.#renderAsImage({
+              viewType,
+              data,
+              runtimeConfig: runtimeConfig as ExpectedConfig,
+              imagePath: screenshotPath,
+              templateOverride,
+              clientName: this.name,
+            }),
           };
         }
 
-        this.oldDataCache = newDataCache;
+        // const screenshotPath = getImagesPath(`image.${viewType}`);
+
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
         return {
           viewType,
           imagePath: await this.#renderAsImage({
@@ -272,23 +295,30 @@ class CallbackBase<
             clientName: this.name,
           }),
         };
-      }
 
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(2, 8);
-      const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
-      const screenshotPath = getImagesPath(fileName);
-      return {
-        viewType,
-        imagePath: await this.#renderAsImage({
-          viewType,
-          data,
-          runtimeConfig: runtimeConfig as ExpectedConfig,
-          imagePath: screenshotPath,
-          templateOverride,
-          clientName: this.name,
-        }),
-      };
+        // return {
+        //   viewType,
+        //   imagePath: await this.#renderAsImage({
+        //     viewType,
+        //     data,
+        //     runtimeConfig: runtimeConfig as ExpectedConfig,
+        //     imagePath: screenshotPath,
+        //     templateOverride,
+        //     clientName: this.name,
+        //   }),
+        // };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          { error, callback: this.name },
+          "Browser rendering failed",
+        );
+        return {
+          viewType: "error",
+          error: errorMessage,
+        };
+      }
     }
 
     if (viewType === "html") {

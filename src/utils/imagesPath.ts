@@ -45,7 +45,7 @@ export function clearImagesOnStartup(): number {
       } catch (err) {
         logger.warn(
           { err, filePath },
-          `Failed to remove file during startup cleanup`,
+          "Failed to remove file during startup cleanup",
         );
       }
     }
@@ -59,7 +59,7 @@ export function clearImagesOnStartup(): number {
 
     return removedCount;
   } catch (err) {
-    logger.error({ err, imagesPath }, `Failed to clear images on startup`);
+    logger.error({ err, imagesPath }, "Failed to clear images on startup");
     return 0;
   }
 }
@@ -115,12 +115,12 @@ export function cleanupOldImages(
     );
     let removedCount = 0;
 
-    for (const { filePath, file } of filesToRemove) {
+    for (const { filePath } of filesToRemove) {
       try {
         unlinkSync(filePath);
         removedCount++;
       } catch (err) {
-        logger.warn({ err, filePath }, `Failed to remove old image file`);
+        logger.warn({ err, filePath }, "Failed to remove old image file");
       }
     }
 
@@ -133,7 +133,7 @@ export function cleanupOldImages(
 
     return removedCount;
   } catch (err) {
-    logger.error({ err, imagesPath }, `Failed to cleanup old images`);
+    logger.error({ err, imagesPath }, "Failed to cleanup old images");
     return 0;
   }
 }

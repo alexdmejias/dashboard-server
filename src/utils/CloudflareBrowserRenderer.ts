@@ -1,10 +1,10 @@
-import {
+import { writeFile } from "node:fs/promises";
+import type { ScreenshotSizeOption } from "../types";
+import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
 } from "../types/browser-renderer";
-import { ScreenshotSizeOption } from "../types";
-import { writeFile } from "node:fs/promises";
 
 export interface CloudflareConfig {
   accountId: string;
@@ -42,7 +42,7 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
 
   private async captureScreenshot(
     htmlContent: string,
-    size: ScreenshotSizeOption
+    size: ScreenshotSizeOption,
   ): Promise<Buffer> {
     const response = await fetch(this.baseUrl, {
       method: "POST",
@@ -52,6 +52,9 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
       },
       body: JSON.stringify({
         html: htmlContent,
+        gotoOptions: {
+          waitUntil: "load",
+        },
         viewport: {
           width: size.width,
           height: size.height,
@@ -65,7 +68,7 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Cloudflare Browser Rendering failed: ${response.status} ${response.statusText} - ${errorText}`
+        `Cloudflare Browser Rendering failed: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 

@@ -1,3 +1,4 @@
+1. endpoint to register heart beat from device or register when the last request was made
 1.should add a picture callback to display images/movies/gifs
 2.switch to vitest
 3. move pupperter to docker image
@@ -27,7 +28,68 @@ npm install
 npm run dev
 ```
 
-This runs `tsx --watch src/index.ts` and starts the server. By default the app listens on the port defined in `process.env.PORT` or `3333`.
+This starts both the backend server and the admin interface concurrently:
+- **Backend server** runs on `http://localhost:3333` (or your configured `PORT`) with hot-reload via `tsx --watch`
+- **Admin interface** runs on `http://localhost:3001` with Vite dev server and HMR (Hot Module Replacement)
+
+The admin dev server proxies API requests to the backend server, so you get a seamless development experience with instant feedback on both frontend and backend changes.
+
+You can also run individual dev servers:
+- `npm run dev:server` - Run only the backend server
+- `npm run dev:admin` - Run only the admin interface
+
+### Building for Production
+
+The project includes an integrated build process that builds both the admin interface and the server:
+
+```bash
+npm run build
+```
+
+This single command:
+1. Builds the admin interface (SolidJS app) to `public/admin/`
+2. Compiles the TypeScript server code to `dist/`
+
+You can also run individual build steps:
+- `npm run build:admin` - Build only the admin interface
+- `npm run build:server` - Build only the server
+
+### Admin Interface
+
+The server includes a web-based admin interface for monitoring connected clients in real-time.
+
+**Development**: Access at `http://localhost:3001` (Vite dev server with HMR)
+**Production**: Access at `http://localhost:3333/` (served by Fastify)
+
+Features:
+- **Real-time monitoring** of connected clients via Server-Sent Events (SSE)
+- **TanStack Query** for efficient data fetching with caching
+- **Client detail pages** - Click on any client to view:
+  - Detailed callback configuration with options
+  - Request history with status codes and response times
+  - Activity logs with severity levels (info, warn, error)
+  - Auto-refreshing data every 5 seconds
+- **Password protection** (optional) - Set `ADMIN_PASSWORD` in `.env`
+- **Connection status indicator**
+- **Responsive UI** built with SolidJS and DaisyUI
+
+#### Setting Up Password Protection
+
+To enable password protection for the admin interface, add to your `.env` file:
+
+```
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+Leave empty or omit to disable password protection (open access):
+
+```
+ADMIN_PASSWORD=
+```
+
+When enabled, users will be prompted to login before accessing the admin interface.
+
+The admin interface is automatically served at the root path when you start the server.
 
 ## Environment
 Create a `.env` file at the project root or export env vars. Example keys used by callbacks:
@@ -116,13 +178,77 @@ flowchart LR
   classDef infra fill:#f8f9fa,stroke:#ddd
   class ImageStore,ImageServer infra
 ```
+```mermaid
+sequenceDiagram
+    participant User
+    participant FastifyServer as Fastify Server
+    participant CallbackLoader as Callback Loader (src/index.ts)
+    participant Callback as Callback (src/callbacks/*)
+    participant TemplateRenderer as Renderer (getRenderedTemplate)
+    participant EjsOrLiquid as EJS/Liquid Engine
+    participant Puppeteer as (optional) Puppeteer
+    participant FileStorage as Image Storage
 
+    Note over FastifyServer: Server starts up
+    FastifyServer->>CallbackLoader: Dynamically import/initialize callbacks
+    CallbackLoader->>Callback: Register callback metadata, config, template
+
+    Note over User, FastifyServer: User issues HTTP request (/display/... or /test-template)
+    User->>FastifyServer: Send HTTP API request
+
+    FastifyServer->>Callback: Invoke callback (getData), validate config
+    Callback-->>FastifyServer: Return data
+
+    FastifyServer->>TemplateRenderer: getRenderedTemplate({ template, data, runtimeConfig })
+    TemplateRenderer->>EjsOrLiquid: Render using correct engine
+    EjsOrLiquid-->>TemplateRenderer: Return rendered HTML
+
+    alt Output is HTML
+        TemplateRenderer-->>FastifyServer: Return HTML
+        FastifyServer->>User: Send HTML response
+    else Output is PNG/BMP
+        TemplateRenderer->>Puppeteer: Render HTML and capture screenshot
+        Puppeteer->>FileStorage: Write image to /public/images
+        FastifyServer->>User: Send image URL or binary response
+    end
+```
 Notes
 - Code: callbacks live under `src/callbacks/` and templates under the callbacks' template files (e.g. `template.ejs`).
 - Rendering: the renderer logic is in `src/utils/getScreenshot.ts` and related utilities (Puppeteer is used to render and capture screenshots).
 - Storage/Serving: images are written to `public/images/` by default or uploaded to cloud storage (see `keys/` and any environment-specific config). Images are served over HTTP (optionally via a CDN).
 
 This flow shows the happy-path: a client request triggers the server's callback pipeline, which renders HTML, captures an image, stores it, and then the client receives an image URL that can be fetched or embedded.
+
+## API Endpoints
+
+### Client Management
+
+- **POST /register/:clientName** — Register a new client with a callback playlist
+  - Body: `{ playlist: [{ id, callbackName, options? }] }`
+  - Returns client configuration
+
+- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
+  - `:viewType` can be `png`, `bmp`, `html`, or `json`
+  - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
+
+### Monitoring
+
+- **GET /health** — Health check endpoint
+  - Returns server status, available callbacks, and connected clients
+
+- **GET /api/clients** — Get current state of all clients (JSON)
+  - Returns full client data including playlists and callback configurations
+
+- **GET /api/clients/stream** — Real-time SSE stream of client updates
+  - Server-Sent Events endpoint for monitoring client changes
+  - Sends updates when clients are registered or modified
+  - Includes heartbeat every 30 seconds
+
+### Template Testing
+
+- **POST /test-template** — Test a template with custom data
+  - Body: `{ templateType, template, templateData?, screenDetails }`
+  - Useful for developing and debugging templates
 
 ## Templates
 
