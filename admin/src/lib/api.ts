@@ -83,3 +83,13 @@ export async function updateClientPlaylist(
   }
   return response.json();
 }
+
+export async function fetchServerLogs() {
+  const response = await fetch("/api/admin/logs", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    return { logs: [] };
+  }
+  return response.json();
+}

@@ -1,10 +1,13 @@
-import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import fp from "fastify-plugin";
 import crypto from "node:crypto";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import fp from "fastify-plugin";
 
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
 const clientRequests: Map<string, Array<any>> = new Map();
+
+// Store for server-wide logs
+const serverLogs: Array<any> = [];
 
 // Session tokens
 const validTokens = new Set<string>();
@@ -15,7 +18,7 @@ declare module "fastify" {
       clientName: string,
       level: string,
       message: string,
-      reqId?: string
+      reqId?: string,
     ): void;
     logClientRequest(
       clientName: string,
@@ -25,7 +28,7 @@ declare module "fastify" {
       statusCode?: number,
       responseTime?: number,
       reqId?: string,
-      headers?: Record<string, string | string[]>
+      headers?: Record<string, string | string[]>,
     ): void;
   }
 }
@@ -33,6 +36,34 @@ declare module "fastify" {
 function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
   const adminPassword = process.env.ADMIN_PASSWORD;
   const authRequired = Boolean(adminPassword);
+
+  // Hook into Fastify logs through onResponse hook
+  fastify.addHook("onResponse", async (request, reply) => {
+    try {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        level:
+          reply.statusCode >= 500
+            ? "error"
+            : reply.statusCode >= 400
+              ? "warn"
+              : "info",
+        message: `${request.method} ${request.url} - ${reply.statusCode}`,
+        reqId: request.id,
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+      };
+
+      serverLogs.push(logEntry);
+      // Keep only last 500 logs
+      if (serverLogs.length > 500) {
+        serverLogs.shift();
+      }
+    } catch (_e) {
+      // Silently fail to avoid breaking the app
+    }
+  });
 
   // Add methods to log client activity
   fastify.decorate(
@@ -52,7 +83,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       if (logs.length > 100) {
         logs.shift();
       }
-    }
+    },
   );
 
   fastify.decorate(
@@ -65,7 +96,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       statusCode?: number,
       responseTime?: number,
       reqId?: string,
-      headers?: Record<string, string | string[]>
+      headers?: Record<string, string | string[]>,
     ) => {
       if (!clientRequests.has(clientName)) {
         clientRequests.set(clientName, []);
@@ -85,7 +116,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       if (requests.length > 50) {
         requests.shift();
       }
-    }
+    },
   );
 
   // Check if auth is required
@@ -109,7 +140,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       }
 
       return res.code(401).send({ error: "Invalid password" });
-    }
+    },
   );
 
   // Verify token
@@ -161,7 +192,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       }
 
       return res.send(client.toString());
-    }
+    },
   );
 
   // Get client logs
@@ -172,7 +203,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       const { clientName } = req.params;
       const logs = clientLogs.get(clientName) || [];
       return res.send({ logs });
-    }
+    },
   );
 
   // Get client requests
@@ -183,7 +214,16 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       const { clientName } = req.params;
       const requests = clientRequests.get(clientName) || [];
       return res.send({ requests });
-    }
+    },
+  );
+
+  // Get server logs
+  fastify.get(
+    "/api/admin/logs",
+    { preHandler: checkAuth },
+    async (_req, res) => {
+      return res.send({ logs: serverLogs });
+    },
   );
 
   done();
