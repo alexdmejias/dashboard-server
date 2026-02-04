@@ -118,7 +118,7 @@ export default function Logs() {
                       each={filteredLogs()}
                       fallback={
                         <tr>
-                          <td colspan="4" class="text-center py-8 text-gray-500">
+                          <td colSpan="4" class="text-center py-8 text-gray-500">
                             No logs found
                           </td>
                         </tr>
