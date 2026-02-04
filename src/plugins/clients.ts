@@ -34,13 +34,13 @@ function validatePlaylist(
       z.object({
         id: z.string().min(1, "ID must be a non-empty string"),
         layout: z.enum(["full", "split"], {
-          errorMap: () => ({ message: "Layout must be 'full' or 'split'" }),
+          message: "Layout must be 'full' or 'split'",
         }),
         callbacks: z
           .array(
             z.object({
               name: z.string().min(1, "Callback name must be a non-empty string"),
-              options: z.record(z.unknown()).optional(),
+              options: z.record(z.string(), z.unknown()).optional(),
             }),
           )
           .min(1, "Callbacks array must contain at least one callback"),
