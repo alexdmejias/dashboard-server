@@ -12,9 +12,10 @@ import type {
   SupportedViewType,
   TemplateDataError,
 } from "../types";
+import { getBrowserRendererType } from "../utils/getBrowserRendererType";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import getScreenshot from "../utils/getScreenshot";
-import { getImagesPath } from "../utils/imagesPath";
+import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
@@ -272,11 +273,17 @@ class CallbackBase<
               runtimeConfig: runtimeConfig as ExpectedConfig,
               imagePath: screenshotPath,
               templateOverride,
+              clientName: this.name,
             }),
           };
         }
 
-        const screenshotPath = getImagesPath(`image.${viewType}`);
+        // const screenshotPath = getImagesPath(`image.${viewType}`);
+
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
         return {
           viewType,
           imagePath: await this.#renderAsImage({
@@ -285,8 +292,21 @@ class CallbackBase<
             runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
+            clientName: this.name,
           }),
         };
+
+        // return {
+        //   viewType,
+        //   imagePath: await this.#renderAsImage({
+        //     viewType,
+        //     data,
+        //     runtimeConfig: runtimeConfig as ExpectedConfig,
+        //     imagePath: screenshotPath,
+        //     templateOverride,
+        //     clientName: this.name,
+        //   }),
+        // };
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -322,12 +342,14 @@ class CallbackBase<
     runtimeConfig,
     imagePath,
     templateOverride,
+    clientName,
   }: {
     viewType: SupportedImageViewType;
     data: T;
     runtimeConfig: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
+    clientName: string;
   }): Promise<string> {
     const screenshot = await getScreenshot<T>({
       data,
@@ -337,6 +359,26 @@ class CallbackBase<
       imagePath,
       viewType,
     });
+
+    const rendererType = getBrowserRendererType();
+    const fileName = path.basename(imagePath);
+
+    // Log image save details
+    this.logger.info(
+      {
+        imagePath,
+        fileName,
+        rendererType,
+        width: this.screenshotSize.width,
+        height: this.screenshotSize.height,
+        viewType,
+        clientName,
+      },
+      `Saved callback image: ${fileName}`,
+    );
+
+    // Cleanup old images if limit exceeded
+    cleanupOldImages();
 
     return screenshot.path;
   }
