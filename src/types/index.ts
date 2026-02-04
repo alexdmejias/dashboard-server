@@ -42,7 +42,7 @@ export type PossibleCallbacks = Record<string, PossibleCallback>;
 export * from "./browser-renderer";
 export type PlaylistItem = {
   id: string;
-  layout: "full" | "split";
+  layout: "full" | "2-col";
   callbacks: Array<{
     name: string;
     options?: object;

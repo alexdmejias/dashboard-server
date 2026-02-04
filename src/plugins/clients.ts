@@ -33,8 +33,8 @@ function validatePlaylist(
     .array(
       z.object({
         id: z.string().min(1, "ID must be a non-empty string"),
-        layout: z.enum(["full", "split"], {
-          message: "Layout must be 'full' or 'split'",
+        layout: z.enum(["full", "2-col"], {
+          message: "Layout must be 'full' or '2-col'",
         }),
         callbacks: z
           .array(
@@ -68,10 +68,10 @@ function validatePlaylist(
             continue: true,
           });
         }
-        if (item.layout === "split" && item.callbacks.length !== 2) {
+        if (item.layout === "2-col" && item.callbacks.length !== 2) {
           ctx.issues.push({
             code: "custom",
-            message: `Playlist item "${item.id}" with layout "split" must have exactly 2 callbacks, found ${item.callbacks.length}`,
+            message: `Playlist item "${item.id}" with layout "2-col" must have exactly 2 callbacks, found ${item.callbacks.length}`,
             input: item,
             continue: true,
           });

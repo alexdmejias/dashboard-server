@@ -7,7 +7,7 @@ import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
 
 // Import layout templates  
 import fullLayout from "../views/layouts/full.liquid?raw";
-import splitLayout from "../views/layouts/split.liquid?raw";
+import twoColLayout from "../views/layouts/2-col.liquid?raw";
 
 const engine = new Liquid();
 
@@ -36,7 +36,7 @@ export function renderCallbackContent(callbackName: string, data: any): string {
  * Create a layout story renderer for use in Storybook
  */
 export function createLayoutStoryRenderer(
-  layout: "full" | "split",
+  layout: "full" | "2-col",
   callbacks: { name: string; data: any }[]
 ) {
   return () => {
@@ -49,7 +49,7 @@ export function createLayoutStoryRenderer(
         return engine.parseAndRenderSync(fullLayout, { content });
       } else {
         if (callbacks.length !== 2) {
-          throw new Error("Split layout requires exactly 2 callbacks");
+          throw new Error("2-col layout requires exactly 2 callbacks");
         }
         const content1 = renderCallbackContent(callbacks[0].name, callbacks[0].data);
         const content2 = renderCallbackContent(callbacks[1].name, callbacks[1].data);
@@ -57,7 +57,7 @@ export function createLayoutStoryRenderer(
         // Wrap each in a div and combine
         const combinedContent = `<div>${content1}</div>\n<div>${content2}</div>`;
         
-        return engine.parseAndRenderSync(splitLayout, { content: combinedContent });
+        return engine.parseAndRenderSync(twoColLayout, { content: combinedContent });
       }
     } catch (error) {
       console.error("Error rendering layout:", error);

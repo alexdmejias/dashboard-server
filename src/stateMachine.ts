@@ -187,8 +187,8 @@ class StateMachine {
 
       // Combine callback contents based on layout
       let combinedContent = "";
-      if (playlistItem.layout === "split") {
-        // Wrap each callback in a div for split layout
+      if (playlistItem.layout === "2-col") {
+        // Wrap each callback in a div for 2-col layout
         combinedContent = callbackContents
           .map((content) => `<div>${content}</div>`)
           .join("\n");
@@ -316,8 +316,8 @@ class StateMachine {
 
       // Combine callback contents based on layout
       let combinedContent = "";
-      if (playlistItem.layout === "split") {
-        // Wrap each callback in a div for split layout
+      if (playlistItem.layout === "2-col") {
+        // Wrap each callback in a div for 2-col layout
         combinedContent = callbackContents
           .map((content) => `<div>${content}</div>`)
           .join("\n");

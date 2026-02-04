@@ -63,9 +63,9 @@ export const Calendar: FullStory = {
   },
 };
 
-// Split Layout Stories
-const splitLayoutMeta = {
-  title: "Layouts/Split Layout",
+// 2-Col Layout Stories
+const twoColLayoutMeta = {
+  title: "Layouts/2-Col Layout",
   parameters: {
     layout: "fullscreen",
     docs: {
@@ -76,60 +76,60 @@ const splitLayoutMeta = {
   },
 } satisfies Meta;
 
-export { splitLayoutMeta };
-type SplitStory = StoryObj<typeof splitLayoutMeta>;
+export { twoColLayoutMeta };
+type TwoColStory = StoryObj<typeof twoColLayoutMeta>;
 
-export const YearProgressAndWeather: SplitStory = {
-  render: createLayoutStoryRenderer("split", [
+export const YearProgressAndWeather: TwoColStory = {
+  render: createLayoutStoryRenderer("2-col", [
     { name: "year-progress", data: yearProgressFixture },
     { name: "weather", data: weatherFixture },
   ]),
   parameters: {
     docs: {
       description: {
-        story: "Split layout combining year progress and weather - showing time progress alongside weather forecast",
+        story: "2-col layout combining year progress and weather - showing time progress alongside weather forecast",
       },
     },
   },
 };
 
-export const WeatherComparison: SplitStory = {
-  render: createLayoutStoryRenderer("split", [
+export const WeatherComparison: TwoColStory = {
+  render: createLayoutStoryRenderer("2-col", [
     { name: "weather", data: weatherFixtureSF },
     { name: "weather", data: weatherFixtureNY },
   ]),
   parameters: {
     docs: {
       description: {
-        story: "Split layout comparing weather in two different cities (San Francisco and New York)",
+        story: "2-col layout comparing weather in two different cities (San Francisco and New York)",
       },
     },
   },
 };
 
-export const WeatherAndCalendar: SplitStory = {
-  render: createLayoutStoryRenderer("split", [
+export const WeatherAndCalendar: TwoColStory = {
+  render: createLayoutStoryRenderer("2-col", [
     { name: "weather", data: weatherFixture },
     { name: "calendar", data: calendarFixture },
   ]),
   parameters: {
     docs: {
       description: {
-        story: "Split layout combining weather forecast with calendar events - a typical dashboard view",
+        story: "2-col layout combining weather forecast with calendar events - a typical dashboard view",
       },
     },
   },
 };
 
-export const DualYearProgress: SplitStory = {
-  render: createLayoutStoryRenderer("split", [
+export const DualYearProgress: TwoColStory = {
+  render: createLayoutStoryRenderer("2-col", [
     { name: "year-progress", data: yearProgressFixture },
     { name: "year-progress", data: yearProgressFixture },
   ]),
   parameters: {
     docs: {
       description: {
-        story: "Split layout with two year progress callbacks - useful for comparing different time periods or tracking systems",
+        story: "2-col layout with two year progress callbacks - useful for comparing different time periods or tracking systems",
       },
     },
   },
