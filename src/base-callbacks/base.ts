@@ -401,17 +401,17 @@ class CallbackBase<
 
   /**
    * Resolve a layout-specific template for this callback
-   * For 2-col layout, tries to load template-1/2-col.liquid first
+   * For 2-col layout, tries to load template.2col.{ext} first
    * Falls back to the default template if layout-specific template doesn't exist
    */
   resolveLayoutTemplate(layout: "full" | "2-col"): string {
     const extPreference = ["liquid", "ejs"];
     
-    // For 2-col layout, try to find template-1/2-col.{ext}
+    // For 2-col layout, try to find template.2col.{ext}
     if (layout === "2-col") {
       for (const ext of extPreference) {
         const layoutSpecific = path.resolve(
-          `./src/callbacks/${this.name}/template-1/2-col.${ext}`
+          `./src/callbacks/${this.name}/template.2col.${ext}`
         );
         if (fs.existsSync(layoutSpecific)) {
           this.logger.info(`Using layout-specific template for ${this.name}: ${layoutSpecific}`);
