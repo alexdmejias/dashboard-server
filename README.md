@@ -232,6 +232,8 @@ This flow shows the happy-path: a client request triggers the server's callback 
 - **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
   - `:viewType` can be `png`, `bmp`, `html`, or `json`
   - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
+  - For duplicate callbacks in split layouts, use format: `playlistItemId-callbackName-index`
+  - See [TESTING_DUPLICATE_CALLBACKS.md](./TESTING_DUPLICATE_CALLBACKS.md) for examples
 
 ### Monitoring
 
