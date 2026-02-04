@@ -257,12 +257,17 @@ curl -X POST http://localhost:3000/register/test-client \
     }]
   }'
 
+# Access complete layout by playlist item ID
+curl http://localhost:3000/display/test-client/html/one
+
 # Access first weather callback (index 0)
 curl http://localhost:3000/display/test-client/html/one-weather-0
 
 # Access second weather callback (index 1)
 curl http://localhost:3000/display/test-client/html/one-weather-1
 ```
+
+See [ACCESSING_LAYOUTS_BY_ID.md](./ACCESSING_LAYOUTS_BY_ID.md) for more details on accessing layouts by their ID.
 
 ## Performance Considerations
 

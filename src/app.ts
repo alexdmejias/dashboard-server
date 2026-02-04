@@ -246,52 +246,60 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       if (callback === "next") {
         data = await client.tick(viewTypeToUse);
       } else {
-        // In the new system, callback ID might be the registered callback ID
-        // which has the format: playlistItemId-callbackName
-        // But we also need to support the old format where callback = playlistItemId
-        const callbackInstance = client.getCallbackInstance(callback);
+        // First, check if this is a playlist item ID
+        const playlistItem = client.getPlaylistItemById(callback);
         
-        if (!callbackInstance) {
-          app.log.error(`callback not found: ${callback}`);
-          app.logClientActivity(
-            clientName,
-            "error",
-            `Callback not found: ${callback}`,
-            req.id,
-          );
-          return res.notFound(serverMessages.callbackNotFound(callback));
-        }
+        if (playlistItem) {
+          // Render the complete playlist item (layout with all callbacks)
+          app.log.info(`Rendering playlist item by ID: ${callback}`);
+          data = await client.renderPlaylistItemById(callback, viewTypeToUse);
+        } else {
+          // Fallback to callback ID lookup (for backward compatibility)
+          // In the new system, callback ID has the format: playlistItemId-callbackName-index
+          const callbackInstance = client.getCallbackInstance(callback);
+          
+          if (!callbackInstance) {
+            app.log.error(`callback or playlist item not found: ${callback}`);
+            app.logClientActivity(
+              clientName,
+              "error",
+              `Callback or playlist item not found: ${callback}`,
+              req.id,
+            );
+            return res.notFound(serverMessages.callbackNotFound(callback));
+          }
 
-        // Find the playlist item that contains this callback
-        // The callback ID format is: playlistItemId-callbackName-index
-        // So we need to find which playlist item this belongs to
-        let playlistItem: PlaylistItem | undefined;
-        let callbackOptions: Record<string, unknown> | undefined;
-        
-        for (const item of client.getConfig().playlist) {
-          for (let i = 0; i < item.callbacks.length; i++) {
-            const cb = item.callbacks[i];
-            const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
-            if (expectedCallbackId === callback) {
-              playlistItem = item;
-              callbackOptions = cb.options as Record<string, unknown> | undefined;
-              break;
+          // Find the playlist item that contains this callback
+          // The callback ID format is: playlistItemId-callbackName-index
+          // So we need to find which playlist item this belongs to
+          let playlistItemForCallback: PlaylistItem | undefined;
+          let callbackOptions: Record<string, unknown> | undefined;
+          
+          for (const item of client.getConfig().playlist) {
+            for (let i = 0; i < item.callbacks.length; i++) {
+              const cb = item.callbacks[i];
+              const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
+              if (expectedCallbackId === callback) {
+                playlistItemForCallback = item;
+                callbackOptions = cb.options as Record<string, unknown> | undefined;
+                break;
+              }
             }
+            if (playlistItemForCallback) break;
           }
-          if (playlistItem) break;
+
+          // render may accept runtime options; use a typed cast to avoid `any`
+          type RenderWithOptions = (
+            viewType: SupportedViewType,
+            options?: Record<string, unknown>,
+          ) => Promise<RenderResponse>;
+
+          data = await (
+            callbackInstance as unknown as {
+              render: RenderWithOptions;
+            }
+          ).render(viewTypeToUse, callbackOptions);
         }
-
-        // render may accept runtime options; use a typed cast to avoid `any`
-        type RenderWithOptions = (
-          viewType: SupportedViewType,
-          options?: Record<string, unknown>,
-        ) => Promise<RenderResponse>;
-
-        data = await (
-          callbackInstance as unknown as {
-            render: RenderWithOptions;
-          }
-        ).render(viewTypeToUse, callbackOptions);
       }
     } catch (error) {
       const errorMessage =

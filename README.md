@@ -229,11 +229,14 @@ This flow shows the happy-path: a client request triggers the server's callback 
   - Body: `{ playlist: [{ id, callbackName, options? }] }`
   - Returns client configuration
 
-- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
+- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback or layout
   - `:viewType` can be `png`, `bmp`, `html`, or `json`
-  - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
-  - For duplicate callbacks in split layouts, use format: `playlistItemId-callbackName-index`
-  - See [TESTING_DUPLICATE_CALLBACKS.md](./TESTING_DUPLICATE_CALLBACKS.md) for examples
+  - Optional `:callback` parameter supports:
+    - `next` - Advances rotation and renders next item (default)
+    - Playlist item ID - Renders complete layout by ID (e.g., `my-first-layout`)
+    - Callback ID - Renders individual callback (format: `playlistItemId-callbackName-index`)
+  - See [ACCESSING_LAYOUTS_BY_ID.md](./ACCESSING_LAYOUTS_BY_ID.md) for layout access guide
+  - See [TESTING_DUPLICATE_CALLBACKS.md](./TESTING_DUPLICATE_CALLBACKS.md) for callback examples
 
 ### Monitoring
 
