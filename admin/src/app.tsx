@@ -4,6 +4,7 @@ import { createSignal, onMount, Show, createEffect } from "solid-js";
 import Home from "./routes/index";
 import ClientDetail from "./routes/[clientName]";
 import Login from "./routes/login";
+import Logs from "./routes/logs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +98,14 @@ export default function App() {
           component={() => (
             <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/logs"
+          component={() => (
+            <ProtectedRoute>
+              <Logs />
             </ProtectedRoute>
           )}
         />
