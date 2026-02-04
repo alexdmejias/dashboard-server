@@ -137,9 +137,9 @@ class StateMachine {
       };
     }
 
-    // For single callback, render directly
+    // For single callback, render directly with layout context
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options);
+      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options, playlistItem.layout);
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -148,10 +148,10 @@ class StateMachine {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback as HTML
+      // Render each callback as HTML with layout context
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) =>
-          instance!.render("html", playlistItem.callbacks[index].options)
+          instance!.render("html", playlistItem.callbacks[index].options, playlistItem.layout)
         )
       );
 
@@ -266,9 +266,9 @@ class StateMachine {
       };
     }
 
-    // For single callback, render directly
+    // For single callback, render directly with layout context
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options);
+      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options, playlistItem.layout);
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -277,10 +277,10 @@ class StateMachine {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback as HTML
+      // Render each callback as HTML with layout context
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) =>
-          instance!.render("html", playlistItem.callbacks[index].options)
+          instance!.render("html", playlistItem.callbacks[index].options, playlistItem.layout)
         )
       );
 

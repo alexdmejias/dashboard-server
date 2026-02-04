@@ -229,6 +229,7 @@ class CallbackBase<
   async render(
     viewType: SupportedViewType,
     options?: unknown,
+    layout?: "full" | "2-col",
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
@@ -248,6 +249,11 @@ class CallbackBase<
         error: data.error,
       };
     }
+
+    // Resolve layout-specific template if layout is provided
+    const templateToUse = layout
+      ? this.resolveLayoutTemplate(layout)
+      : this.template;
 
     if (isSupportedImageViewType(viewType)) {
       try {
@@ -272,6 +278,7 @@ class CallbackBase<
               runtimeConfig: runtimeConfig as ExpectedConfig,
               imagePath: screenshotPath,
               templateOverride,
+              templateToUse,
             }),
           };
         }
@@ -285,6 +292,7 @@ class CallbackBase<
             runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
+            templateToUse,
           }),
         };
       } catch (error) {
@@ -309,6 +317,7 @@ class CallbackBase<
           data,
           template: templateOverride,
           runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
         }),
       };
     }
@@ -322,17 +331,19 @@ class CallbackBase<
     runtimeConfig,
     imagePath,
     templateOverride,
+    templateToUse,
   }: {
     viewType: SupportedImageViewType;
     data: T;
     runtimeConfig: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
+    templateToUse?: string;
   }): Promise<string> {
     const screenshot = await getScreenshot<T>({
       data,
       runtimeConfig,
-      template: templateOverride ? templateOverride : this.template,
+      template: templateOverride ? templateOverride : (templateToUse || this.template),
       size: this.screenshotSize,
       imagePath,
       viewType,
@@ -345,13 +356,15 @@ class CallbackBase<
     data,
     template,
     runtimeConfig,
+    templateToUse,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
     runtimeConfig?: ExpectedConfig;
+    templateToUse?: string;
   }) {
     return getRenderedTemplate({
-      template: template ? template : this.template,
+      template: template ? template : (templateToUse || this.template),
       data,
       runtimeConfig,
     });
@@ -384,6 +397,32 @@ class CallbackBase<
     }
 
     return options;
+  }
+
+  /**
+   * Resolve a layout-specific template for this callback
+   * For 2-col layout, tries to load template-1/2-col.liquid first
+   * Falls back to the default template if layout-specific template doesn't exist
+   */
+  resolveLayoutTemplate(layout: "full" | "2-col"): string {
+    const extPreference = ["liquid", "ejs"];
+    
+    // For 2-col layout, try to find template-1/2-col.{ext}
+    if (layout === "2-col") {
+      for (const ext of extPreference) {
+        const layoutSpecific = path.resolve(
+          `./src/callbacks/${this.name}/template-1/2-col.${ext}`
+        );
+        if (fs.existsSync(layoutSpecific)) {
+          this.logger.info(`Using layout-specific template for ${this.name}: ${layoutSpecific}`);
+          return layoutSpecific;
+        }
+      }
+    }
+    
+    // For full layout or if layout-specific template doesn't exist, use default
+    this.logger.info(`Using default template for ${this.name}: ${this.template}`);
+    return this.template;
   }
 
   #resolveTemplate(name: string, template?: string): string {
