@@ -50,7 +50,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
-    "@rollup/rollup-linux-x64-gnu": "^4.57.1",
     "@storybook/html-vite": "^10.1.11",
     "@types/cheerio": "^0.22.31",
     "@types/ejs": "^3.1.2",
