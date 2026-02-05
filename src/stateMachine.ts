@@ -31,7 +31,7 @@ class StateMachine {
   }
 
   toString() {
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       config: this.#config,
       callbacks: {},
     };
@@ -39,7 +39,7 @@ class StateMachine {
     for (const [callbackName, callbackValue] of Object.entries(
       this.callbacks,
     )) {
-      data.callbacks[callbackName] = {
+      (data.callbacks as Record<string, unknown>)[callbackName] = {
         name: callbackValue.name,
         instance: callbackValue.instance.toString(),
       };
@@ -129,22 +129,74 @@ class StateMachine {
       }
     }
 
-    // For viewType !== html, we can only render single callbacks
-    if (viewType !== "html" && callbackInstances.length > 1) {
+    // For single callback, render it with layout context
+    if (callbackInstances.length === 1) {
+      const rendered = await callbackInstances[0]!.render(
+        viewType,
+        playlistItem.callbacks[0].options,
+        playlistItem.layout,
+      );
+
+      if (rendered.viewType === "error") {
+        return rendered;
+      }
+
+      // For non-HTML viewTypes, return as-is (callback now includes layout)
+      if (viewType !== "html") {
+        return rendered;
+      }
+
+      // For HTML, wrap in the layout template
+      // TypeScript guard: at this point we know rendered should have html property
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML render response but got different type");
+        return {
+          viewType: "error",
+          error: "Expected HTML render response",
+        };
+      }
+
+      try {
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${playlistItem.layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalContent = await engine.parseAndRender(layoutTemplate, {
+          content: rendered.html,
+        });
+
+        return {
+          viewType: "html",
+          html: finalContent,
+        };
+      } catch (error) {
+        logger.error({ error }, "Error rendering layout for single callback");
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          viewType: "error",
+        };
+      }
+    }
+
+    // Multiple callbacks only supported for HTML viewType
+    if (viewType !== "html") {
       logger.error("Non-HTML view types only support single callbacks");
       return {
         error: "Non-HTML view types only support single callbacks",
         viewType: "error",
       };
-    }
-
-    // For single callback, render directly with layout context
-    if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(
-        viewType,
-        playlistItem.callbacks[0].options,
-        playlistItem.layout,
-      );
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -153,15 +205,20 @@ class StateMachine {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback as HTML with layout context
+      // Render each callback
       const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) =>
-          instance!.render(
-            "html",
+        callbackInstances.map((instance, index) => {
+          if (!instance) {
+            return Promise.resolve({
+              viewType: "error" as const,
+              error: "Instance not found",
+            });
+          }
+          return instance.render(
+            viewType,
             playlistItem.callbacks[index].options,
-            playlistItem.layout,
-          ),
-        ),
+          );
+        }),
       );
 
       // Check for errors
@@ -233,11 +290,14 @@ class StateMachine {
         };
       }
 
-      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
+      const finalContent = await engine.parseAndRender(
+        layoutTemplate,
+        blockData,
+      );
 
       return {
-        viewType: "html",
-        html: finalHtml,
+        viewType: "html" as const,
+        html: finalContent,
       };
     } catch (error) {
       logger.error({ error }, "Error rendering layout");
@@ -284,22 +344,74 @@ class StateMachine {
 
     this.advanceCallbackIndex();
 
-    // For viewType !== html, we can only render single callbacks
-    if (viewType !== "html" && callbackInstances.length > 1) {
+    // For single callback, render it with layout context
+    if (callbackInstances.length === 1) {
+      const rendered = await callbackInstances[0]!.render(
+        viewType,
+        playlistItem.callbacks[0].options,
+        playlistItem.layout,
+      );
+
+      if (rendered.viewType === "error") {
+        return rendered;
+      }
+
+      // For non-HTML viewTypes, return as-is (callback now includes layout)
+      if (viewType !== "html") {
+        return rendered;
+      }
+
+      // For HTML, wrap in the layout template
+      // TypeScript guard: at this point we know rendered should have html property
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML render response but got different type");
+        return {
+          viewType: "error",
+          error: "Expected HTML render response",
+        };
+      }
+
+      try {
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${playlistItem.layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalContent = await engine.parseAndRender(layoutTemplate, {
+          content: rendered.html,
+        });
+
+        return {
+          viewType: "html",
+          html: finalContent,
+        };
+      } catch (error) {
+        logger.error({ error }, "Error rendering layout for single callback");
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          viewType: "error",
+        };
+      }
+    }
+
+    // Multiple callbacks only supported for HTML viewType
+    if (viewType !== "html") {
       logger.error("Non-HTML view types only support single callbacks");
       return {
         error: "Non-HTML view types only support single callbacks",
         viewType: "error",
       };
-    }
-
-    // For single callback, render directly with layout context
-    if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(
-        viewType,
-        playlistItem.callbacks[0].options,
-        playlistItem.layout,
-      );
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -308,15 +420,20 @@ class StateMachine {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback as HTML with layout context
+      // Render each callback
       const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) =>
-          instance!.render(
-            "html",
+        callbackInstances.map((instance, index) => {
+          if (!instance) {
+            return Promise.resolve({
+              viewType: "error" as const,
+              error: "Instance not found",
+            });
+          }
+          return instance.render(
+            viewType,
             playlistItem.callbacks[index].options,
-            playlistItem.layout,
-          ),
-        ),
+          );
+        }),
       );
 
       // Check for errors
@@ -388,11 +505,14 @@ class StateMachine {
         };
       }
 
-      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
+      const finalContent = await engine.parseAndRender(
+        layoutTemplate,
+        blockData,
+      );
 
       return {
-        viewType: "html",
-        html: finalHtml,
+        viewType: "html" as const,
+        html: finalContent,
       };
     } catch (error) {
       logger.error({ error }, "Error rendering layout");
