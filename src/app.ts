@@ -128,7 +128,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist?: {
         id: string;
-        layout: "full" | "split";
+        layout: "full" | "2-col";
         callbacks: Array<{
           name: string;
           options?: Record<string, unknown>;
@@ -486,7 +486,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist: {
         id: string;
-        layout: "full" | "split";
+        layout: "full" | "2-col";
         callbacks: Array<{
           name: string;
           options?: Record<string, unknown>;
