@@ -6,12 +6,15 @@ import os from "node:os";
 import { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
-import type { PossibleCallbacks, SupportedViewType } from "./types";
+import type {
+  PlaylistItem,
+  PossibleCallbacks,
+  SupportedViewType,
+} from "./types";
 import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
@@ -107,12 +110,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     prefix: "/public/",
   });
 
-  app.register(fastifyView, {
-    engine: {
-      ejs: import("ejs"),
-    },
-  });
-
   app.register(fastifyCors);
 
   app.get("/health", async (_req, res) => {
@@ -131,8 +128,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist?: {
         id: string;
-        callbackName: string;
-        options?: Record<string, unknown>;
+        layout: "full" | "split";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/register/:clientName", async (req, res) => {
@@ -251,33 +251,62 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       if (callback === "next") {
         data = await client.tick(viewTypeToUse);
       } else {
-        const callbackInstance = client.getCallbackInstance(callback);
+        // First, check if this is a playlist item ID
         const playlistItem = client.getPlaylistItemById(callback);
-        if (!callbackInstance || !playlistItem) {
-          app.log.error(`callback not found: ${callback}`);
-          app.logClientActivity(
-            clientName,
-            "error",
-            `Callback not found: ${callback}`,
-            req.id,
-          );
-          return res.notFound(serverMessages.callbackNotFound(callback));
-        }
 
-        // render may accept runtime options; use a typed cast to avoid `any`
-        type RenderWithOptions = (
-          viewType: SupportedViewType,
-          options?: Record<string, unknown>,
-        ) => Promise<RenderResponse>;
+        if (playlistItem) {
+          // Render the complete playlist item (layout with all callbacks)
+          app.log.info(`Rendering playlist item by ID: ${callback}`);
+          data = await client.renderPlaylistItemById(callback, viewTypeToUse);
+        } else {
+          // Fallback to callback ID lookup (for backward compatibility)
+          // In the new system, callback ID has the format: playlistItemId-callbackName-index
+          const callbackInstance = client.getCallbackInstance(callback);
 
-        data = await (
-          callbackInstance as unknown as {
-            render: RenderWithOptions;
+          if (!callbackInstance) {
+            app.log.error(`callback or playlist item not found: ${callback}`);
+            app.logClientActivity(
+              clientName,
+              "error",
+              `Callback or playlist item not found: ${callback}`,
+              req.id,
+            );
+            return res.notFound(serverMessages.callbackNotFound(callback));
           }
-        ).render(
-          viewTypeToUse,
-          playlistItem.options as Record<string, unknown> | undefined,
-        );
+
+          // Find the playlist item that contains this callback
+          // The callback ID format is: playlistItemId-callbackName-index
+          // So we need to find which playlist item this belongs to
+          let playlistItemForCallback: PlaylistItem | undefined;
+          let callbackOptions: Record<string, unknown> | undefined;
+
+          for (const item of client.getConfig().playlist) {
+            for (let i = 0; i < item.callbacks.length; i++) {
+              const cb = item.callbacks[i];
+              const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
+              if (expectedCallbackId === callback) {
+                playlistItemForCallback = item;
+                callbackOptions = cb.options as
+                  | Record<string, unknown>
+                  | undefined;
+                break;
+              }
+            }
+            if (playlistItemForCallback) break;
+          }
+
+          // render may accept runtime options; use a typed cast to avoid `any`
+          type RenderWithOptions = (
+            viewType: SupportedViewType,
+            options?: Record<string, unknown>,
+          ) => Promise<RenderResponse>;
+
+          data = await (
+            callbackInstance as unknown as {
+              render: RenderWithOptions;
+            }
+          ).render(viewTypeToUse, callbackOptions);
+        }
       }
     } catch (error) {
       const errorMessage =
@@ -289,11 +318,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
-    const rendererType = getBrowserRendererType();
+    const rendererType =
+      viewTypeToUse === "html" ? undefined : getBrowserRendererType();
 
-    app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
-    );
+    app.log.info({ data, viewType: viewTypeToUse, rendererType }, "rendering");
 
     const responseTime = Date.now() - startTime;
     app.logClientRequest(
@@ -312,7 +340,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   app.post<{
     Body: {
-      templateType: "liquid" | "ejs";
       template: string;
       templateData?: Record<string, unknown>;
       screenDetails: {
@@ -323,26 +350,19 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       };
     };
   }>("/test-template", async (req, res) => {
-    const {
-      templateType,
-      template,
-      templateData = {},
-      screenDetails,
-    } = req.body;
+    const { template, templateData = {}, screenDetails } = req.body;
 
-    if (!templateType || !template || !screenDetails) {
+    if (!template || !screenDetails) {
       return res.code(400).send({ error: "invalid request body" });
     }
 
     try {
-      const ext = templateType === "liquid" ? "liquid" : "ejs";
-
       // write the provided template body to a temporary template file.
       // We write only the body; getRenderedTemplate will compose head/footer
       // when given a template path.
       const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
         Math.random() * 1e9,
-      )}.${ext}`;
+      )}.liquid`;
       const tmpPath = resolve(os.tmpdir(), tmpName);
       await fs.writeFile(tmpPath, template, "utf-8");
 
@@ -466,8 +486,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     Body: {
       playlist: {
         id: string;
-        callbackName: string;
-        options?: Record<string, unknown>;
+        layout: "full" | "split";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/api/clients/:clientName/playlist", async (req, res) => {

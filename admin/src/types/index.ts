@@ -12,8 +12,11 @@ export interface ClientConfig {
   currCallbackIndex: number;
   playlist: Array<{
     id: string;
-    callbackName: string;
-    options?: Record<string, unknown>;
+    layout: "full" | "split";
+    callbacks: Array<{
+      name: string;
+      options?: Record<string, unknown>;
+    }>;
   }>;
 }
 

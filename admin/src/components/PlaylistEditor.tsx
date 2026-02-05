@@ -3,13 +3,16 @@ import {
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
 
 interface PlaylistItem {
   id: string;
-  callbackName: string;
-  options?: Record<string, unknown>;
+  layout: "full" | "split";
+  callbacks: Array<{
+    name: string;
+    options?: Record<string, unknown>;
+  }>;
 }
 
 interface AvailableCallback {
@@ -45,15 +48,11 @@ export function PlaylistEditor(props: {
   const [isAddingNew, setIsAddingNew] = createSignal(false);
   const [newItem, setNewItem] = createSignal<PlaylistItem>({
     id: "",
-    callbackName: "",
-    options: {},
+    layout: "full",
+    callbacks: [{ name: "", options: {} }],
   });
-  const [newItemOptionsInput, setNewItemOptionsInput] = createSignal<string>(
-    JSON.stringify({}, null, 2),
-  );
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal(false);
-  const [jsonError, setJsonError] = createSignal<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -86,8 +85,8 @@ export function PlaylistEditor(props: {
 
   const handleAddCallback = () => {
     const item = newItem();
-    if (!item.id || !item.callbackName) {
-      setError("ID and Callback Name are required");
+    if (!item.id) {
+      setError("ID is required");
       return;
     }
     // Check for duplicate ID
@@ -95,18 +94,30 @@ export function PlaylistEditor(props: {
       setError("ID must be unique");
       return;
     }
-    // Parse options from input
-    const { result, error: optionsError } = parseOptions(newItemOptionsInput());
-    if (optionsError) {
-      setJsonError(optionsError);
+    // Validate callbacks based on layout
+    if (item.layout === "full" && item.callbacks.length !== 1) {
+      setError("Full layout requires exactly 1 callback");
       return;
     }
-    setPlaylist([...playlist(), { ...item, options: result }]);
-    setNewItem({ id: "", callbackName: "", options: {} });
-    setNewItemOptionsInput(JSON.stringify({}, null, 2));
+    if (item.layout === "split" && item.callbacks.length !== 2) {
+      setError("Split layout requires exactly 2 callbacks");
+      return;
+    }
+    // Validate all callbacks have names
+    for (const callback of item.callbacks) {
+      if (!callback.name) {
+        setError("All callbacks must have a name");
+        return;
+      }
+    }
+    setPlaylist([...playlist(), item]);
+    setNewItem({
+      id: "",
+      layout: "full",
+      callbacks: [{ name: "", options: {} }],
+    });
     setIsAddingNew(false);
     setError(null);
-    setJsonError(null);
   };
 
   const handleRemove = (index: number) => {
@@ -146,13 +157,6 @@ export function PlaylistEditor(props: {
 
   const handleCancelEdit = () => {
     setEditingIndex(null);
-  };
-
-  const handleOptionsInput = (value: string) => {
-    setNewItemOptionsInput(value);
-    const { error } = parseOptions(value);
-    setJsonError(error || null);
-    // Do not update newItem().options until add
   };
 
   return (
@@ -209,17 +213,11 @@ export function PlaylistEditor(props: {
                     <div class="flex-1">
                       <div class="font-bold">{item.id}</div>
                       <div class="text-sm text-gray-500">
-                        {item.callbackName}
+                        Layout: {item.layout}
                       </div>
-                      <Show
-                        when={
-                          item.options && Object.keys(item.options).length > 0
-                        }
-                      >
-                        <div class="text-xs font-mono mt-1">
-                          {JSON.stringify(item.options)}
-                        </div>
-                      </Show>
+                      <div class="text-xs font-mono mt-1">
+                        Callbacks: {item.callbacks.map((cb) => cb.name).join(", ")}
+                      </div>
                     </div>
                     <div class="flex gap-1">
                       <button
@@ -271,87 +269,20 @@ export function PlaylistEditor(props: {
             onClick={() => setIsAddingNew(true)}
             class="btn btn-primary btn-outline"
           >
-            + Add Callback
+            + Add Playlist Item
           </button>
         </Show>
 
         <Show when={isAddingNew()}>
-          <div class="p-4 border-2 border-dashed border-primary rounded-lg">
-            <h3 class="font-bold mb-2">Add New Callback</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">ID</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="unique-id"
-                  class="input input-bordered"
-                  value={newItem().id}
-                  onInput={(e) =>
-                    setNewItem({ ...newItem(), id: e.currentTarget.value })
-                  }
-                />
-              </div>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Callback</span>
-                </label>
-                <select
-                  class="select select-bordered"
-                  value={newItem().callbackName}
-                  onChange={(e) =>
-                    setNewItem({
-                      ...newItem(),
-                      callbackName: e.currentTarget.value,
-                    })
-                  }
-                >
-                  <option value="">Select callback...</option>
-                  <For each={callbacksQuery.data?.callbacks || []}>
-                    {(callback: AvailableCallback) => (
-                      <option value={callback.id}>{callback.name}</option>
-                    )}
-                  </For>
-                </select>
-              </div>
-            </div>
-            <div class="form-control mt-2">
-              <label class="label">
-                <span class="label-text">Options (JSON)</span>
-              </label>
-              <textarea
-                class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? "textarea-error" : ""}`}
-                placeholder='{"key": "value"}'
-                value={newItemOptionsInput()}
-                onInput={(e) => handleOptionsInput(e.currentTarget.value)}
-                rows={3}
-              />
-              <Show when={jsonError()}>
-                <label class="label">
-                  <span class="label-text-alt text-error">{jsonError()}</span>
-                </label>
-              </Show>
-            </div>
-            <div class="flex gap-2 mt-4">
-              <button
-                onClick={handleAddCallback}
-                class="btn btn-primary"
-                disabled={!!jsonError()}
-              >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setIsAddingNew(false);
-                  setJsonError(null);
-                }}
-                class="btn btn-ghost"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <AddNewPlaylistItem
+            availableCallbacks={callbacksQuery.data?.callbacks || []}
+            onAdd={(item) => {
+              handleAddCallback();
+            }}
+            onCancel={() => setIsAddingNew(false)}
+            newItem={newItem}
+            setNewItem={setNewItem}
+          />
         </Show>
 
         {/* Save Button */}
@@ -371,6 +302,171 @@ export function PlaylistEditor(props: {
   );
 }
 
+function AddNewPlaylistItem(props: {
+  availableCallbacks: AvailableCallback[];
+  onAdd: (item: PlaylistItem) => void;
+  onCancel: () => void;
+  newItem: () => PlaylistItem;
+  setNewItem: (item: PlaylistItem) => void;
+}) {
+  const [jsonErrors, setJsonErrors] = createSignal<(string | null)[]>([null]);
+
+  const item = props.newItem;
+
+  const handleLayoutChange = (layout: "full" | "split") => {
+    const currentItem = item();
+    if (layout === "full") {
+      props.setNewItem({
+        ...currentItem,
+        layout: "full",
+        callbacks: [currentItem.callbacks[0] || { name: "", options: {} }],
+      });
+    } else {
+      props.setNewItem({
+        ...currentItem,
+        layout: "split",
+        callbacks: [
+          currentItem.callbacks[0] || { name: "", options: {} },
+          currentItem.callbacks[1] || { name: "", options: {} },
+        ],
+      });
+    }
+  };
+
+  const handleCallbackNameChange = (index: number, name: string) => {
+    const currentItem = item();
+    const newCallbacks = [...currentItem.callbacks];
+    newCallbacks[index] = { ...newCallbacks[index], name };
+    props.setNewItem({ ...currentItem, callbacks: newCallbacks });
+  };
+
+  const handleCallbackOptionsChange = (index: number, optionsStr: string) => {
+    const { result, error } = parseOptions(optionsStr);
+    const errors = [...jsonErrors()];
+    errors[index] = error || null;
+    setJsonErrors(errors);
+
+    if (!error) {
+      const currentItem = item();
+      const newCallbacks = [...currentItem.callbacks];
+      newCallbacks[index] = { ...newCallbacks[index], options: result };
+      props.setNewItem({ ...currentItem, callbacks: newCallbacks });
+    }
+  };
+
+  return (
+    <div class="p-4 border-2 border-dashed border-primary rounded-lg">
+      <h3 class="font-bold mb-2">Add New Playlist Item</h3>
+      
+      <div class="form-control mb-4">
+        <label class="label">
+          <span class="label-text">ID</span>
+        </label>
+        <input
+          type="text"
+          placeholder="unique-id"
+          class="input input-bordered"
+          value={item().id}
+          onInput={(e) =>
+            props.setNewItem({ ...item(), id: e.currentTarget.value })
+          }
+        />
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label">
+          <span class="label-text">Layout</span>
+        </label>
+        <select
+          class="select select-bordered"
+          value={item().layout}
+          onChange={(e) =>
+            handleLayoutChange(e.currentTarget.value as "full" | "split")
+          }
+        >
+          <option value="full">Full (1 callback)</option>
+          <option value="split">Split (2 callbacks)</option>
+        </select>
+      </div>
+
+      <div class="space-y-4">
+        <For each={item().callbacks}>
+          {(callback, callbackIndex) => (
+            <div class="p-3 border border-base-300 rounded">
+              <h4 class="font-semibold mb-2">
+                Callback {callbackIndex() + 1}
+              </h4>
+              <div class="form-control mb-2">
+                <label class="label">
+                  <span class="label-text">Callback Name</span>
+                </label>
+                <select
+                  class="select select-bordered"
+                  value={callback.name}
+                  onChange={(e) =>
+                    handleCallbackNameChange(
+                      callbackIndex(),
+                      e.currentTarget.value
+                    )
+                  }
+                >
+                  <option value="">Select callback...</option>
+                  <For each={props.availableCallbacks}>
+                    {(availableCallback) => (
+                      <option value={availableCallback.id}>
+                        {availableCallback.name}
+                      </option>
+                    )}
+                  </For>
+                </select>
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Options (JSON)</span>
+                </label>
+                <textarea
+                  class={`textarea textarea-bordered font-mono text-sm ${
+                    jsonErrors()[callbackIndex()] ? "textarea-error" : ""
+                  }`}
+                  placeholder='{"key": "value"}'
+                  value={JSON.stringify(callback.options || {}, null, 2)}
+                  onInput={(e) =>
+                    handleCallbackOptionsChange(
+                      callbackIndex(),
+                      e.currentTarget.value
+                    )
+                  }
+                  rows={3}
+                />
+                <Show when={jsonErrors()[callbackIndex()]}>
+                  <label class="label">
+                    <span class="label-text-alt text-error">
+                      {jsonErrors()[callbackIndex()]}
+                    </span>
+                  </label>
+                </Show>
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button
+          onClick={() => props.onAdd(item())}
+          class="btn btn-primary"
+          disabled={jsonErrors().some((e) => e !== null)}
+        >
+          Add
+        </button>
+        <button onClick={props.onCancel} class="btn btn-ghost">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditablePlaylistItem(props: {
   item: PlaylistItem;
   availableCallbacks: AvailableCallback[];
@@ -380,87 +476,157 @@ function EditablePlaylistItem(props: {
   const [editedItem, setEditedItem] = createSignal<PlaylistItem>({
     ...props.item,
   });
-  const [optionsInput, setOptionsInput] = createSignal<string>(
-    JSON.stringify(props.item.options || {}, null, 2),
+  const [jsonErrors, setJsonErrors] = createSignal<(string | null)[]>(
+    props.item.callbacks.map(() => null)
   );
-  const [jsonError, setJsonError] = createSignal<string | null>(null);
 
-  const handleOptionsInput = (value: string) => {
-    setOptionsInput(value);
-    const { error } = parseOptions(value);
-    setJsonError(error || null);
-    // Do not update editedItem().options until save
+  const handleLayoutChange = (layout: "full" | "split") => {
+    const currentItem = editedItem();
+    if (layout === "full") {
+      setEditedItem({
+        ...currentItem,
+        layout: "full",
+        callbacks: [currentItem.callbacks[0] || { name: "", options: {} }],
+      });
+    } else {
+      setEditedItem({
+        ...currentItem,
+        layout: "split",
+        callbacks: [
+          currentItem.callbacks[0] || { name: "", options: {} },
+          currentItem.callbacks[1] || { name: "", options: {} },
+        ],
+      });
+    }
+  };
+
+  const handleCallbackNameChange = (index: number, name: string) => {
+    const currentItem = editedItem();
+    const newCallbacks = [...currentItem.callbacks];
+    newCallbacks[index] = { ...newCallbacks[index], name };
+    setEditedItem({ ...currentItem, callbacks: newCallbacks });
+  };
+
+  const handleCallbackOptionsChange = (index: number, optionsStr: string) => {
+    const { result, error } = parseOptions(optionsStr);
+    const errors = [...jsonErrors()];
+    errors[index] = error || null;
+    setJsonErrors(errors);
+
+    if (!error) {
+      const currentItem = editedItem();
+      const newCallbacks = [...currentItem.callbacks];
+      newCallbacks[index] = { ...newCallbacks[index], options: result };
+      setEditedItem({ ...currentItem, callbacks: newCallbacks });
+    }
   };
 
   const handleSave = () => {
-    const { result, error } = parseOptions(optionsInput());
-    if (error) {
-      setJsonError(error);
+    if (jsonErrors().some((e) => e !== null)) {
       return;
     }
-    props.onSave({ ...editedItem(), options: result });
+    props.onSave(editedItem());
   };
 
   return (
     <div class="p-4 border-2 border-primary rounded-lg">
-      <h3 class="font-bold mb-2">Edit Callback</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">ID</span>
-          </label>
-          <input
-            type="text"
-            class="input input-bordered"
-            value={editedItem().id}
-            onInput={(e) =>
-              setEditedItem({ ...editedItem(), id: e.currentTarget.value })
-            }
-          />
-        </div>
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Callback</span>
-          </label>
-          <select
-            class="select select-bordered"
-            value={editedItem().callbackName}
-            onChange={(e) =>
-              setEditedItem({
-                ...editedItem(),
-                callbackName: e.currentTarget.value,
-              })
-            }
-          >
-            <For each={props.availableCallbacks}>
-              {(callback) => (
-                <option value={callback.id}>{callback.name}</option>
-              )}
-            </For>
-          </select>
-        </div>
-      </div>
-      <div class="form-control mt-2">
+      <h3 class="font-bold mb-2">Edit Playlist Item</h3>
+      
+      <div class="form-control mb-4">
         <label class="label">
-          <span class="label-text">Options (JSON)</span>
+          <span class="label-text">ID</span>
         </label>
-        <textarea
-          class={`textarea textarea-bordered font-mono text-sm ${jsonError() ? "textarea-error" : ""}`}
-          value={optionsInput()}
-          onInput={(e) => handleOptionsInput(e.currentTarget.value)}
-          rows={3}
+        <input
+          type="text"
+          class="input input-bordered"
+          value={editedItem().id}
+          onInput={(e) =>
+            setEditedItem({ ...editedItem(), id: e.currentTarget.value })
+          }
         />
-        <Show when={jsonError()}>
-          <label class="label">
-            <span class="label-text-alt text-error">{jsonError()}</span>
-          </label>
-        </Show>
       </div>
+
+      <div class="form-control mb-4">
+        <label class="label">
+          <span class="label-text">Layout</span>
+        </label>
+        <select
+          class="select select-bordered"
+          value={editedItem().layout}
+          onChange={(e) =>
+            handleLayoutChange(e.currentTarget.value as "full" | "split")
+          }
+        >
+          <option value="full">Full (1 callback)</option>
+          <option value="split">Split (2 callbacks)</option>
+        </select>
+      </div>
+
+      <div class="space-y-4">
+        <For each={editedItem().callbacks}>
+          {(callback, callbackIndex) => (
+            <div class="p-3 border border-base-300 rounded">
+              <h4 class="font-semibold mb-2">
+                Callback {callbackIndex() + 1}
+              </h4>
+              <div class="form-control mb-2">
+                <label class="label">
+                  <span class="label-text">Callback Name</span>
+                </label>
+                <select
+                  class="select select-bordered"
+                  value={callback.name}
+                  onChange={(e) =>
+                    handleCallbackNameChange(
+                      callbackIndex(),
+                      e.currentTarget.value
+                    )
+                  }
+                >
+                  <For each={props.availableCallbacks}>
+                    {(availableCallback) => (
+                      <option value={availableCallback.id}>
+                        {availableCallback.name}
+                      </option>
+                    )}
+                  </For>
+                </select>
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Options (JSON)</span>
+                </label>
+                <textarea
+                  class={`textarea textarea-bordered font-mono text-sm ${
+                    jsonErrors()[callbackIndex()] ? "textarea-error" : ""
+                  }`}
+                  value={JSON.stringify(callback.options || {}, null, 2)}
+                  onInput={(e) =>
+                    handleCallbackOptionsChange(
+                      callbackIndex(),
+                      e.currentTarget.value
+                    )
+                  }
+                  rows={3}
+                />
+                <Show when={jsonErrors()[callbackIndex()]}>
+                  <label class="label">
+                    <span class="label-text-alt text-error">
+                      {jsonErrors()[callbackIndex()]}
+                    </span>
+                  </label>
+                </Show>
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+
       <div class="flex gap-2 mt-4">
         <button
           onClick={handleSave}
           class="btn btn-primary"
-          disabled={!!jsonError()}
+          disabled={jsonErrors().some((e) => e !== null)}
         >
           Save
         </button>

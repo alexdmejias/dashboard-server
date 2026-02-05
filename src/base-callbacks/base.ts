@@ -230,12 +230,17 @@ class CallbackBase<
   async render(
     viewType: SupportedViewType,
     options?: unknown,
+    layout?: "full" | "2-col",
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     // allow callers to supply runtime options (e.g. from a playlist item).
     const runtimeConfig = this.#buildRuntimeConfig(options);
+    this.logger.debug(
+      { runtimeConfig, options },
+      `Built runtimeConfig for ${this.name}`,
+    );
     const data = await this.getData(
       runtimeConfig as unknown as Record<string, unknown>,
     );
@@ -249,6 +254,14 @@ class CallbackBase<
         error: data.error,
       };
     }
+
+    // Resolve layout-specific template if layout is provided
+    const templateToUse = layout
+      ? this.resolveLayoutTemplate(layout)
+      : this.template;
+
+    // When rendering for layouts, don't include head/footer wrapper
+    const includeWrapper = !layout;
 
     if (isSupportedImageViewType(viewType)) {
       try {
@@ -273,6 +286,8 @@ class CallbackBase<
               runtimeConfig: runtimeConfig as ExpectedConfig,
               imagePath: screenshotPath,
               templateOverride,
+              templateToUse,
+              includeWrapper,
               clientName: this.name,
             }),
           };
@@ -292,6 +307,8 @@ class CallbackBase<
             runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
+            templateToUse,
+            includeWrapper,
             clientName: this.name,
           }),
         };
@@ -329,6 +346,8 @@ class CallbackBase<
           data,
           template: templateOverride,
           runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
+          includeWrapper,
         }),
       };
     }
@@ -342,6 +361,8 @@ class CallbackBase<
     runtimeConfig,
     imagePath,
     templateOverride,
+    templateToUse,
+    includeWrapper = true,
     clientName,
   }: {
     viewType: SupportedImageViewType;
@@ -349,15 +370,20 @@ class CallbackBase<
     runtimeConfig: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
+    templateToUse?: string;
+    includeWrapper?: boolean;
     clientName: string;
   }): Promise<string> {
     const screenshot = await getScreenshot<T>({
       data,
       runtimeConfig,
-      template: templateOverride ? templateOverride : this.template,
+      template: templateOverride
+        ? templateOverride
+        : templateToUse || this.template,
       size: this.screenshotSize,
       imagePath,
       viewType,
+      includeWrapper,
     });
 
     const rendererType = getBrowserRendererType();
@@ -387,15 +413,20 @@ class CallbackBase<
     data,
     template,
     runtimeConfig,
+    templateToUse,
+    includeWrapper = true,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
     runtimeConfig?: ExpectedConfig;
+    templateToUse?: string;
+    includeWrapper?: boolean;
   }) {
     return getRenderedTemplate({
-      template: template ? template : this.template,
+      template: template ? template : templateToUse || this.template,
       data,
       runtimeConfig,
+      includeWrapper,
     });
   }
 
@@ -409,7 +440,7 @@ class CallbackBase<
       return merged;
     }
 
-    return this.expectedConfig.parse(merged);
+    return this.expectedConfig.loose().parse(merged);
   }
 
   #mergeWithReceivedConfig(options: unknown) {
@@ -428,43 +459,56 @@ class CallbackBase<
     return options;
   }
 
-  #resolveTemplate(name: string, template?: string): string {
-    const extPreference = ["liquid", "ejs"];
+  /**
+   * Resolve a layout-specific template for this callback
+   * For 2-col layout, tries to load template.2col.{ext} first
+   * Falls back to the default template if layout-specific template doesn't exist
+   */
+  resolveLayoutTemplate(layout: "full" | "2-col"): string {
+    // For 2-col layout, try to find template.2col.{ext}
+    if (layout === "2-col") {
+      const layoutSpecific = path.resolve(
+        `./src/callbacks/${this.name}/template.2col.liquid`,
+      );
+      if (fs.existsSync(layoutSpecific)) {
+        this.logger.info(
+          `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
+        );
+        return layoutSpecific;
+      }
+      this.logger.info(
+        `No layout-specific template found for ${this.name} at: ${layoutSpecific}`,
+      );
+    }
 
+    // For full layout or if layout-specific template doesn't exist, use default
+    this.logger.info(
+      `Using default template for ${this.name}: ${this.template}`,
+    );
+    return this.template;
+  }
+
+  #resolveTemplate(name: string, template?: string): string {
     // 1) If a specific template was requested, prefer resolving that first
     if (template) {
       // try exact resolution in callbacks folder if the template includes an ext or matches a preference
-      for (const ext of extPreference) {
-        if (template.endsWith(`.${ext}`) || template.endsWith(ext)) {
-          const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
-          if (fs.existsSync(candidate)) return candidate;
-          const viewsCandidate = path.resolve(`./views/${template}`);
-          if (fs.existsSync(viewsCandidate)) return viewsCandidate;
-        }
-      }
+      const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
+      if (fs.existsSync(candidate)) return candidate;
+      const viewsCandidate = path.resolve(`./views/${template}`);
+      if (fs.existsSync(viewsCandidate)) return viewsCandidate;
 
       // try templates folder (views) with preferred extensions
-      for (const ext of extPreference) {
-        const viewsPath = path.resolve(`./views/${template}.${ext}`);
-        if (fs.existsSync(viewsPath)) return viewsPath;
-      }
-    }
-
-    // 2) Look for callback-local templates (template.liquid/template.ejs)
-    for (const ext of extPreference) {
-      const local = path.resolve(`./src/callbacks/${name}/template.${ext}`);
-      if (fs.existsSync(local)) return local;
-    }
-
-    // 3) Fallback to views/{name}.{ext}
-    for (const ext of extPreference) {
-      const viewsPath = path.resolve(`./views/${name}.${ext}`);
+      const viewsPath = path.resolve(`./views/${template}.liquid`);
       if (fs.existsSync(viewsPath)) return viewsPath;
     }
 
-    // 4) Fallback to generic template
-    const genericTemplatePath = path.resolve("./views/generic.ejs");
-    if (fs.existsSync(genericTemplatePath)) return genericTemplatePath;
+    // 2) Look for callback-local templates (template.liquid)
+    const local = path.resolve(`./src/callbacks/${name}/template.liquid`);
+    if (fs.existsSync(local)) return local;
+
+    // 3) Fallback to views/{name}.{ext}
+    const viewsPath = path.resolve(`./views/${name}.liquid`);
+    if (fs.existsSync(viewsPath)) return viewsPath;
 
     throw new Error(`No valid template found for callback: ${name}`);
   }
