@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "dashboard-server",
       script: "npm",
-      args: "start",
+      args: "run start:prod",
       instances: 1,
       autorestart: true,
       watch: false,
