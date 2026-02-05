@@ -129,20 +129,9 @@ class StateMachine {
       }
     }
 
-    // For single callback, we need to render it and wrap in layout
+    // For single callback, render it with layout context
     if (callbackInstances.length === 1) {
-      // Render the callback and wrap it in the layout
-      const firstInstance = callbackInstances[0];
-
-      if (!firstInstance) {
-        return {
-          error: "Callback instance not found",
-
-          viewType: "error",
-        };
-      }
-
-      const rendered = await firstInstance.render(
+      const rendered = await callbackInstances[0]!.render(
         viewType,
         playlistItem.callbacks[0].options,
         playlistItem.layout,
@@ -152,7 +141,21 @@ class StateMachine {
         return rendered;
       }
 
-      // Load and render the layout template with the callback content
+      // For non-HTML viewTypes, return as-is (callback now includes layout)
+      if (viewType !== "html") {
+        return rendered;
+      }
+
+      // For HTML, wrap in the layout template
+      // TypeScript guard: at this point we know rendered should have html property
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML render response but got different type");
+        return {
+          viewType: "error",
+          error: "Expected HTML render response",
+        };
+      }
+
       try {
         const { Liquid } = await import("liquidjs");
         const fs = await import("node:fs/promises");
@@ -164,7 +167,6 @@ class StateMachine {
         );
         const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
-        // Configure liquidjs with proper paths for partials
         const engine = new Liquid({
           root: path.join(PROJECT_ROOT, "views/layouts"),
           partials: path.join(PROJECT_ROOT, "views/partials"),
@@ -172,11 +174,11 @@ class StateMachine {
         });
 
         const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.viewType === "html" ? rendered.html : "",
+          content: rendered.html,
         });
 
         return {
-          viewType: "html" as const,
+          viewType: "html",
           html: finalContent,
         };
       } catch (error) {
@@ -188,13 +190,22 @@ class StateMachine {
       }
     }
 
+    // Multiple callbacks only supported for HTML viewType
+    if (viewType !== "html") {
+      logger.error("Non-HTML view types only support single callbacks");
+      return {
+        error: "Non-HTML view types only support single callbacks",
+        viewType: "error",
+      };
+    }
+
     // For multiple callbacks, render each and combine with layout
     try {
       const { Liquid } = await import("liquidjs");
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback with layout context
+      // Render each callback
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) => {
           if (!instance) {
@@ -206,7 +217,6 @@ class StateMachine {
           return instance.render(
             viewType,
             playlistItem.callbacks[index].options,
-            playlistItem.layout,
           );
         }),
       );
@@ -334,20 +344,9 @@ class StateMachine {
 
     this.advanceCallbackIndex();
 
-    // For single callback, we need to render it and wrap in layout
+    // For single callback, render it with layout context
     if (callbackInstances.length === 1) {
-      // Render the callback and wrap it in the layout
-      const firstInstance = callbackInstances[0];
-
-      if (!firstInstance) {
-        return {
-          error: "Callback instance not found",
-
-          viewType: "error",
-        };
-      }
-
-      const rendered = await firstInstance.render(
+      const rendered = await callbackInstances[0]!.render(
         viewType,
         playlistItem.callbacks[0].options,
         playlistItem.layout,
@@ -357,7 +356,21 @@ class StateMachine {
         return rendered;
       }
 
-      // Load and render the layout template with the callback content
+      // For non-HTML viewTypes, return as-is (callback now includes layout)
+      if (viewType !== "html") {
+        return rendered;
+      }
+
+      // For HTML, wrap in the layout template
+      // TypeScript guard: at this point we know rendered should have html property
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML render response but got different type");
+        return {
+          viewType: "error",
+          error: "Expected HTML render response",
+        };
+      }
+
       try {
         const { Liquid } = await import("liquidjs");
         const fs = await import("node:fs/promises");
@@ -369,7 +382,6 @@ class StateMachine {
         );
         const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
-        // Configure liquidjs with proper paths for partials
         const engine = new Liquid({
           root: path.join(PROJECT_ROOT, "views/layouts"),
           partials: path.join(PROJECT_ROOT, "views/partials"),
@@ -377,11 +389,11 @@ class StateMachine {
         });
 
         const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.viewType === "html" ? rendered.html : "",
+          content: rendered.html,
         });
 
         return {
-          viewType: "html" as const,
+          viewType: "html",
           html: finalContent,
         };
       } catch (error) {
@@ -393,13 +405,22 @@ class StateMachine {
       }
     }
 
+    // Multiple callbacks only supported for HTML viewType
+    if (viewType !== "html") {
+      logger.error("Non-HTML view types only support single callbacks");
+      return {
+        error: "Non-HTML view types only support single callbacks",
+        viewType: "error",
+      };
+    }
+
     // For multiple callbacks, render each and combine with layout
     try {
       const { Liquid } = await import("liquidjs");
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback with layout context
+      // Render each callback
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) => {
           if (!instance) {
@@ -411,7 +432,6 @@ class StateMachine {
           return instance.render(
             viewType,
             playlistItem.callbacks[index].options,
-            playlistItem.layout,
           );
         }),
       );

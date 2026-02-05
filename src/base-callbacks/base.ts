@@ -261,8 +261,111 @@ class CallbackBase<
       ? this.resolveLayoutTemplate(layout)
       : this.template;
 
-    // When rendering for layouts, don't include head/footer wrapper
-    const includeWrapper = !layout;
+    // Always include head/footer wrapper (layout is no longer passed from stateMachine)
+    const includeWrapper = true;
+
+    // For image viewTypes with a layout, render callback as HTML first,
+    // wrap in layout template, then convert to image
+    if (isSupportedImageViewType(viewType) && layout) {
+      try {
+        // First render the callback content as HTML
+        const callbackHtml = await this.#renderAsHTML({
+          data,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
+          includeWrapper: false, // Don't include wrapper for callback content
+        });
+
+        // Then wrap in the layout template
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalHtml = await engine.parseAndRender(layoutTemplate, {
+          content: callbackHtml,
+        });
+
+        // Now render the final HTML to image
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
+
+        // Write the HTML to a temp file to pass to getScreenshot
+        const os = await import("node:os");
+        const tmpHtmlPath = path.join(
+          os.tmpdir(),
+          `callback-${timestamp}-${random}.html`,
+        );
+        await fs.writeFile(tmpHtmlPath, finalHtml, "utf-8");
+
+        try {
+          const screenshot = await getScreenshot({
+            template: tmpHtmlPath,
+            data: {}, // Data already rendered in HTML
+            runtimeConfig: runtimeConfig as ExpectedConfig,
+            imagePath: screenshotPath,
+            viewType,
+            size: this.screenshotSize,
+            includeWrapper: false, // HTML already complete
+          });
+
+          const rendererType = getBrowserRendererType();
+          const fileNameOnly = path.basename(screenshotPath);
+
+          this.logger.info(
+            {
+              imagePath: screenshotPath,
+              fileName: fileNameOnly,
+              rendererType,
+              width: this.screenshotSize.width,
+              height: this.screenshotSize.height,
+              viewType,
+              clientName: this.name,
+              layout,
+            },
+            `Saved callback image with layout: ${fileNameOnly}`,
+          );
+
+          cleanupOldImages();
+
+          return {
+            viewType,
+            imagePath: screenshot.path,
+          };
+        } finally {
+          // Clean up temp HTML file
+          try {
+            await fs.unlink(tmpHtmlPath);
+          } catch (e) {
+            this.logger.debug({ err: e }, "Failed to remove temp HTML file");
+          }
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          { error, callback: this.name, layout },
+          "Failed to render callback with layout as image",
+        );
+        return {
+          viewType: "error",
+          error: errorMessage,
+        };
+      }
+    }
 
     if (isSupportedImageViewType(viewType)) {
       try {
