@@ -11,7 +11,11 @@ import fastify, { type FastifyReply } from "fastify";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
-import type { PlaylistItem, PossibleCallbacks, SupportedViewType } from "./types";
+import type {
+  PlaylistItem,
+  PossibleCallbacks,
+  SupportedViewType,
+} from "./types";
 import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
@@ -248,7 +252,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       } else {
         // First, check if this is a playlist item ID
         const playlistItem = client.getPlaylistItemById(callback);
-        
+
         if (playlistItem) {
           // Render the complete playlist item (layout with all callbacks)
           app.log.info(`Rendering playlist item by ID: ${callback}`);
@@ -257,7 +261,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           // Fallback to callback ID lookup (for backward compatibility)
           // In the new system, callback ID has the format: playlistItemId-callbackName-index
           const callbackInstance = client.getCallbackInstance(callback);
-          
+
           if (!callbackInstance) {
             app.log.error(`callback or playlist item not found: ${callback}`);
             app.logClientActivity(
@@ -274,14 +278,16 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           // So we need to find which playlist item this belongs to
           let playlistItemForCallback: PlaylistItem | undefined;
           let callbackOptions: Record<string, unknown> | undefined;
-          
+
           for (const item of client.getConfig().playlist) {
             for (let i = 0; i < item.callbacks.length; i++) {
               const cb = item.callbacks[i];
               const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
               if (expectedCallbackId === callback) {
                 playlistItemForCallback = item;
-                callbackOptions = cb.options as Record<string, unknown> | undefined;
+                callbackOptions = cb.options as
+                  | Record<string, unknown>
+                  | undefined;
                 break;
               }
             }
@@ -311,11 +317,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
-    const rendererType = getBrowserRendererType();
+    const rendererType =
+      viewTypeToUse === "html" ? undefined : getBrowserRendererType();
 
-    app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
-    );
+    app.log.info({ data, viewType: viewTypeToUse, rendererType }, "rendering");
 
     const responseTime = Date.now() - startTime;
     app.logClientRequest(

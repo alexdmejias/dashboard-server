@@ -236,6 +236,10 @@ class CallbackBase<
 
     // allow callers to supply runtime options (e.g. from a playlist item).
     const runtimeConfig = this.#buildRuntimeConfig(options);
+    this.logger.debug(
+      { runtimeConfig, options },
+      `Built runtimeConfig for ${this.name}`,
+    );
     const data = await this.getData(
       runtimeConfig as unknown as Record<string, unknown>,
     );
@@ -351,7 +355,9 @@ class CallbackBase<
     const screenshot = await getScreenshot<T>({
       data,
       runtimeConfig,
-      template: templateOverride ? templateOverride : (templateToUse || this.template),
+      template: templateOverride
+        ? templateOverride
+        : templateToUse || this.template,
       size: this.screenshotSize,
       imagePath,
       viewType,
@@ -375,7 +381,7 @@ class CallbackBase<
     includeWrapper?: boolean;
   }) {
     return getRenderedTemplate({
-      template: template ? template : (templateToUse || this.template),
+      template: template ? template : templateToUse || this.template,
       data,
       runtimeConfig,
       includeWrapper,
@@ -392,7 +398,7 @@ class CallbackBase<
       return merged;
     }
 
-    return this.expectedConfig.parse(merged);
+    return this.expectedConfig.loose().parse(merged);
   }
 
   #mergeWithReceivedConfig(options: unknown) {
@@ -418,22 +424,29 @@ class CallbackBase<
    */
   resolveLayoutTemplate(layout: "full" | "2-col"): string {
     const extPreference = ["liquid", "ejs"];
-    
+
     // For 2-col layout, try to find template.2col.{ext}
     if (layout === "2-col") {
       for (const ext of extPreference) {
         const layoutSpecific = path.resolve(
-          `./src/callbacks/${this.name}/template.2col.${ext}`
+          `./src/callbacks/${this.name}/template.2col.${ext}`,
         );
         if (fs.existsSync(layoutSpecific)) {
-          this.logger.info(`Using layout-specific template for ${this.name}: ${layoutSpecific}`);
+          this.logger.info(
+            `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
+          );
           return layoutSpecific;
         }
+        this.logger.info(
+          `No layout-specific template found for ${this.name} at: ${layoutSpecific}`,
+        );
       }
     }
-    
+
     // For full layout or if layout-specific template doesn't exist, use default
-    this.logger.info(`Using default template for ${this.name}: ${this.template}`);
+    this.logger.info(
+      `Using default template for ${this.name}: ${this.template}`,
+    );
     return this.template;
   }
 

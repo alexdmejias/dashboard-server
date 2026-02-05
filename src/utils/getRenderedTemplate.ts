@@ -7,11 +7,8 @@ import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
 async function getTemplateContent(
   templatePath: string,
-  isUsingLiquid: boolean,
-  includeWrapper: boolean = true,
+  includeWrapper = true,
 ): Promise<string> {
-  const ext = isUsingLiquid ? "liquid" : "ejs";
-  
   // For layouts, we only want the template content without head/footer
   if (!includeWrapper) {
     const template = await readFile(templatePath, "utf-8");
@@ -20,19 +17,15 @@ async function getTemplateContent(
     }
     return template;
   }
-  
-  const [head, footer, template] = await Promise.all([
-    readFile(path.resolve(`./views/partials/head.${ext}`), "utf-8"),
-    readFile(path.resolve(`./views/partials/footer.${ext}`), "utf-8"),
-    readFile(templatePath, "utf-8"),
-  ]);
-  if (!head || !footer || !template) {
+
+  const template = await readFile(templatePath, "utf-8");
+  if (!template) {
     throw new Error(
       `Failed to read one or more template files: head, footer, or template at ${templatePath}`,
     );
   }
 
-  return `${head}\n${template}\n${footer}`;
+  return `${template}`;
 }
 
 async function getRenderedTemplate<T extends object>({
@@ -56,7 +49,7 @@ async function getRenderedTemplate<T extends object>({
   }
 
   const isUsingLiquid = template.endsWith("liquid");
-  const templateStr = await getTemplateContent(template, isUsingLiquid, includeWrapper);
+  const templateStr = await getTemplateContent(template, includeWrapper);
 
   try {
     if (isUsingLiquid) {
@@ -68,6 +61,10 @@ async function getRenderedTemplate<T extends object>({
             partials: path.resolve("./views/partials"),
             extname: ".liquid",
           });
+      logger.debug(
+        { runtimeConfig, template },
+        "Rendering liquid template with runtimeConfig",
+      );
       return engine.parseAndRender(templateStr, {
         data,
         runtimeConfig,

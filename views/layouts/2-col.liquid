@@ -1,10 +1,18 @@
 {% render 'head.liquid' %}
+<div class="mashup mashup--1Lx1R">
   <div class="view view--half_vertical">
     {{ content_left }}
+    <div class="title_bar">
+      <span class="title">Title</span>
+      <span class="instance">Instance</span>
+    </div>
+  </div>
+  <div class="view view--half_vertical">
     {{ content_right }}
     <div class="title_bar">
       <span class="title">Title</span>
       <span class="instance">Instance</span>
     </div>
+  </div>
   </div>
 {% render 'footer.liquid' %}
