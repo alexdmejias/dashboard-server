@@ -43,5 +43,9 @@
     "titleBar.inactiveBackground": "#851a3199",
     "titleBar.inactiveForeground": "#e7e7e799"
   },
-  "peacock.color": "#851a31"
+  "peacock.color": "#851a31",
+  "[liquid]": {
+    "editor.defaultFormatter": "sissel.shopify-liquid",
+    "editor.formatOnSave": true
+  }
 }
