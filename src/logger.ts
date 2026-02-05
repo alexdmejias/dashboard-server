@@ -2,10 +2,12 @@ import pino, { type LoggerOptions } from "pino";
 
 const hasLogtailToken = !!process.env.LOGTAIL_SOURCE_TOKEN;
 const isProduction = process.env.NODE_ENV === "production";
+const logLevel = process.env.LOG_LEVEL || "trace";
 
 // Define each transport as a variable
 const prettyTransport = {
   target: "pino-pretty",
+  level: logLevel,
   options: {
     colorize: true,
   },
@@ -38,14 +40,16 @@ if (isProduction) {
 }
 
 export const loggingOptions: LoggerOptions = {
-  level: process.env.LOG_LEVEL || "trace",
+  level: logLevel,
   transport: loggerTransport,
 };
 
-console.log(
-  "######## logger options",
-  JSON.stringify(loggingOptions.transport, null, 2),
-);
+console.log("######## logger options", {
+  transport: JSON.stringify(loggingOptions.transport, null, 2),
+  hasLogtailToken,
+  isProduction,
+  logLevel,
+});
 
 const logger = pino(loggingOptions);
 
