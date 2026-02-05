@@ -7,6 +7,7 @@ import type {
   SupportedViewType,
   ValidCallback,
 } from "./types";
+import { PROJECT_ROOT } from "./utils/projectRoot";
 
 export type Config = {
   rotation: string[];
@@ -93,7 +94,7 @@ class StateMachine {
    */
   async renderPlaylistItemById(
     playlistItemId: string,
-    viewType: SupportedViewType
+    viewType: SupportedViewType,
   ): Promise<RenderResponse> {
     const playlistItem = this.getPlaylistItemById(playlistItemId);
 
@@ -107,19 +108,19 @@ class StateMachine {
 
     // For layouts, we need to render all callbacks and combine them
     const callbackIds = playlistItem.callbacks.map(
-      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`
+      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`,
     );
 
     // Get all callback instances for this playlist item
     const callbackInstances = callbackIds.map((id) =>
-      this.getCallbackInstance(id)
+      this.getCallbackInstance(id),
     );
 
     // Check if all callbacks exist
     for (let i = 0; i < callbackInstances.length; i++) {
       if (!callbackInstances[i]) {
         logger.error(
-          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`
+          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`,
         );
         return {
           error: `callback not found: ${playlistItem.callbacks[i].name}`,
@@ -139,7 +140,11 @@ class StateMachine {
 
     // For single callback, render directly with layout context
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options, playlistItem.layout);
+      return callbackInstances[0]!.render(
+        viewType,
+        playlistItem.callbacks[0].options,
+        playlistItem.layout,
+      );
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -151,8 +156,12 @@ class StateMachine {
       // Render each callback as HTML with layout context
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) =>
-          instance!.render("html", playlistItem.callbacks[index].options, playlistItem.layout)
-        )
+          instance!.render(
+            "html",
+            playlistItem.callbacks[index].options,
+            playlistItem.layout,
+          ),
+        ),
       );
 
       // Check for errors
@@ -167,12 +176,12 @@ class StateMachine {
         // Extract content between <div class="view view--full"> and title_bar
         const viewStart = html.indexOf('<div class="view view--full">');
         const titleBarStart = html.indexOf('<div class="title_bar">');
-        
+
         if (viewStart === -1 || titleBarStart === -1) {
           // Fallback: return the whole HTML
           return html;
         }
-        
+
         const contentStart = viewStart + '<div class="view view--full">'.length;
         const content = html.substring(contentStart, titleBarStart).trim();
         return content;
@@ -198,15 +207,16 @@ class StateMachine {
       }
 
       // Load and render the layout template
-      const layoutPath = path.resolve(
-        `./views/layouts/${playlistItem.layout}.liquid`
+      const layoutPath = path.join(
+        PROJECT_ROOT,
+        `views/layouts/${playlistItem.layout}.liquid`,
       );
       const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
       // Configure liquidjs with proper paths for partials
       const engine = new Liquid({
-        root: path.resolve("./views/layouts"),
-        partials: path.resolve("./views/partials"),
+        root: path.join(PROJECT_ROOT, "views/layouts"),
+        partials: path.join(PROJECT_ROOT, "views/partials"),
         extname: ".liquid",
       });
 
@@ -251,19 +261,19 @@ class StateMachine {
 
     // For layouts, we need to render all callbacks and combine them
     const callbackIds = playlistItem.callbacks.map(
-      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`
+      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`,
     );
 
     // Get all callback instances for this playlist item
     const callbackInstances = callbackIds.map((id) =>
-      this.getCallbackInstance(id)
+      this.getCallbackInstance(id),
     );
 
     // Check if all callbacks exist
     for (let i = 0; i < callbackInstances.length; i++) {
       if (!callbackInstances[i]) {
         logger.error(
-          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`
+          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`,
         );
         return {
           error: `callback not found: ${playlistItem.callbacks[i].name}`,
@@ -285,7 +295,11 @@ class StateMachine {
 
     // For single callback, render directly with layout context
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(viewType, playlistItem.callbacks[0].options, playlistItem.layout);
+      return callbackInstances[0]!.render(
+        viewType,
+        playlistItem.callbacks[0].options,
+        playlistItem.layout,
+      );
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -297,8 +311,12 @@ class StateMachine {
       // Render each callback as HTML with layout context
       const renderedCallbacks = await Promise.all(
         callbackInstances.map((instance, index) =>
-          instance!.render("html", playlistItem.callbacks[index].options, playlistItem.layout)
-        )
+          instance!.render(
+            "html",
+            playlistItem.callbacks[index].options,
+            playlistItem.layout,
+          ),
+        ),
       );
 
       // Check for errors
@@ -313,12 +331,12 @@ class StateMachine {
         // Extract content between <div class="view view--full"> and title_bar
         const viewStart = html.indexOf('<div class="view view--full">');
         const titleBarStart = html.indexOf('<div class="title_bar">');
-        
+
         if (viewStart === -1 || titleBarStart === -1) {
           // Fallback: return the whole HTML
           return html;
         }
-        
+
         const contentStart = viewStart + '<div class="view view--full">'.length;
         const content = html.substring(contentStart, titleBarStart).trim();
         return content;
@@ -344,15 +362,16 @@ class StateMachine {
       }
 
       // Load and render the layout template
-      const layoutPath = path.resolve(
-        `./views/layouts/${playlistItem.layout}.liquid`
+      const layoutPath = path.join(
+        PROJECT_ROOT,
+        `views/layouts/${playlistItem.layout}.liquid`,
       );
       const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
       // Configure liquidjs with proper paths for partials
       const engine = new Liquid({
-        root: path.resolve("./views/layouts"),
-        partials: path.resolve("./views/partials"),
+        root: path.join(PROJECT_ROOT, "views/layouts"),
+        partials: path.join(PROJECT_ROOT, "views/partials"),
         extname: ".liquid",
       });
 

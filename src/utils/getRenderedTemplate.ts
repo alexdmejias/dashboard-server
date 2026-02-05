@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Liquid } from "liquidjs";
 import logger from "../logger";
+import { PROJECT_ROOT } from "./projectRoot";
 
 // import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
@@ -56,8 +57,8 @@ async function getRenderedTemplate<T extends object>({
     const engine = includeWrapper
       ? new Liquid()
       : new Liquid({
-          root: path.resolve("./views/layouts"),
-          partials: path.resolve("./views/partials"),
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
           extname: ".liquid",
         });
     logger.debug(

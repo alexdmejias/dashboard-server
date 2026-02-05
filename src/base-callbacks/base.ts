@@ -17,6 +17,7 @@ import getRenderedTemplate from "../utils/getRenderedTemplate";
 import getScreenshot from "../utils/getScreenshot";
 import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
+import { PROJECT_ROOT } from "../utils/projectRoot";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -467,8 +468,9 @@ class CallbackBase<
   resolveLayoutTemplate(layout: "full" | "2-col"): string {
     // For 2-col layout, try to find template.2col.{ext}
     if (layout === "2-col") {
-      const layoutSpecific = path.resolve(
-        `./src/callbacks/${this.name}/template.2col.liquid`,
+      const layoutSpecific = path.join(
+        PROJECT_ROOT,
+        `src/callbacks/${this.name}/template.2col.liquid`,
       );
       if (fs.existsSync(layoutSpecific)) {
         this.logger.info(
@@ -492,22 +494,28 @@ class CallbackBase<
     // 1) If a specific template was requested, prefer resolving that first
     if (template) {
       // try exact resolution in callbacks folder if the template includes an ext or matches a preference
-      const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
+      const candidate = path.join(
+        PROJECT_ROOT,
+        `src/callbacks/${name}/${template}`,
+      );
       if (fs.existsSync(candidate)) return candidate;
-      const viewsCandidate = path.resolve(`./views/${template}`);
+      const viewsCandidate = path.join(PROJECT_ROOT, `views/${template}`);
       if (fs.existsSync(viewsCandidate)) return viewsCandidate;
 
       // try templates folder (views) with preferred extensions
-      const viewsPath = path.resolve(`./views/${template}.liquid`);
+      const viewsPath = path.join(PROJECT_ROOT, `views/${template}.liquid`);
       if (fs.existsSync(viewsPath)) return viewsPath;
     }
 
     // 2) Look for callback-local templates (template.liquid)
-    const local = path.resolve(`./src/callbacks/${name}/template.liquid`);
+    const local = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${name}/template.liquid`,
+    );
     if (fs.existsSync(local)) return local;
 
     // 3) Fallback to views/{name}.{ext}
-    const viewsPath = path.resolve(`./views/${name}.liquid`);
+    const viewsPath = path.join(PROJECT_ROOT, `views/${name}.liquid`);
     if (fs.existsSync(viewsPath)) return viewsPath;
 
     throw new Error(`No valid template found for callback: ${name}`);
