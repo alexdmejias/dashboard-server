@@ -111,7 +111,6 @@ export const weatherFixtureNY = {
 };
 
 export const calendarFixture = {
-  title: "Calendar",
   days: [
     {
       date: "Tue 2/4",

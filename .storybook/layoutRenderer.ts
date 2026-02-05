@@ -1,17 +1,14 @@
 import { Liquid } from "liquidjs";
-
+import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
+import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
 // Import callback templates
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
-import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
-import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
-
-// Import layout templates  
-import fullLayout from "../views/layouts/full.liquid?raw";
 import twoColLayout from "../views/layouts/2-col.liquid?raw";
-
+// Import layout templates
+import fullLayout from "../views/layouts/full.liquid?raw";
+import footerPartial from "../views/partials/footer.liquid?raw";
 // Import partials
 import headPartial from "../views/partials/head.liquid?raw";
-import footerPartial from "../views/partials/footer.liquid?raw";
 
 // Configure liquidjs engine with templates using parseFileSync approach
 const engine = new Liquid({
@@ -19,9 +16,9 @@ const engine = new Liquid({
     existsSync: () => true,
     readFileSync: (file: string) => {
       // Return partials when requested
-      if (file.includes('head.liquid')) return headPartial;
-      if (file.includes('footer.liquid')) return footerPartial;
-      return '';
+      if (file.includes("head.liquid")) return headPartial;
+      if (file.includes("footer.liquid")) return footerPartial;
+      return "";
     },
     resolve: (root: string, file: string, ext: string) => file,
   } as any,
@@ -45,7 +42,7 @@ export function renderCallbackContent(callbackName: string, data: any): string {
   }
 
   // Render just the callback template with data
-  return engine.parseAndRenderSync(template, { data });
+  return engine.parseAndRenderSync(template, data);
 }
 
 /**
@@ -53,7 +50,7 @@ export function renderCallbackContent(callbackName: string, data: any): string {
  */
 export function createLayoutStoryRenderer(
   layout: "full" | "2-col",
-  callbacks: { name: string; data: any }[]
+  callbacks: { name: string; data: any }[],
 ) {
   return () => {
     try {
@@ -61,18 +58,29 @@ export function createLayoutStoryRenderer(
         if (callbacks.length !== 1) {
           throw new Error("Full layout requires exactly 1 callback");
         }
-        const content = renderCallbackContent(callbacks[0].name, callbacks[0].data);
+        const content = renderCallbackContent(
+          callbacks[0].name,
+          callbacks[0].data,
+        );
         return engine.parseAndRenderSync(fullLayout, { content });
-      } else {
-        // 2-col layout
-        if (callbacks.length !== 2) {
-          throw new Error("2-col layout requires exactly 2 callbacks");
-        }
-        const content_left = renderCallbackContent(callbacks[0].name, callbacks[0].data);
-        const content_right = renderCallbackContent(callbacks[1].name, callbacks[1].data);
-        
-        return engine.parseAndRenderSync(twoColLayout, { content_left, content_right });
       }
+      // 2-col layout
+      if (callbacks.length !== 2) {
+        throw new Error("2-col layout requires exactly 2 callbacks");
+      }
+      const content_left = renderCallbackContent(
+        callbacks[0].name,
+        callbacks[0].data,
+      );
+      const content_right = renderCallbackContent(
+        callbacks[1].name,
+        callbacks[1].data,
+      );
+
+      return engine.parseAndRenderSync(twoColLayout, {
+        content_left,
+        content_right,
+      });
     } catch (error) {
       console.error("Error rendering layout:", error);
       return `<div style="color: red; padding: 20px;">Error rendering layout: ${error instanceof Error ? error.message : String(error)}</div>`;
