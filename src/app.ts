@@ -6,7 +6,6 @@ import os from "node:os";
 import { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
@@ -101,12 +100,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   app.register(fastifyStatic, {
     root: resolve("./public"),
     prefix: "/public/",
-  });
-
-  app.register(fastifyView, {
-    engine: {
-      ejs: import("ejs"),
-    },
   });
 
   app.register(fastifyCors);
@@ -339,7 +332,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   app.post<{
     Body: {
-      templateType: "liquid" | "ejs";
       template: string;
       templateData?: Record<string, unknown>;
       screenDetails: {
@@ -350,26 +342,19 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       };
     };
   }>("/test-template", async (req, res) => {
-    const {
-      templateType,
-      template,
-      templateData = {},
-      screenDetails,
-    } = req.body;
+    const { template, templateData = {}, screenDetails } = req.body;
 
-    if (!templateType || !template || !screenDetails) {
+    if (!template || !screenDetails) {
       return res.code(400).send({ error: "invalid request body" });
     }
 
     try {
-      const ext = templateType === "liquid" ? "liquid" : "ejs";
-
       // write the provided template body to a temporary template file.
       // We write only the body; getRenderedTemplate will compose head/footer
       // when given a template path.
       const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
         Math.random() * 1e9,
-      )}.${ext}`;
+      )}.liquid`;
       const tmpPath = resolve(os.tmpdir(), tmpName);
       await fs.writeFile(tmpPath, template, "utf-8");
 

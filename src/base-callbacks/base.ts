@@ -423,24 +423,20 @@ class CallbackBase<
    * Falls back to the default template if layout-specific template doesn't exist
    */
   resolveLayoutTemplate(layout: "full" | "2-col"): string {
-    const extPreference = ["liquid", "ejs"];
-
     // For 2-col layout, try to find template.2col.{ext}
     if (layout === "2-col") {
-      for (const ext of extPreference) {
-        const layoutSpecific = path.resolve(
-          `./src/callbacks/${this.name}/template.2col.${ext}`,
-        );
-        if (fs.existsSync(layoutSpecific)) {
-          this.logger.info(
-            `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
-          );
-          return layoutSpecific;
-        }
+      const layoutSpecific = path.resolve(
+        `./src/callbacks/${this.name}/template.2col.liquid`,
+      );
+      if (fs.existsSync(layoutSpecific)) {
         this.logger.info(
-          `No layout-specific template found for ${this.name} at: ${layoutSpecific}`,
+          `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
         );
+        return layoutSpecific;
       }
+      this.logger.info(
+        `No layout-specific template found for ${this.name} at: ${layoutSpecific}`,
+      );
     }
 
     // For full layout or if layout-specific template doesn't exist, use default
@@ -451,42 +447,26 @@ class CallbackBase<
   }
 
   #resolveTemplate(name: string, template?: string): string {
-    const extPreference = ["liquid", "ejs"];
-
     // 1) If a specific template was requested, prefer resolving that first
     if (template) {
       // try exact resolution in callbacks folder if the template includes an ext or matches a preference
-      for (const ext of extPreference) {
-        if (template.endsWith(`.${ext}`) || template.endsWith(ext)) {
-          const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
-          if (fs.existsSync(candidate)) return candidate;
-          const viewsCandidate = path.resolve(`./views/${template}`);
-          if (fs.existsSync(viewsCandidate)) return viewsCandidate;
-        }
-      }
+      const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
+      if (fs.existsSync(candidate)) return candidate;
+      const viewsCandidate = path.resolve(`./views/${template}`);
+      if (fs.existsSync(viewsCandidate)) return viewsCandidate;
 
       // try templates folder (views) with preferred extensions
-      for (const ext of extPreference) {
-        const viewsPath = path.resolve(`./views/${template}.${ext}`);
-        if (fs.existsSync(viewsPath)) return viewsPath;
-      }
-    }
-
-    // 2) Look for callback-local templates (template.liquid/template.ejs)
-    for (const ext of extPreference) {
-      const local = path.resolve(`./src/callbacks/${name}/template.${ext}`);
-      if (fs.existsSync(local)) return local;
-    }
-
-    // 3) Fallback to views/{name}.{ext}
-    for (const ext of extPreference) {
-      const viewsPath = path.resolve(`./views/${name}.${ext}`);
+      const viewsPath = path.resolve(`./views/${template}.liquid`);
       if (fs.existsSync(viewsPath)) return viewsPath;
     }
 
-    // 4) Fallback to generic template
-    const genericTemplatePath = path.resolve("./views/generic.ejs");
-    if (fs.existsSync(genericTemplatePath)) return genericTemplatePath;
+    // 2) Look for callback-local templates (template.liquid)
+    const local = path.resolve(`./src/callbacks/${name}/template.liquid`);
+    if (fs.existsSync(local)) return local;
+
+    // 3) Fallback to views/{name}.{ext}
+    const viewsPath = path.resolve(`./views/${name}.liquid`);
+    if (fs.existsSync(viewsPath)) return viewsPath;
 
     throw new Error(`No valid template found for callback: ${name}`);
   }
