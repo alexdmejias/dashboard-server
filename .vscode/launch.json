@@ -22,6 +22,7 @@
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
 
+      "envFile": "${workspaceFolder}/.env",
       // Files to exclude from debugger (e.g. call stack)
       "skipFiles": [
         // Node.js internal core modules
