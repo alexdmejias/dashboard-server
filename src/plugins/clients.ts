@@ -145,7 +145,7 @@ function clientsPlugin(
       try {
         connection.raw.write(message);
       } catch (err) {
-        fastify.log.error("Error broadcasting to SSE connection:", err);
+        fastify.log.error({ err }, "Error broadcasting to SSE connection");
         _sseConnections.delete(connection);
       }
     }
@@ -155,7 +155,7 @@ function clientsPlugin(
     "registerClient",
     async (clientName: string, playlist: Playlist) => {
       fastify.log.info(`registering client: ${clientName}...`);
-      
+
       const client = await createClientFromPlaylist(
         fastify,
         clientName,
@@ -180,7 +180,7 @@ function clientsPlugin(
     "updateClientPlaylist",
     async (clientName: string, playlist: Playlist) => {
       fastify.log.info(`updating playlist for client: ${clientName}...`);
-      
+
       const client = await createClientFromPlaylist(
         fastify,
         clientName,

@@ -1,5 +1,5 @@
 // import * as Sentry from "@sentry/node";
-import "./instrument";
+// import "./instrument";
 
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -133,6 +133,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         id: string;
         callbackName: string;
         options?: Record<string, unknown>;
+        layout: "full" | "2-col";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/register/:clientName", async (req, res) => {
@@ -362,7 +367,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         const rendererType = getBrowserRendererType();
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(2, 8);
-        const fileName = `template-test-${templateType}-${timestamp}-${random}.${extOut}`;
+        const fileName = `template-test-${template}-${timestamp}-${random}.${extOut}`;
         const imagePath = getImagesPath(fileName);
 
         const width = screenDetails.width ?? 1200;
@@ -386,7 +391,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
             width,
             height,
             viewType: extOut,
-            templateType,
+            template,
           },
           `Saved test template image: ${fileName}`,
         );
@@ -468,6 +473,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         id: string;
         callbackName: string;
         options?: Record<string, unknown>;
+        layout: "full" | "2-col";
+        callbacks: Array<{
+          name: string;
+          options?: Record<string, unknown>;
+        }>;
       }[];
     };
   }>("/api/clients/:clientName/playlist", async (req, res) => {

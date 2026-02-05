@@ -45,6 +45,12 @@ jobs:
           npm install --silent
           npm run build
 
+      - name: Build server
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm run build
+
       - name: Restart PM2 app
         run: |
           export NVM_DIR="$HOME/.nvm"
