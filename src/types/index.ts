@@ -42,8 +42,11 @@ export type PossibleCallbacks = Record<string, PossibleCallback>;
 export * from "./browser-renderer";
 export type PlaylistItem = {
   id: string;
-  callbackName: string; // name of the callback to be used
-  options?: object; // runtime options for the callback
+  layout: "full" | "2-col";
+  callbacks: Array<{
+    name: string;
+    options?: object;
+  }>;
 };
 export type Playlist = PlaylistItem[];
 

@@ -1,37 +1,43 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import ejs from "ejs";
 import { Liquid } from "liquidjs";
 import logger from "../logger";
-import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
+
+// import getHTMLFromMarkdown from "./getHTMLfromMarkdown";
 
 async function getTemplateContent(
   templatePath: string,
-  isUsingLiquid: boolean,
+  includeWrapper = true,
 ): Promise<string> {
-  const ext = isUsingLiquid ? "liquid" : "ejs";
-  const [head, footer, template] = await Promise.all([
-    readFile(path.resolve(`./views/partials/head.${ext}`), "utf-8"),
-    readFile(path.resolve(`./views/partials/footer.${ext}`), "utf-8"),
-    readFile(templatePath, "utf-8"),
-  ]);
-  if (!head || !footer || !template) {
+  // For layouts, we only want the template content without head/footer
+  if (!includeWrapper) {
+    const template = await readFile(templatePath, "utf-8");
+    if (!template) {
+      throw new Error(`Failed to read template file at ${templatePath}`);
+    }
+    return template;
+  }
+
+  const template = await readFile(templatePath, "utf-8");
+  if (!template) {
     throw new Error(
       `Failed to read one or more template files: head, footer, or template at ${templatePath}`,
     );
   }
 
-  return `${head}\n${template}\n${footer}`;
+  return `${template}`;
 }
 
 async function getRenderedTemplate<T extends object>({
   template,
   data,
   runtimeConfig,
+  includeWrapper = true,
 }: {
   template: string;
   data: T;
   runtimeConfig?: object;
+  includeWrapper?: boolean;
 }): Promise<string> {
   if (
     template === "markdown" &&
@@ -42,34 +48,26 @@ async function getRenderedTemplate<T extends object>({
     );
   }
 
-  const isUsingLiquid = template.endsWith("liquid");
-  const templateStr = await getTemplateContent(template, isUsingLiquid);
+  // const isUsingLiquid = template.endsWith("liquid");
+  const templateStr = await getTemplateContent(template, includeWrapper);
 
   try {
-    if (isUsingLiquid) {
-      const engine = new Liquid();
-      return engine.parseAndRender(templateStr, {
-        data,
-        runtimeConfig,
-      });
-    }
-    return ejs.render(
-      templateStr,
-      {
-        runtimeConfig,
-        data:
-          template === "markdown" && "markdown" in data
-            ? getHTMLFromMarkdown((data as { markdown: string }).markdown)
-            : {
-                data,
-                runtimeConfig,
-              },
-      },
-      {
-        views: ["./views"],
-        async: true,
-      },
+    // Configure liquidjs with proper paths when not including wrapper
+    const engine = includeWrapper
+      ? new Liquid()
+      : new Liquid({
+          root: path.resolve("./views/layouts"),
+          partials: path.resolve("./views/partials"),
+          extname: ".liquid",
+        });
+    logger.debug(
+      { runtimeConfig, template },
+      "Rendering liquid template with runtimeConfig",
     );
+    return engine.parseAndRender(templateStr, {
+      data,
+      runtimeConfig,
+    });
   } catch (err) {
     logger.error(
       { err, template, data, runtimeConfig },

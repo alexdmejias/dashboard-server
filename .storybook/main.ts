@@ -1,7 +1,10 @@
 import type { StorybookConfig } from "@storybook/html-vite";
 
 const config: StorybookConfig = {
-  stories: ["../src/callbacks/**/*.stories.ts"],
+  stories: [
+    "../src/callbacks/**/*.stories.ts",
+    "../src/layouts/**/*.stories.ts",
+  ],
   addons: [],
 
   framework: {

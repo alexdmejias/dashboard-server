@@ -28,6 +28,8 @@ npm install
 npm run dev
 ```
 
+> **Note:** If you encounter an error about missing `@rollup/rollup-linux-x64-gnu` or similar platform-specific packages, see [NPM_OPTIONAL_DEPS.md](./NPM_OPTIONAL_DEPS.md) for details and solutions. This is due to a known npm bug with optional dependencies.
+
 This starts both the backend server and the admin interface concurrently:
 - **Backend server** runs on `http://localhost:3333` (or your configured `PORT`) with hot-reload via `tsx --watch`
 - **Admin interface** runs on `http://localhost:3001` with Vite dev server and HMR (Hot Module Replacement)
@@ -227,9 +229,14 @@ This flow shows the happy-path: a client request triggers the server's callback 
   - Body: `{ playlist: [{ id, callbackName, options? }] }`
   - Returns client configuration
 
-- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback
+- **GET /display/:clientName/:viewType/:callback?** — Render and display a callback or layout
   - `:viewType` can be `png`, `bmp`, `html`, or `json`
-  - Optional `:callback` parameter to render a specific callback (defaults to "next" in rotation)
+  - Optional `:callback` parameter supports:
+    - `next` - Advances rotation and renders next item (default)
+    - Playlist item ID - Renders complete layout by ID (e.g., `my-first-layout`)
+    - Callback ID - Renders individual callback (format: `playlistItemId-callbackName-index`)
+  - See [ACCESSING_LAYOUTS_BY_ID.md](./ACCESSING_LAYOUTS_BY_ID.md) for layout access guide
+  - See [TESTING_DUPLICATE_CALLBACKS.md](./TESTING_DUPLICATE_CALLBACKS.md) for callback examples
 
 ### Monitoring
 

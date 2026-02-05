@@ -3,9 +3,11 @@ import pino, { type LoggerOptions } from "pino";
 const hasLogtailToken = !!process.env.LOGTAIL_SOURCE_TOKEN;
 const isProduction = process.env.NODE_ENV === "production";
 const logLevel = process.env.LOG_LEVEL || "trace";
+
 // Define each transport as a variable
 const prettyTransport = {
   target: "pino-pretty",
+  level: logLevel,
   options: {
     colorize: true,
   },

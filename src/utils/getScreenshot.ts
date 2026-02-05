@@ -17,6 +17,7 @@ async function getScreenshot<
     width: 1200,
     height: 825,
   },
+  includeWrapper = true,
 }: {
   template: string;
   data: T;
@@ -24,11 +25,13 @@ async function getScreenshot<
   imagePath: string;
   viewType: string;
   size?: ScreenshotSizeOption;
+  includeWrapper?: boolean;
 }) {
   const renderedTemplate = await getRenderedTemplate({
     template,
     data,
     runtimeConfig,
+    includeWrapper,
   });
 
   const renderer = createBrowserRenderer();
