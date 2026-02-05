@@ -1,13 +1,14 @@
 import { Liquid } from "liquidjs";
 import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
 import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
-// Import callback templates
+import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2col.liquid?raw";
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
-import twoColLayout from "../views/layouts/2-col.liquid?raw";
+// Import callback templates
 // Import layout templates
+import twoColLayout from "../views/layouts/2-col.liquid?raw";
 import fullLayout from "../views/layouts/full.liquid?raw";
-import footerPartial from "../views/partials/footer.liquid?raw";
 // Import partials
+import footerPartial from "../views/partials/footer.liquid?raw";
 import headPartial from "../views/partials/head.liquid?raw";
 
 // Configure liquidjs engine with templates using parseFileSync approach
@@ -24,19 +25,30 @@ const engine = new Liquid({
   } as any,
 });
 
+type Layout = "full" | "2-col";
+
 // Map of available callback templates
-const callbackTemplates: Record<string, string> = {
-  "year-progress": yearProgressTemplate,
-  weather: weatherTemplate,
-  calendar: calendarTemplate,
+const callbackTemplates: Record<string, Record<Layout, string>> = {
+  "year-progress": {
+    full: yearProgressTemplate,
+    "2-col": yearProgressTemplate2Col,
+  },
+  weather: { full: weatherTemplate, "2-col": weatherTemplate },
+  calendar: { full: calendarTemplate, "2-col": calendarTemplate },
 };
 
 /**
  * Render a single callback with its template and data
  * Returns just the callback content (no head/footer)
  */
-export function renderCallbackContent(callbackName: string, data: any): string {
-  const template = callbackTemplates[callbackName];
+export function renderCallbackContent(
+  callbackName: string,
+  data: any,
+  layout: Layout = "full",
+): string {
+  const template =
+    callbackTemplates[callbackName]?.[layout] ??
+    callbackTemplates[callbackName].full;
   if (!template) {
     throw new Error(`Template not found for callback: ${callbackName}`);
   }
@@ -49,7 +61,7 @@ export function renderCallbackContent(callbackName: string, data: any): string {
  * Create a layout story renderer for use in Storybook
  */
 export function createLayoutStoryRenderer(
-  layout: "full" | "2-col",
+  layout: Layout,
   callbacks: { name: string; data: any }[],
 ) {
   return () => {
@@ -61,6 +73,7 @@ export function createLayoutStoryRenderer(
         const content = renderCallbackContent(
           callbacks[0].name,
           callbacks[0].data,
+          layout,
         );
         return engine.parseAndRenderSync(fullLayout, { content });
       }
@@ -71,10 +84,12 @@ export function createLayoutStoryRenderer(
       const content_left = renderCallbackContent(
         callbacks[0].name,
         callbacks[0].data,
+        layout,
       );
       const content_right = renderCallbackContent(
         callbacks[1].name,
         callbacks[1].data,
+        layout,
       );
 
       return engine.parseAndRenderSync(twoColLayout, {
