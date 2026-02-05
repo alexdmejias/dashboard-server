@@ -9,7 +9,23 @@ import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
 import fullLayout from "../views/layouts/full.liquid?raw";
 import twoColLayout from "../views/layouts/2-col.liquid?raw";
 
-const engine = new Liquid();
+// Import partials
+import headPartial from "../views/partials/head.liquid?raw";
+import footerPartial from "../views/partials/footer.liquid?raw";
+
+// Configure liquidjs engine with templates using parseFileSync approach
+const engine = new Liquid({
+  fs: {
+    existsSync: () => true,
+    readFileSync: (file: string) => {
+      // Return partials when requested
+      if (file.includes('head.liquid')) return headPartial;
+      if (file.includes('footer.liquid')) return footerPartial;
+      return '';
+    },
+    resolve: (root: string, file: string, ext: string) => file,
+  } as any,
+});
 
 // Map of available callback templates
 const callbackTemplates: Record<string, string> = {
@@ -48,16 +64,14 @@ export function createLayoutStoryRenderer(
         const content = renderCallbackContent(callbacks[0].name, callbacks[0].data);
         return engine.parseAndRenderSync(fullLayout, { content });
       } else {
+        // 2-col layout
         if (callbacks.length !== 2) {
           throw new Error("2-col layout requires exactly 2 callbacks");
         }
-        const content1 = renderCallbackContent(callbacks[0].name, callbacks[0].data);
-        const content2 = renderCallbackContent(callbacks[1].name, callbacks[1].data);
+        const content_left = renderCallbackContent(callbacks[0].name, callbacks[0].data);
+        const content_right = renderCallbackContent(callbacks[1].name, callbacks[1].data);
         
-        // Wrap each in a div and combine
-        const combinedContent = `<div>${content1}</div>\n<div>${content2}</div>`;
-        
-        return engine.parseAndRenderSync(twoColLayout, { content: combinedContent });
+        return engine.parseAndRenderSync(twoColLayout, { content_left, content_right });
       }
     } catch (error) {
       console.error("Error rendering layout:", error);
