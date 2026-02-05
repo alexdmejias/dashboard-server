@@ -22,20 +22,14 @@ export const yearProgressFixture = {
 };
 
 export const weatherFixture = {
-  today: {
-    max: 27.9,
-    low: 10.2,
-    date: "2/4/2026",
-    current: 21.9,
-    condition: {
-      text: "Partly cloudy",
-      image: "https://cdn.weatherapi.com/weather/64x64/night/116.png",
-    },
+  title: "Astoria",
+  current: {
+    temp_f: 22,
   },
   forecast: [
     {
-      max: 23.5,
-      low: 2.1,
+      max: 23,
+      low: 2,
       date: "Wed Feb 5",
       condition: {
         text: "Sunny",
@@ -43,8 +37,8 @@ export const weatherFixture = {
       },
     },
     {
-      max: 23.2,
-      low: 10.6,
+      max: 23,
+      low: 10,
       date: "Thu Feb 6",
       condition: {
         text: "Partly Cloudy",
@@ -52,8 +46,8 @@ export const weatherFixture = {
       },
     },
     {
-      max: 25.1,
-      low: 12.3,
+      max: 25,
+      low: 12,
       date: "Fri Feb 7",
       condition: {
         text: "Overcast",
@@ -64,20 +58,14 @@ export const weatherFixture = {
 };
 
 export const weatherFixtureSF = {
-  today: {
-    max: 18.3,
-    low: 12.1,
-    date: "2/4/2026",
-    current: 15.6,
-    condition: {
-      text: "Foggy",
-      image: "https://cdn.weatherapi.com/weather/64x64/day/248.png",
-    },
+  title: "San Francisco",
+  current: {
+    temp_f: 22,
   },
   forecast: [
     {
-      max: 19.4,
-      low: 11.7,
+      max: 19,
+      low: 11,
       date: "Wed Feb 5",
       condition: {
         text: "Partly cloudy",
@@ -85,8 +73,8 @@ export const weatherFixtureSF = {
       },
     },
     {
-      max: 17.8,
-      low: 10.9,
+      max: 17,
+      low: 10,
       date: "Thu Feb 6",
       condition: {
         text: "Cloudy",
@@ -97,20 +85,13 @@ export const weatherFixtureSF = {
 };
 
 export const weatherFixtureNY = {
-  today: {
-    max: 5.6,
-    low: -2.1,
-    date: "2/4/2026",
-    current: 2.3,
-    condition: {
-      text: "Light snow",
-      image: "https://cdn.weatherapi.com/weather/64x64/day/326.png",
-    },
+  current: {
+    temp_f: 22,
   },
   forecast: [
     {
-      max: 4.2,
-      low: -3.8,
+      max: 4,
+      low: -3,
       date: "Wed Feb 5",
       condition: {
         text: "Sunny",
@@ -118,8 +99,8 @@ export const weatherFixtureNY = {
       },
     },
     {
-      max: 6.1,
-      low: -1.2,
+      max: 6,
+      low: -1,
       date: "Thu Feb 6",
       condition: {
         text: "Partly Cloudy",
