@@ -31,7 +31,7 @@ class StateMachine {
   }
 
   toString() {
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       config: this.#config,
       callbacks: {},
     };
@@ -39,7 +39,7 @@ class StateMachine {
     for (const [callbackName, callbackValue] of Object.entries(
       this.callbacks,
     )) {
-      data.callbacks[callbackName] = {
+      (data.callbacks as Record<string, unknown>)[callbackName] = {
         name: callbackValue.name,
         instance: callbackValue.instance.toString(),
       };
@@ -132,7 +132,17 @@ class StateMachine {
     // For single callback, we need to render it and wrap in layout
     if (callbackInstances.length === 1) {
       // Render the callback and wrap it in the layout
-      const rendered = await callbackInstances[0]!.render(
+      const firstInstance = callbackInstances[0];
+
+      if (!firstInstance) {
+        return {
+          error: "Callback instance not found",
+
+          viewType: "error",
+        };
+      }
+
+      const rendered = await firstInstance.render(
         viewType,
         playlistItem.callbacks[0].options,
         playlistItem.layout,
@@ -162,13 +172,12 @@ class StateMachine {
         });
 
         const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.html || rendered.content,
+          content: rendered.viewType === "html" ? rendered.html : "",
         });
 
         return {
-          viewType,
+          viewType: "html" as const,
           html: finalContent,
-          content: finalContent,
         };
       } catch (error) {
         logger.error({ error }, "Error rendering layout for single callback");
@@ -187,13 +196,19 @@ class StateMachine {
 
       // Render each callback with layout context
       const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) =>
-          instance!.render(
+        callbackInstances.map((instance, index) => {
+          if (!instance) {
+            return Promise.resolve({
+              viewType: "error" as const,
+              error: "Instance not found",
+            });
+          }
+          return instance.render(
             viewType,
             playlistItem.callbacks[index].options,
             playlistItem.layout,
-          ),
-        ),
+          );
+        }),
       );
 
       // Check for errors
@@ -220,7 +235,10 @@ class StateMachine {
       };
 
       const callbackContents = renderedCallbacks.map((rendered) => {
-        return extractContent(rendered.html || rendered.content || "");
+        if (rendered.viewType === "html") {
+          return extractContent(rendered.html);
+        }
+        return "";
       });
 
       // Combine callback contents based on layout
@@ -262,12 +280,14 @@ class StateMachine {
         };
       }
 
-      const finalContent = await engine.parseAndRender(layoutTemplate, blockData);
+      const finalContent = await engine.parseAndRender(
+        layoutTemplate,
+        blockData,
+      );
 
       return {
-        viewType,
+        viewType: "html" as const,
         html: finalContent,
-        content: finalContent,
       };
     } catch (error) {
       logger.error({ error }, "Error rendering layout");
@@ -317,7 +337,17 @@ class StateMachine {
     // For single callback, we need to render it and wrap in layout
     if (callbackInstances.length === 1) {
       // Render the callback and wrap it in the layout
-      const rendered = await callbackInstances[0]!.render(
+      const firstInstance = callbackInstances[0];
+
+      if (!firstInstance) {
+        return {
+          error: "Callback instance not found",
+
+          viewType: "error",
+        };
+      }
+
+      const rendered = await firstInstance.render(
         viewType,
         playlistItem.callbacks[0].options,
         playlistItem.layout,
@@ -347,13 +377,12 @@ class StateMachine {
         });
 
         const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.html || rendered.content,
+          content: rendered.viewType === "html" ? rendered.html : "",
         });
 
         return {
-          viewType,
+          viewType: "html" as const,
           html: finalContent,
-          content: finalContent,
         };
       } catch (error) {
         logger.error({ error }, "Error rendering layout for single callback");
@@ -372,13 +401,19 @@ class StateMachine {
 
       // Render each callback with layout context
       const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) =>
-          instance!.render(
+        callbackInstances.map((instance, index) => {
+          if (!instance) {
+            return Promise.resolve({
+              viewType: "error" as const,
+              error: "Instance not found",
+            });
+          }
+          return instance.render(
             viewType,
             playlistItem.callbacks[index].options,
             playlistItem.layout,
-          ),
-        ),
+          );
+        }),
       );
 
       // Check for errors
@@ -405,7 +440,10 @@ class StateMachine {
       };
 
       const callbackContents = renderedCallbacks.map((rendered) => {
-        return extractContent(rendered.html || rendered.content || "");
+        if (rendered.viewType === "html") {
+          return extractContent(rendered.html);
+        }
+        return "";
       });
 
       // Combine callback contents based on layout
@@ -447,12 +485,14 @@ class StateMachine {
         };
       }
 
-      const finalContent = await engine.parseAndRender(layoutTemplate, blockData);
+      const finalContent = await engine.parseAndRender(
+        layoutTemplate,
+        blockData,
+      );
 
       return {
-        viewType,
+        viewType: "html" as const,
         html: finalContent,
-        content: finalContent,
       };
     } catch (error) {
       logger.error({ error }, "Error rendering layout");
