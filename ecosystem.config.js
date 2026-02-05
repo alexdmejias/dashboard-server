@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "dashboard-server",
-      script: "npm",
-      args: "run start:prod",
+      script: "dist/index.js",
+      interpreter: "node",
       instances: 1,
       autorestart: true,
       watch: false,

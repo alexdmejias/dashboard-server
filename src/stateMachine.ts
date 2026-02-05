@@ -138,13 +138,69 @@ class StateMachine {
       };
     }
 
-    // For single callback, render directly with layout context
+    // For single callback, we need to render it and wrap in layout for HTML viewType
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(
-        viewType,
+      // For non-HTML view types, render directly without layout
+      if (viewType !== "html") {
+        return callbackInstances[0]!.render(
+          viewType,
+          playlistItem.callbacks[0].options,
+        );
+      }
+
+      // For HTML, render the callback and wrap it in the layout
+      const rendered = await callbackInstances[0]!.render(
+        "html",
         playlistItem.callbacks[0].options,
         playlistItem.layout,
       );
+
+      if (rendered.viewType === "error") {
+        return rendered;
+      }
+
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML view type from callback render");
+        return {
+          error: "Expected HTML view type from callback render",
+          viewType: "error",
+        };
+      }
+
+      // Load and render the layout template with the callback content
+      try {
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${playlistItem.layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        // Configure liquidjs with proper paths for partials
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalHtml = await engine.parseAndRender(layoutTemplate, {
+          content: rendered.html,
+        });
+
+        return {
+          viewType: "html",
+          html: finalHtml,
+        };
+      } catch (error) {
+        logger.error({ error }, "Error rendering layout for single callback");
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          viewType: "error",
+        };
+      }
     }
 
     // For multiple callbacks, render each and combine with layout
@@ -293,13 +349,69 @@ class StateMachine {
       };
     }
 
-    // For single callback, render directly with layout context
+    // For single callback, we need to render it and wrap in layout for HTML viewType
     if (callbackInstances.length === 1) {
-      return callbackInstances[0]!.render(
-        viewType,
+      // For non-HTML view types, render directly without layout
+      if (viewType !== "html") {
+        return callbackInstances[0]!.render(
+          viewType,
+          playlistItem.callbacks[0].options,
+        );
+      }
+
+      // For HTML, render the callback and wrap it in the layout
+      const rendered = await callbackInstances[0]!.render(
+        "html",
         playlistItem.callbacks[0].options,
         playlistItem.layout,
       );
+
+      if (rendered.viewType === "error") {
+        return rendered;
+      }
+
+      if (rendered.viewType !== "html") {
+        logger.error("Expected HTML view type from callback render");
+        return {
+          error: "Expected HTML view type from callback render",
+          viewType: "error",
+        };
+      }
+
+      // Load and render the layout template with the callback content
+      try {
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${playlistItem.layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        // Configure liquidjs with proper paths for partials
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalHtml = await engine.parseAndRender(layoutTemplate, {
+          content: rendered.html,
+        });
+
+        return {
+          viewType: "html",
+          html: finalHtml,
+        };
+      } catch (error) {
+        logger.error({ error }, "Error rendering layout for single callback");
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          viewType: "error",
+        };
+      }
     }
 
     // For multiple callbacks, render each and combine with layout

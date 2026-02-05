@@ -53,14 +53,12 @@ async function getRenderedTemplate<T extends object>({
   const templateStr = await getTemplateContent(template, includeWrapper);
 
   try {
-    // Configure liquidjs with proper paths when not including wrapper
-    const engine = includeWrapper
-      ? new Liquid()
-      : new Liquid({
-          root: path.join(PROJECT_ROOT, "views/layouts"),
-          partials: path.join(PROJECT_ROOT, "views/partials"),
-          extname: ".liquid",
-        });
+    // Configure liquidjs with proper paths for partials
+    const engine = new Liquid({
+      root: path.join(PROJECT_ROOT, "views/layouts"),
+      partials: path.join(PROJECT_ROOT, "views/partials"),
+      extname: ".liquid",
+    });
     logger.debug(
       { runtimeConfig, template },
       "Rendering liquid template with runtimeConfig",

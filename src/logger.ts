@@ -22,17 +22,12 @@ const logtailTransport = {
 };
 
 // Build the transport config as a variable
+// In production with PM2, don't use pino-pretty or logtail as they can cause issues
+// Logs go to stdout directly which PM2 captures
 let loggerTransport: LoggerOptions["transport"];
 if (isProduction) {
-  if (hasLogtailToken) {
-    loggerTransport = {
-      targets: [prettyTransport, logtailTransport],
-    };
-  } else {
-    loggerTransport = {
-      targets: [prettyTransport],
-    };
-  }
+  // No transport in production - logs go to stdout directly for PM2
+  loggerTransport = undefined;
 } else {
   loggerTransport = {
     targets: [prettyTransport],

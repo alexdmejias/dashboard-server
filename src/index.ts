@@ -1,3 +1,11 @@
+// Load environment variables from .env file first (before any other imports)
+import dotenv from "dotenv";
+import path from "node:path";
+
+// When running from dist/, look for .env in parent directory
+const envPath = path.resolve(__dirname, "../.env");
+dotenv.config({ path: envPath });
+
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import getApp from "./app";
