@@ -255,6 +255,9 @@ class CallbackBase<
       ? this.resolveLayoutTemplate(layout)
       : this.template;
 
+    // When rendering for layouts, don't include head/footer wrapper
+    const includeWrapper = !layout;
+
     if (isSupportedImageViewType(viewType)) {
       try {
         if (this.cacheable && templateOverride !== "error") {
@@ -279,6 +282,7 @@ class CallbackBase<
               imagePath: screenshotPath,
               templateOverride,
               templateToUse,
+              includeWrapper,
             }),
           };
         }
@@ -293,6 +297,7 @@ class CallbackBase<
             imagePath: screenshotPath,
             templateOverride,
             templateToUse,
+            includeWrapper,
           }),
         };
       } catch (error) {
@@ -318,6 +323,7 @@ class CallbackBase<
           template: templateOverride,
           runtimeConfig: runtimeConfig as ExpectedConfig,
           templateToUse,
+          includeWrapper,
         }),
       };
     }
@@ -332,6 +338,7 @@ class CallbackBase<
     imagePath,
     templateOverride,
     templateToUse,
+    includeWrapper = true,
   }: {
     viewType: SupportedImageViewType;
     data: T;
@@ -339,6 +346,7 @@ class CallbackBase<
     imagePath: string;
     templateOverride?: string;
     templateToUse?: string;
+    includeWrapper?: boolean;
   }): Promise<string> {
     const screenshot = await getScreenshot<T>({
       data,
@@ -347,6 +355,7 @@ class CallbackBase<
       size: this.screenshotSize,
       imagePath,
       viewType,
+      includeWrapper,
     });
 
     return screenshot.path;
@@ -357,16 +366,19 @@ class CallbackBase<
     template,
     runtimeConfig,
     templateToUse,
+    includeWrapper = true,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
     runtimeConfig?: ExpectedConfig;
     templateToUse?: string;
+    includeWrapper?: boolean;
   }) {
     return getRenderedTemplate({
       template: template ? template : (templateToUse || this.template),
       data,
       runtimeConfig,
+      includeWrapper,
     });
   }
 

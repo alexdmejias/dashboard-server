@@ -203,10 +203,27 @@ class StateMachine {
       );
       const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
-      const engine = new Liquid();
-      const finalHtml = await engine.parseAndRender(layoutTemplate, {
-        content: combinedContent,
+      // Configure liquidjs with proper paths for partials
+      const engine = new Liquid({
+        root: path.resolve("./views/layouts"),
+        partials: path.resolve("./views/partials"),
+        extname: ".liquid",
       });
+
+      // Prepare data for blocks based on layout type
+      let blockData: Record<string, string> = {};
+      if (playlistItem.layout === "2-col") {
+        blockData = {
+          content_left: callbackContents[0] || "",
+          content_right: callbackContents[1] || "",
+        };
+      } else {
+        blockData = {
+          content: combinedContent,
+        };
+      }
+
+      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
 
       return {
         viewType: "html",
@@ -332,10 +349,27 @@ class StateMachine {
       );
       const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
 
-      const engine = new Liquid();
-      const finalHtml = await engine.parseAndRender(layoutTemplate, {
-        content: combinedContent,
+      // Configure liquidjs with proper paths for partials
+      const engine = new Liquid({
+        root: path.resolve("./views/layouts"),
+        partials: path.resolve("./views/partials"),
+        extname: ".liquid",
       });
+
+      // Prepare data for blocks based on layout type
+      let blockData: Record<string, string> = {};
+      if (playlistItem.layout === "2-col") {
+        blockData = {
+          content_left: callbackContents[0] || "",
+          content_right: callbackContents[1] || "",
+        };
+      } else {
+        blockData = {
+          content: combinedContent,
+        };
+      }
+
+      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
 
       return {
         viewType: "html",
