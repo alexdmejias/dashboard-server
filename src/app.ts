@@ -19,6 +19,11 @@ import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
 import {
+  cleanupOldImages,
+  clearImagesOnStartup,
+  getImagesPath,
+} from "./utils/imagesPath";
+import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
@@ -38,6 +43,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   if (!possibleCallbacks || !Object.keys(possibleCallbacks).length) {
     throw new Error("no callbacks provided");
   }
+
+  // Clear tmpdir on server startup
+  clearImagesOnStartup();
 
   const app = fastify({
     loggerInstance: logger,
@@ -371,8 +379,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
         // image output (png or bmp) — use shared getScreenshot utility
         const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
-        const fileName = `test-template-${Date.now()}.${extOut}`;
-        const imagePath = resolve(`./public/images/${fileName}`);
+        const rendererType = getBrowserRendererType();
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `template-test-${templateType}-${timestamp}-${random}.${extOut}`;
+        const imagePath = getImagesPath(fileName);
 
         const width = screenDetails.width ?? 1200;
         const height = screenDetails.height ?? 825;
@@ -385,6 +396,23 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           viewType: extOut,
           size: { width, height },
         });
+
+        // Log image save details
+        app.log.info(
+          {
+            imagePath,
+            fileName,
+            rendererType,
+            width,
+            height,
+            viewType: extOut,
+            templateType,
+          },
+          `Saved test template image: ${fileName}`,
+        );
+
+        // Cleanup old images if limit exceeded
+        cleanupOldImages();
 
         const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
         return res.type(contentType).send(buffer);
