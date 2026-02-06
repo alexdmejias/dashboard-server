@@ -257,32 +257,31 @@ class StateMachine {
         }
       }
 
+      // Extract HTML content from each callback (remove head/footer)
+      const extractContent = (html: string): string => {
+        // Extract content between <div class="view view--full"> and title_bar
+        const viewStart = html.indexOf('<div class="view view--full">');
+        const titleBarStart = html.indexOf('<div class="title_bar">');
+
+        if (viewStart === -1 || titleBarStart === -1) {
+          // Fallback: return the whole HTML
+          return html;
+        }
+
+        const contentStart = viewStart + '<div class="view view--full">'.length;
+        const content = html.substring(contentStart, titleBarStart).trim();
+        return content;
+      };
+
+      const callbackContents = renderedCallbacks.map((rendered) => {
+        if (rendered.viewType === "html") {
+          return extractContent(rendered.html);
+        }
+        return "";
+      });
+
       // For image viewTypes, we need to convert the final HTML to image
       if (isSupportedImageViewType(viewType)) {
-        // Extract HTML content from each callback (remove head/footer)
-        const extractContent = (html: string): string => {
-          // Extract content between <div class="view view--full"> and title_bar
-          const viewStart = html.indexOf('<div class="view view--full">');
-          const titleBarStart = html.indexOf('<div class="title_bar">');
-
-          if (viewStart === -1 || titleBarStart === -1) {
-            // Fallback: return the whole HTML
-            return html;
-          }
-
-          const contentStart =
-            viewStart + '<div class="view view--full">'.length;
-          const content = html.substring(contentStart, titleBarStart).trim();
-          return content;
-        };
-
-        const callbackContents = renderedCallbacks.map((rendered) => {
-          if (rendered.viewType === "html") {
-            return extractContent(rendered.html);
-          }
-          return "";
-        });
-
         // Load and render the layout template
         const layoutPath = path.join(
           PROJECT_ROOT,
@@ -301,9 +300,9 @@ class StateMachine {
         const blockData: Record<string, string> = {};
 
         // Map each callback content to its slot name
-        for (let i = 0; i < callbackData.length; i++) {
-          blockData[callbackData[i].slotName] = callbackContents[i] || "";
-        }
+        callbackData.forEach((callback, i) => {
+          blockData[callback.slotName] = callbackContents[i] || "";
+        });
 
         const finalHtml = await engine.parseAndRender(
           layoutTemplate,
@@ -367,30 +366,7 @@ class StateMachine {
         }
       }
 
-      // For HTML viewType, extract and combine content
-      // Extract HTML content from each callback (remove head/footer)
-      const extractContent = (html: string): string => {
-        // Extract content between <div class="view view--full"> and title_bar
-        const viewStart = html.indexOf('<div class="view view--full">');
-        const titleBarStart = html.indexOf('<div class="title_bar">');
-
-        if (viewStart === -1 || titleBarStart === -1) {
-          // Fallback: return the whole HTML
-          return html;
-        }
-
-        const contentStart = viewStart + '<div class="view view--full">'.length;
-        const content = html.substring(contentStart, titleBarStart).trim();
-        return content;
-      };
-
-      const callbackContents = renderedCallbacks.map((rendered) => {
-        if (rendered.viewType === "html") {
-          return extractContent(rendered.html);
-        }
-        return "";
-      });
-
+      // For HTML viewType, combine content with layout
       // Load and render the layout template
       const layoutPath = path.join(
         PROJECT_ROOT,
@@ -409,9 +385,9 @@ class StateMachine {
       const blockData: Record<string, string> = {};
 
       // Map each callback content to its slot name
-      for (let i = 0; i < callbackData.length; i++) {
-        blockData[callbackData[i].slotName] = callbackContents[i] || "";
-      }
+      callbackData.forEach((callback, i) => {
+        blockData[callback.slotName] = callbackContents[i] || "";
+      });
 
       const finalContent = await engine.parseAndRender(
         layoutTemplate,
