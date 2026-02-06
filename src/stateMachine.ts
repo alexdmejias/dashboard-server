@@ -239,13 +239,15 @@ class StateMachine {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
 
-      // Render each callback
+      // Render each callback without layout parameter
+      // For multi-callback scenarios, always render as HTML first
+      // Then we combine and convert to final viewType if needed
       const renderedCallbacks = await Promise.all(
         callbackData.map((data) => {
           return data.instance.render(
-            viewType,
+            "html", // Always render as HTML for combining
             data.callbackConfig.options,
-            playlistItem.layout,
+            undefined, // Don't pass layout - prevents callbacks from handling it
           );
         }),
       );
@@ -257,25 +259,11 @@ class StateMachine {
         }
       }
 
-      // Extract HTML content from each callback (remove head/footer)
-      const extractContent = (html: string): string => {
-        // Extract content between <div class="view view--full"> and title_bar
-        const viewStart = html.indexOf('<div class="view view--full">');
-        const titleBarStart = html.indexOf('<div class="title_bar">');
-
-        if (viewStart === -1 || titleBarStart === -1) {
-          // Fallback: return the whole HTML
-          return html;
-        }
-
-        const contentStart = viewStart + '<div class="view view--full">'.length;
-        const content = html.substring(contentStart, titleBarStart).trim();
-        return content;
-      };
-
+      // Extract HTML content from each callback
+      // Since we rendered without layout, callbacks return just their content
       const callbackContents = renderedCallbacks.map((rendered) => {
         if (rendered.viewType === "html") {
-          return extractContent(rendered.html);
+          return rendered.html;
         }
         return "";
       });
