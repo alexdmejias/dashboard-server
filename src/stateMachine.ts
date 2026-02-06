@@ -7,6 +7,10 @@ import type {
   SupportedViewType,
   ValidCallback,
 } from "./types";
+import { getBrowserRendererType } from "./utils/getBrowserRendererType";
+import getScreenshot from "./utils/getScreenshot";
+import { cleanupOldImages, getImagesPath } from "./utils/imagesPath";
+import { isSupportedImageViewType } from "./utils/isSupportedViewTypes";
 import { PROJECT_ROOT } from "./utils/projectRoot";
 
 export type Config = {
@@ -253,6 +257,117 @@ class StateMachine {
         }
       }
 
+      // For image viewTypes, we need to convert the final HTML to image
+      if (isSupportedImageViewType(viewType)) {
+        // Extract HTML content from each callback (remove head/footer)
+        const extractContent = (html: string): string => {
+          // Extract content between <div class="view view--full"> and title_bar
+          const viewStart = html.indexOf('<div class="view view--full">');
+          const titleBarStart = html.indexOf('<div class="title_bar">');
+
+          if (viewStart === -1 || titleBarStart === -1) {
+            // Fallback: return the whole HTML
+            return html;
+          }
+
+          const contentStart =
+            viewStart + '<div class="view view--full">'.length;
+          const content = html.substring(contentStart, titleBarStart).trim();
+          return content;
+        };
+
+        const callbackContents = renderedCallbacks.map((rendered) => {
+          if (rendered.viewType === "html") {
+            return extractContent(rendered.html);
+          }
+          return "";
+        });
+
+        // Load and render the layout template
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${playlistItem.layout}.liquid`,
+        );
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        // Configure liquidjs with proper paths for partials
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        // Prepare data for blocks based on named slots
+        const blockData: Record<string, string> = {};
+
+        // Map each callback content to its slot name
+        for (let i = 0; i < callbackData.length; i++) {
+          blockData[callbackData[i].slotName] = callbackContents[i] || "";
+        }
+
+        const finalHtml = await engine.parseAndRender(
+          layoutTemplate,
+          blockData,
+        );
+
+        // Now convert the final HTML to image
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `multi-callback-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
+
+        // Write the HTML to a temp file to pass to getScreenshot
+        const os = await import("node:os");
+        const tmpHtmlPath = path.join(
+          os.tmpdir(),
+          `multi-callback-${timestamp}-${random}.html`,
+        );
+        await fs.writeFile(tmpHtmlPath, finalHtml, "utf-8");
+
+        try {
+          const screenshot = await getScreenshot({
+            template: tmpHtmlPath,
+            data: {}, // Data already rendered in HTML
+            runtimeConfig: {},
+            imagePath: screenshotPath,
+            viewType,
+            size: { width: 1200, height: 825 },
+            includeWrapper: false, // HTML already complete
+          });
+
+          const rendererType = getBrowserRendererType();
+          const fileNameOnly = path.basename(screenshotPath);
+
+          logger.info(
+            {
+              imagePath: screenshotPath,
+              fileName: fileNameOnly,
+              rendererType,
+              width: 1200,
+              height: 825,
+              viewType,
+              layout: playlistItem.layout,
+            },
+            `Saved multi-callback image with layout: ${fileNameOnly}`,
+          );
+
+          cleanupOldImages();
+
+          return {
+            viewType,
+            imagePath: screenshot.path,
+          };
+        } finally {
+          // Clean up temp HTML file
+          try {
+            await fs.unlink(tmpHtmlPath);
+          } catch (e) {
+            logger.debug({ err: e }, "Failed to remove temp HTML file");
+          }
+        }
+      }
+
+      // For HTML viewType, extract and combine content
       // Extract HTML content from each callback (remove head/footer)
       const extractContent = (html: string): string => {
         // Extract content between <div class="view view--full"> and title_bar
