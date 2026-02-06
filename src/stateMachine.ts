@@ -280,34 +280,31 @@ class StateMachine {
         return "";
       });
 
+      // Load and render the layout template with callback contents
+      const layoutPath = path.join(
+        PROJECT_ROOT,
+        `views/layouts/${playlistItem.layout}.liquid`,
+      );
+      const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+      const engine = new Liquid({
+        root: path.join(PROJECT_ROOT, "views/layouts"),
+        partials: path.join(PROJECT_ROOT, "views/partials"),
+        extname: ".liquid",
+      });
+
+      // Prepare data for blocks based on named slots
+      const blockData: Record<string, string> = {};
+      callbackData.forEach((callback, i) => {
+        blockData[callback.slotName] = callbackContents[i] || "";
+      });
+
+      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
+
       // For image viewTypes, we need to convert the final HTML to image
       if (isSupportedImageViewType(viewType)) {
-        // Load and render the layout template
-        const layoutPath = path.join(
-          PROJECT_ROOT,
-          `views/layouts/${playlistItem.layout}.liquid`,
-        );
-        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-        // Configure liquidjs with proper paths for partials
-        const engine = new Liquid({
-          root: path.join(PROJECT_ROOT, "views/layouts"),
-          partials: path.join(PROJECT_ROOT, "views/partials"),
-          extname: ".liquid",
-        });
-
-        // Prepare data for blocks based on named slots
-        const blockData: Record<string, string> = {};
-
-        // Map each callback content to its slot name
-        callbackData.forEach((callback, i) => {
-          blockData[callback.slotName] = callbackContents[i] || "";
-        });
-
-        const finalHtml = await engine.parseAndRender(
-          layoutTemplate,
-          blockData,
-        );
+        const DEFAULT_SCREENSHOT_WIDTH = 1200;
+        const DEFAULT_SCREENSHOT_HEIGHT = 825;
 
         // Now convert the final HTML to image
         const timestamp = Date.now();
@@ -330,7 +327,10 @@ class StateMachine {
             runtimeConfig: {},
             imagePath: screenshotPath,
             viewType,
-            size: { width: 1200, height: 825 },
+            size: {
+              width: DEFAULT_SCREENSHOT_WIDTH,
+              height: DEFAULT_SCREENSHOT_HEIGHT,
+            },
             includeWrapper: false, // HTML already complete
           });
 
@@ -342,8 +342,8 @@ class StateMachine {
               imagePath: screenshotPath,
               fileName: fileNameOnly,
               rendererType,
-              width: 1200,
-              height: 825,
+              width: DEFAULT_SCREENSHOT_WIDTH,
+              height: DEFAULT_SCREENSHOT_HEIGHT,
               viewType,
               layout: playlistItem.layout,
             },
@@ -366,37 +366,10 @@ class StateMachine {
         }
       }
 
-      // For HTML viewType, combine content with layout
-      // Load and render the layout template
-      const layoutPath = path.join(
-        PROJECT_ROOT,
-        `views/layouts/${playlistItem.layout}.liquid`,
-      );
-      const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-      // Configure liquidjs with proper paths for partials
-      const engine = new Liquid({
-        root: path.join(PROJECT_ROOT, "views/layouts"),
-        partials: path.join(PROJECT_ROOT, "views/partials"),
-        extname: ".liquid",
-      });
-
-      // Prepare data for blocks based on named slots
-      const blockData: Record<string, string> = {};
-
-      // Map each callback content to its slot name
-      callbackData.forEach((callback, i) => {
-        blockData[callback.slotName] = callbackContents[i] || "";
-      });
-
-      const finalContent = await engine.parseAndRender(
-        layoutTemplate,
-        blockData,
-      );
-
+      // For HTML viewType, return the rendered HTML
       return {
         viewType: "html" as const,
-        html: finalContent,
+        html: finalHtml,
       };
     } catch (error) {
       logger.error({ error }, "Error rendering layout");
