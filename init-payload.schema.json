@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dashboard-server/init-payload.schema.json",
+  "title": "Dashboard Playlist Schema",
+  "description": "Schema for dashboard playlist configuration with layouts and callbacks",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "$ref": "#/definitions/PlaylistItem"
+  },
+  "definitions": {
+    "PlaylistItem": {
+      "type": "object",
+      "required": ["id", "layout", "callbacks"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique identifier for this playlist item"
+        },
+        "layout": {
+          "type": "string",
+          "enum": ["2-col", "full"],
+          "description": "Layout type: '2-col' for two-column layout, 'full' for full-width layout"
+        },
+        "callbacks": {
+          "type": "object",
+          "description": "Named slots for callbacks, structure depends on layout type"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "2-col"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "callbacks": {
+                "type": "object",
+                "required": ["content_left", "content_right"],
+                "properties": {
+                  "content_left": {
+                    "$ref": "#/definitions/Callback",
+                    "description": "Callback for left column content"
+                  },
+                  "content_right": {
+                    "$ref": "#/definitions/Callback",
+                    "description": "Callback for right column content"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "full"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "callbacks": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": {
+                    "$ref": "#/definitions/Callback",
+                    "description": "Callback for full-width content"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Callback": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": ["reddit", "weather", "year-progress", "calendar", "todoist"],
+          "description": "Name of the callback to render (must match available callbacks in src/index.ts)"
+        },
+        "options": {
+          "type": "object",
+          "description": "Optional configuration options passed to the callback",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -126,14 +126,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName: string;
     };
     Body: {
-      playlist?: {
-        id: string;
-        layout: "full" | "2-col";
-        callbacks: Array<{
-          name: string;
-          options?: Record<string, unknown>;
-        }>;
-      }[];
+      playlist?: PlaylistItem[];
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
@@ -259,8 +252,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           app.log.info(`Rendering playlist item by ID: ${callback}`);
           data = await client.renderPlaylistItemById(callback, viewTypeToUse);
         } else {
-          // Fallback to callback ID lookup (for backward compatibility)
-          // In the new system, callback ID has the format: playlistItemId-callbackName-index
+          // Fallback to callback ID lookup (for individual slot rendering)
+          // In the new system, callback ID has the format: playlistItemId-slotName
           const callbackInstance = client.getCallbackInstance(callback);
 
           if (!callbackInstance) {
@@ -275,15 +268,18 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           }
 
           // Find the playlist item that contains this callback
-          // The callback ID format is: playlistItemId-callbackName-index
-          // So we need to find which playlist item this belongs to
+          // The callback ID format is: playlistItemId-slotName
+          // So we need to find which playlist item and slot this belongs to
           let playlistItemForCallback: PlaylistItem | undefined;
           let callbackOptions: Record<string, unknown> | undefined;
 
           for (const item of client.getConfig().playlist) {
-            for (let i = 0; i < item.callbacks.length; i++) {
-              const cb = item.callbacks[i];
-              const expectedCallbackId = `${item.id}-${cb.name}-${i}`;
+            const callbackEntries = Object.entries(item.callbacks) as [
+              string,
+              { name: string; options?: any },
+            ][];
+            for (const [slotName, cb] of callbackEntries) {
+              const expectedCallbackId = `${item.id}-${slotName}`;
               if (expectedCallbackId === callback) {
                 playlistItemForCallback = item;
                 callbackOptions = cb.options as
@@ -321,7 +317,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const rendererType =
       viewTypeToUse === "html" ? undefined : getBrowserRendererType();
 
-    app.log.info({ data, viewType: viewTypeToUse, rendererType }, "rendering");
+    app.log.info({ viewType: viewTypeToUse, rendererType }, "rendering");
 
     const responseTime = Date.now() - startTime;
     app.logClientRequest(
@@ -484,14 +480,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName: string;
     };
     Body: {
-      playlist: {
-        id: string;
-        layout: "full" | "2-col";
-        callbacks: Array<{
-          name: string;
-          options?: Record<string, unknown>;
-        }>;
-      }[];
+      playlist: PlaylistItem[];
     };
   }>("/api/clients/:clientName/playlist", async (req, res) => {
     const { clientName } = req.params;

@@ -36,14 +36,30 @@ function validatePlaylist(
         layout: z.enum(["full", "2-col"], {
           message: "Layout must be 'full' or '2-col'",
         }),
-        callbacks: z
-          .array(
-            z.object({
-              name: z.string().min(1, "Callback name must be a non-empty string"),
+        callbacks: z.union([
+          z.object({
+            content_left: z.object({
+              name: z
+                .string()
+                .min(1, "Callback name must be a non-empty string"),
               options: z.record(z.string(), z.unknown()).optional(),
             }),
-          )
-          .min(1, "Callbacks array must contain at least one callback"),
+            content_right: z.object({
+              name: z
+                .string()
+                .min(1, "Callback name must be a non-empty string"),
+              options: z.record(z.string(), z.unknown()).optional(),
+            }),
+          }),
+          z.object({
+            content: z.object({
+              name: z
+                .string()
+                .min(1, "Callback name must be a non-empty string"),
+              options: z.record(z.string(), z.unknown()).optional(),
+            }),
+          }),
+        ]),
       }),
     )
     .min(1, "Playlist must contain at least one item")
@@ -58,31 +74,79 @@ function validatePlaylist(
         });
       }
 
-      // Validate layout-specific callback counts
+      // Validate layout-specific callback structure and slot names
       for (const item of ctx.value) {
-        if (item.layout === "full" && item.callbacks.length !== 1) {
-          ctx.issues.push({
-            code: "custom",
-            message: `Playlist item "${item.id}" with layout "full" must have exactly 1 callback, found ${item.callbacks.length}`,
-            input: item,
-            continue: true,
-          });
+        const callbacks = item.callbacks as any;
+
+        if (item.layout === "full") {
+          // Full layout must have content slot
+          if (!("content" in callbacks)) {
+            ctx.issues.push({
+              code: "custom",
+              message: `Playlist item "${item.id}" with layout "full" must have a "content" callback slot`,
+              input: item,
+              continue: true,
+            });
+          }
+          // Check for invalid slots in full layout
+          const validFullSlots = ["content"];
+          const actualSlots = Object.keys(callbacks);
+          const invalidSlots = actualSlots.filter(
+            (slot) => !validFullSlots.includes(slot),
+          );
+          if (invalidSlots.length > 0) {
+            ctx.issues.push({
+              code: "custom",
+              message: `Playlist item "${item.id}" with layout "full" has invalid slots: ${invalidSlots.join(", ")}. Only "content" is allowed.`,
+              input: item,
+              continue: true,
+            });
+          }
         }
-        if (item.layout === "2-col" && item.callbacks.length !== 2) {
-          ctx.issues.push({
-            code: "custom",
-            message: `Playlist item "${item.id}" with layout "2-col" must have exactly 2 callbacks, found ${item.callbacks.length}`,
-            input: item,
-            continue: true,
-          });
+
+        if (item.layout === "2-col") {
+          // 2-col layout must have both content_left and content_right
+          const hasLeft = "content_left" in callbacks;
+          const hasRight = "content_right" in callbacks;
+
+          if (!hasLeft || !hasRight) {
+            const missing = [];
+            if (!hasLeft) missing.push("content_left");
+            if (!hasRight) missing.push("content_right");
+            ctx.issues.push({
+              code: "custom",
+              message: `Playlist item "${item.id}" with layout "2-col" is missing required callback slots: ${missing.join(", ")}`,
+              input: item,
+              continue: true,
+            });
+          }
+
+          // Check for invalid slots in 2-col layout
+          const valid2ColSlots = ["content_left", "content_right"];
+          const actualSlots = Object.keys(callbacks);
+          const invalidSlots = actualSlots.filter(
+            (slot) => !valid2ColSlots.includes(slot),
+          );
+          if (invalidSlots.length > 0) {
+            ctx.issues.push({
+              code: "custom",
+              message: `Playlist item "${item.id}" with layout "2-col" has invalid slots: ${invalidSlots.join(", ")}. Only "content_left" and "content_right" are allowed.`,
+              input: item,
+              continue: true,
+            });
+          }
         }
 
         // Validate that all callback names exist in possibleCallbacks
-        for (const callback of item.callbacks) {
+        const callbackEntries = Object.entries(callbacks) as [
+          string,
+          { name: string; options?: any },
+        ][];
+        for (const [slotName, callback] of callbackEntries) {
           if (!(callback.name in possibleCallbacks)) {
             ctx.issues.push({
               code: "custom",
-              message: `Callback "${callback.name}" in playlist item "${item.id}" does not exist in available callbacks`,
+              message: `Callback "${callback.name}" in slot "${slotName}" of playlist item "${item.id}" does not exist in available callbacks`,
               input: callback,
               continue: true,
             });
@@ -114,18 +178,26 @@ async function createClientFromPlaylist(
 
   let errors = "";
   for (const playlistItem of playlist) {
-    for (let callbackIndex = 0; callbackIndex < playlistItem.callbacks.length; callbackIndex++) {
-      const callback = playlistItem.callbacks[callbackIndex];
+    // Get callback entries from the object
+    const callbackEntries = Object.entries(playlistItem.callbacks) as [
+      string,
+      { name: string; options?: any },
+    ][];
+
+    for (const [slotName, callback] of callbackEntries) {
       try {
         const callbackDef = possibleCallbacks[callback.name];
         const callbackFn = callbackDef.callback;
         const ins = new callbackFn(callback.options) as CallbackBase;
 
-        callbackFn.checkRuntimeConfig(callbackDef.expectedConfig, callback.options);
+        callbackFn.checkRuntimeConfig(
+          callbackDef.expectedConfig,
+          callback.options,
+        );
 
-        // Create unique ID: playlistItemId-callbackName-index
-        // Include index to support multiple instances of the same callback
-        const uniqueId = `${playlistItem.id}-${callback.name}-${callbackIndex}`;
+        // Create unique ID: playlistItemId-slotName
+        // Use slot name instead of index for clarity
+        const uniqueId = `${playlistItem.id}-${slotName}`;
 
         validCallbacks.push({
           instance: ins,
@@ -134,7 +206,7 @@ async function createClientFromPlaylist(
           expectedConfig: callbackDef.expectedConfig,
         });
       } catch (e) {
-        errors += `Error while validating callback "${callback.name}" in item "${playlistItem.id}": ${
+        errors += `Error while validating callback "${callback.name}" in slot "${slotName}" of item "${playlistItem.id}": ${
           e instanceof ZodError
             ? z.prettifyError(e).replaceAll(/\n/g, "")
             : (e as Error).message

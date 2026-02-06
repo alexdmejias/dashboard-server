@@ -106,34 +106,58 @@ class StateMachine {
       };
     }
 
+    return this.renderPlaylistItem(playlistItem, viewType);
+  }
+
+  /**
+   * Internal method to render a playlist item with all its callbacks
+   */
+  private async renderPlaylistItem(
+    playlistItem: PlaylistItem,
+    viewType: SupportedViewType,
+  ): Promise<RenderResponse> {
     // For layouts, we need to render all callbacks and combine them
-    const callbackIds = playlistItem.callbacks.map(
-      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`,
-    );
+    // callbacks is now an object with named slots
+    const callbackEntries = Object.entries(playlistItem.callbacks) as [
+      string,
+      { name: string; options?: any },
+    ][];
+
+    const callbackData: Array<{
+      slotName: string;
+      callbackConfig: { name: string; options?: any };
+      instance: CallbackBase;
+      id: string;
+    }> = [];
 
     // Get all callback instances for this playlist item
-    const callbackInstances = callbackIds.map((id) =>
-      this.getCallbackInstance(id),
-    );
+    for (const [slotName, callbackConfig] of callbackEntries) {
+      const callbackId = `${playlistItem.id}-${slotName}`;
+      const instance = this.getCallbackInstance(callbackId);
 
-    // Check if all callbacks exist
-    for (let i = 0; i < callbackInstances.length; i++) {
-      if (!callbackInstances[i]) {
+      if (!instance) {
         logger.error(
-          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`,
+          `callback not found: ${callbackConfig.name} in slot ${slotName} (ID: ${callbackId})`,
         );
         return {
-          error: `callback not found: ${playlistItem.callbacks[i].name}`,
+          error: `callback not found: ${callbackConfig.name} in slot ${slotName}`,
           viewType: "error",
         };
       }
+
+      callbackData.push({
+        slotName,
+        callbackConfig,
+        instance,
+        id: callbackId,
+      });
     }
 
     // For single callback, render it with layout context
-    if (callbackInstances.length === 1) {
-      const rendered = await callbackInstances[0]!.render(
+    if (callbackData.length === 1) {
+      const rendered = await callbackData[0].instance.render(
         viewType,
-        playlistItem.callbacks[0].options,
+        callbackData[0].callbackConfig.options,
         playlistItem.layout,
       );
 
@@ -173,9 +197,15 @@ class StateMachine {
           extname: ".liquid",
         });
 
-        const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.html,
-        });
+        // Use the slot name as the variable name
+        const blockData: Record<string, string> = {
+          [callbackData[0].slotName]: rendered.html,
+        };
+
+        const finalContent = await engine.parseAndRender(
+          layoutTemplate,
+          blockData,
+        );
 
         return {
           viewType: "html",
@@ -191,13 +221,13 @@ class StateMachine {
     }
 
     // Multiple callbacks only supported for HTML viewType
-    if (viewType !== "html") {
-      logger.error("Non-HTML view types only support single callbacks");
-      return {
-        error: "Non-HTML view types only support single callbacks",
-        viewType: "error",
-      };
-    }
+    // if (viewType !== "html") {
+    //   logger.error("Non-HTML view types only support single callbacks");
+    //   return {
+    //     error: "Non-HTML view types only support single callbacks",
+    //     viewType: "error",
+    //   };
+    // }
 
     // For multiple callbacks, render each and combine with layout
     try {
@@ -207,16 +237,11 @@ class StateMachine {
 
       // Render each callback
       const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) => {
-          if (!instance) {
-            return Promise.resolve({
-              viewType: "error" as const,
-              error: "Instance not found",
-            });
-          }
-          return instance.render(
+        callbackData.map((data) => {
+          return data.instance.render(
             viewType,
-            playlistItem.callbacks[index].options,
+            data.callbackConfig.options,
+            playlistItem.layout,
           );
         }),
       );
@@ -251,18 +276,6 @@ class StateMachine {
         return "";
       });
 
-      // Combine callback contents based on layout
-      let combinedContent = "";
-      if (playlistItem.layout === "2-col") {
-        // Wrap each callback in a div for 2-col layout
-        combinedContent = callbackContents
-          .map((content) => `<div>${content}</div>`)
-          .join("\n");
-      } else {
-        // For full layout, just use the single callback content
-        combinedContent = callbackContents[0];
-      }
-
       // Load and render the layout template
       const layoutPath = path.join(
         PROJECT_ROOT,
@@ -277,17 +290,12 @@ class StateMachine {
         extname: ".liquid",
       });
 
-      // Prepare data for blocks based on layout type
-      let blockData: Record<string, string> = {};
-      if (playlistItem.layout === "2-col") {
-        blockData = {
-          content_left: callbackContents[0] || "",
-          content_right: callbackContents[1] || "",
-        };
-      } else {
-        blockData = {
-          content: combinedContent,
-        };
+      // Prepare data for blocks based on named slots
+      const blockData: Record<string, string> = {};
+
+      // Map each callback content to its slot name
+      for (let i = 0; i < callbackData.length; i++) {
+        blockData[callbackData[i].slotName] = callbackContents[i] || "";
       }
 
       const finalContent = await engine.parseAndRender(
@@ -319,208 +327,9 @@ class StateMachine {
       };
     }
 
-    // For layouts, we need to render all callbacks and combine them
-    const callbackIds = playlistItem.callbacks.map(
-      (cb, index) => `${playlistItem.id}-${cb.name}-${index}`,
-    );
-
-    // Get all callback instances for this playlist item
-    const callbackInstances = callbackIds.map((id) =>
-      this.getCallbackInstance(id),
-    );
-
-    // Check if all callbacks exist
-    for (let i = 0; i < callbackInstances.length; i++) {
-      if (!callbackInstances[i]) {
-        logger.error(
-          `callback not found: ${playlistItem.callbacks[i].name} (ID: ${callbackIds[i]})`,
-        );
-        return {
-          error: `callback not found: ${playlistItem.callbacks[i].name}`,
-          viewType: "error",
-        };
-      }
-    }
-
     this.advanceCallbackIndex();
 
-    // For single callback, render it with layout context
-    if (callbackInstances.length === 1) {
-      const rendered = await callbackInstances[0]!.render(
-        viewType,
-        playlistItem.callbacks[0].options,
-        playlistItem.layout,
-      );
-
-      if (rendered.viewType === "error") {
-        return rendered;
-      }
-
-      // For non-HTML viewTypes, return as-is (callback now includes layout)
-      if (viewType !== "html") {
-        return rendered;
-      }
-
-      // For HTML, wrap in the layout template
-      // TypeScript guard: at this point we know rendered should have html property
-      if (rendered.viewType !== "html") {
-        logger.error("Expected HTML render response but got different type");
-        return {
-          viewType: "error",
-          error: "Expected HTML render response",
-        };
-      }
-
-      try {
-        const { Liquid } = await import("liquidjs");
-        const fs = await import("node:fs/promises");
-        const path = await import("node:path");
-
-        const layoutPath = path.join(
-          PROJECT_ROOT,
-          `views/layouts/${playlistItem.layout}.liquid`,
-        );
-        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-        const engine = new Liquid({
-          root: path.join(PROJECT_ROOT, "views/layouts"),
-          partials: path.join(PROJECT_ROOT, "views/partials"),
-          extname: ".liquid",
-        });
-
-        const finalContent = await engine.parseAndRender(layoutTemplate, {
-          content: rendered.html,
-        });
-
-        return {
-          viewType: "html",
-          html: finalContent,
-        };
-      } catch (error) {
-        logger.error({ error }, "Error rendering layout for single callback");
-        return {
-          error: error instanceof Error ? error.message : String(error),
-          viewType: "error",
-        };
-      }
-    }
-
-    // Multiple callbacks only supported for HTML viewType
-    if (viewType !== "html") {
-      logger.error("Non-HTML view types only support single callbacks");
-      return {
-        error: "Non-HTML view types only support single callbacks",
-        viewType: "error",
-      };
-    }
-
-    // For multiple callbacks, render each and combine with layout
-    try {
-      const { Liquid } = await import("liquidjs");
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-
-      // Render each callback
-      const renderedCallbacks = await Promise.all(
-        callbackInstances.map((instance, index) => {
-          if (!instance) {
-            return Promise.resolve({
-              viewType: "error" as const,
-              error: "Instance not found",
-            });
-          }
-          return instance.render(
-            viewType,
-            playlistItem.callbacks[index].options,
-          );
-        }),
-      );
-
-      // Check for errors
-      for (const rendered of renderedCallbacks) {
-        if (rendered.viewType === "error") {
-          return rendered;
-        }
-      }
-
-      // Extract HTML content from each callback (remove head/footer)
-      const extractContent = (html: string): string => {
-        // Extract content between <div class="view view--full"> and title_bar
-        const viewStart = html.indexOf('<div class="view view--full">');
-        const titleBarStart = html.indexOf('<div class="title_bar">');
-
-        if (viewStart === -1 || titleBarStart === -1) {
-          // Fallback: return the whole HTML
-          return html;
-        }
-
-        const contentStart = viewStart + '<div class="view view--full">'.length;
-        const content = html.substring(contentStart, titleBarStart).trim();
-        return content;
-      };
-
-      const callbackContents = renderedCallbacks.map((rendered) => {
-        if (rendered.viewType === "html") {
-          return extractContent(rendered.html);
-        }
-        return "";
-      });
-
-      // Combine callback contents based on layout
-      let combinedContent = "";
-      if (playlistItem.layout === "2-col") {
-        // Wrap each callback in a div for 2-col layout
-        combinedContent = callbackContents
-          .map((content) => `<div>${content}</div>`)
-          .join("\n");
-      } else {
-        // For full layout, just use the single callback content
-        combinedContent = callbackContents[0];
-      }
-
-      // Load and render the layout template
-      const layoutPath = path.join(
-        PROJECT_ROOT,
-        `views/layouts/${playlistItem.layout}.liquid`,
-      );
-      const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-      // Configure liquidjs with proper paths for partials
-      const engine = new Liquid({
-        root: path.join(PROJECT_ROOT, "views/layouts"),
-        partials: path.join(PROJECT_ROOT, "views/partials"),
-        extname: ".liquid",
-      });
-
-      // Prepare data for blocks based on layout type
-      let blockData: Record<string, string> = {};
-      if (playlistItem.layout === "2-col") {
-        blockData = {
-          content_left: callbackContents[0] || "",
-          content_right: callbackContents[1] || "",
-        };
-      } else {
-        blockData = {
-          content: combinedContent,
-        };
-      }
-
-      const finalContent = await engine.parseAndRender(
-        layoutTemplate,
-        blockData,
-      );
-
-      return {
-        viewType: "html" as const,
-        html: finalContent,
-      };
-    } catch (error) {
-      logger.error({ error }, "Error rendering layout");
-      return {
-        error: error instanceof Error ? error.message : String(error),
-        viewType: "error",
-      };
-    }
+    return this.renderPlaylistItem(playlistItem, viewType);
   }
 
   advanceCallbackIndex() {

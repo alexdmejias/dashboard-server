@@ -1,7 +1,7 @@
 import { Liquid } from "liquidjs";
 import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
 import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
-import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2col.liquid?raw";
+import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2-col.liquid?raw";
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
 // Import callback templates
 // Import layout templates

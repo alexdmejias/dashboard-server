@@ -257,6 +257,10 @@ class CallbackBase<
     }
 
     // Resolve layout-specific template if layout is provided
+    this.logger.debug(
+      { layout, hasLayout: !!layout },
+      `Resolving template for ${this.name}`,
+    );
     const templateToUse = layout
       ? this.resolveLayoutTemplate(layout)
       : this.template;
@@ -569,27 +573,25 @@ class CallbackBase<
    * Falls back to the default template if layout-specific template doesn't exist
    */
   resolveLayoutTemplate(layout: "full" | "2-col"): string {
-    // For 2-col layout, try to find template.2col.{ext}
-    if (layout === "2-col") {
-      const layoutSpecific = path.join(
-        PROJECT_ROOT,
-        `src/callbacks/${this.name}/template.2col.liquid`,
-      );
-      if (fs.existsSync(layoutSpecific)) {
-        this.logger.info(
-          `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
-        );
-        return layoutSpecific;
-      }
+    // Try to find layout-specific template: template.{layout}.liquid
+    const layoutFileName = layout; // "2-col" or "full"
+    const layoutSpecific = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${this.name}/template.${layoutFileName}.liquid`,
+    );
+
+    if (fs.existsSync(layoutSpecific)) {
       this.logger.info(
-        `No layout-specific template found for ${this.name} at: ${layoutSpecific}`,
+        `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
       );
+      return layoutSpecific;
     }
 
-    // For full layout or if layout-specific template doesn't exist, use default
-    this.logger.info(
-      `Using default template for ${this.name}: ${this.template}`,
+    this.logger.debug(
+      `No layout-specific template found for ${this.name} at: ${layoutSpecific}, using default`,
     );
+
+    // Fallback to default template
     return this.template;
   }
 

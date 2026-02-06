@@ -40,13 +40,25 @@ export type PossibleCallback = {
 export type PossibleCallbacks = Record<string, PossibleCallback>;
 
 export * from "./browser-renderer";
+
+export type CallbackConfig = {
+  name: string;
+  options?: object;
+};
+
+export type TwoColCallbacks = {
+  content_left: CallbackConfig;
+  content_right: CallbackConfig;
+};
+
+export type FullCallbacks = {
+  content: CallbackConfig;
+};
+
 export type PlaylistItem = {
   id: string;
   layout: "full" | "2-col";
-  callbacks: Array<{
-    name: string;
-    options?: object;
-  }>;
+  callbacks: TwoColCallbacks | FullCallbacks;
 };
 export type Playlist = PlaylistItem[];
 
