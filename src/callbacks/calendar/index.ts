@@ -79,10 +79,20 @@ class CallbackCalendar extends CallbackBase<
   /**
    * Load tokens from file if available, otherwise use environment variable
    */
-  private async loadTokens() {
+  private async loadTokens(): Promise<Credentials> {
     try {
       const data = await fs.readFile(this.tokenFilePath, "utf-8");
       const tokens = JSON.parse(data);
+      
+      // Validate that we have at least a refresh_token or access_token
+      if (!tokens || (typeof tokens !== 'object') || 
+          (!tokens.refresh_token && !tokens.access_token)) {
+        this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to environment variable");
+        return {
+          refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+        };
+      }
+      
       this.logger.debug("Loaded tokens from file");
       return tokens;
     } catch (error) {
@@ -139,17 +149,17 @@ class CallbackCalendar extends CallbackBase<
     oauth2Client.setCredentials(tokens);
 
     oauth2Client.on("tokens", (tokens) => {
-      this.logger.debug("Received new tokens from Google");
-
       if (tokens.refresh_token) {
-        this.logger.info("Received new refresh token, saving to file");
-        this.saveTokens(tokens);
+        this.logger.info("Received new refresh token from Google, saving to file");
       } else {
-        this.saveTokens({
-          ...oauth2Client.credentials,
-          ...tokens,
-        });
+        this.logger.debug("Received refreshed access token from Google, saving to file");
       }
+      
+      // Always merge with existing credentials to preserve refresh_token
+      this.saveTokens({
+        ...oauth2Client.credentials,
+        ...tokens,
+      });
     });
 
     return oauth2Client;
