@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { z } from "zod/v4";
 import * as fs from "fs/promises";
 import * as path from "path";
+import type { Credentials } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -94,7 +95,7 @@ class CallbackCalendar extends CallbackBase<
   /**
    * Save tokens to file for persistence across server restarts
    */
-  private async saveTokens(tokens: any) {
+  private async saveTokens(tokens: Credentials) {
     try {
       await fs.writeFile(
         this.tokenFilePath,
@@ -123,7 +124,7 @@ class CallbackCalendar extends CallbackBase<
 
     oauth2Client.on("tokens", (tokens) => {
       this.logger.debug("Received new tokens from Google");
-      
+
       if (tokens.refresh_token) {
         this.logger.info("Received new refresh token, saving to file");
         this.saveTokens(tokens);
