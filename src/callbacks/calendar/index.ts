@@ -84,8 +84,8 @@ class CallbackCalendar extends CallbackBase<
       const data = await fs.readFile(this.tokenFilePath, "utf-8");
       const tokens = JSON.parse(data);
       
-      // Validate that we have at least a refresh_token or access_token
-      if (!tokens || (typeof tokens !== 'object') || 
+      // Validate that we have a valid object with at least a refresh_token or access_token
+      if (!tokens || tokens === null || Array.isArray(tokens) || typeof tokens !== 'object' || 
           (!tokens.refresh_token && !tokens.access_token)) {
         this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to environment variable");
         return {
@@ -155,7 +155,8 @@ class CallbackCalendar extends CallbackBase<
         this.logger.debug("Received refreshed access token from Google, saving to file");
       }
       
-      // Always merge with existing credentials to preserve refresh_token
+      // Merge existing credentials with new tokens. New tokens override existing values,
+      // which is correct as new tokens from Google should always be used (including new refresh_token if provided)
       this.saveTokens({
         ...oauth2Client.credentials,
         ...tokens,
