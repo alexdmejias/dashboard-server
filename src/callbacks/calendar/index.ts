@@ -1,5 +1,7 @@
 import { google } from "googleapis";
 import { z } from "zod/v4";
+import * as fs from "fs/promises";
+import * as path from "path";
 import CallbackBase from "../../base-callbacks/base";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -46,6 +48,8 @@ class CallbackCalendar extends CallbackBase<
   CalendarData,
   typeof expectedConfig
 > {
+  private tokenFilePath: string;
+
   static defaultOptions: ConfigType = {
     calendarId: ["primary"],
     maxEventsPerDay: 5,
@@ -65,20 +69,70 @@ class CallbackCalendar extends CallbackBase<
       ],
       receivedConfig: options,
     });
+
+    this.tokenFilePath = process.env.GOOGLE_TOKEN_FILE_PATH ||
+      path.join(process.cwd(), ".google-tokens.json");
+  }
+
+  /**
+   * Load tokens from file if available, otherwise use environment variable
+   */
+  private async loadTokens() {
+    try {
+      const data = await fs.readFile(this.tokenFilePath, "utf-8");
+      const tokens = JSON.parse(data);
+      this.logger.debug("Loaded tokens from file");
+      return tokens;
+    } catch (error) {
+      this.logger.debug("Using refresh token from environment variable");
+      return {
+        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      };
+    }
+  }
+
+  /**
+   * Save tokens to file for persistence across server restarts
+   */
+  private async saveTokens(tokens: any) {
+    try {
+      await fs.writeFile(
+        this.tokenFilePath,
+        JSON.stringify(tokens, null, 2),
+        "utf-8"
+      );
+      this.logger.debug("Saved refreshed tokens to file");
+    } catch (error) {
+      this.logger.error({ error }, "Failed to save tokens to file");
+    }
   }
 
   /**
    * Creates OAuth2 client with refresh token for authentication
+   * and sets up automatic token refresh handling
    */
-  private getAuthClient() {
+  private async getAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      "https://developers.google.com/oauthplayground", // redirect URI
+      "https://developers.google.com/oauthplayground",
     );
 
-    oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    const tokens = await this.loadTokens();
+    oauth2Client.setCredentials(tokens);
+
+    oauth2Client.on("tokens", (tokens) => {
+      this.logger.debug("Received new tokens from Google");
+      
+      if (tokens.refresh_token) {
+        this.logger.info("Received new refresh token, saving to file");
+        this.saveTokens(tokens);
+      } else {
+        this.saveTokens({
+          ...oauth2Client.credentials,
+          ...tokens,
+        });
+      }
     });
 
     return oauth2Client;
@@ -93,7 +147,7 @@ class CallbackCalendar extends CallbackBase<
     endDate: Date,
     maxResults: number,
   ) {
-    const auth = this.getAuthClient();
+    const auth = await this.getAuthClient();
     const calendar = google.calendar({ version: "v3", auth });
 
     this.logger.debug(

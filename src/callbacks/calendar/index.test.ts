@@ -1,12 +1,20 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
 
+// Mock fs/promises
+jest.mock("fs/promises", () => ({
+  readFile: jest.fn().mockRejectedValue(new Error("File not found")),
+  writeFile: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock the Google APIs
 jest.mock("googleapis", () => ({
   google: {
     auth: {
       OAuth2: jest.fn().mockImplementation(() => ({
         setCredentials: jest.fn(),
+        on: jest.fn(),
+        credentials: {},
       })),
     },
     calendar: jest.fn().mockReturnValue({
