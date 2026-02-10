@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { z } from "zod/v4";
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { Credentials } from "google-auth-library";
+import type { Credentials, OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -50,6 +50,7 @@ class CallbackCalendar extends CallbackBase<
   typeof expectedConfig
 > {
   private tokenFilePath: string;
+  private authClientPromise: Promise<OAuth2Client> | null = null;
 
   static defaultOptions: ConfigType = {
     calendarId: ["primary"],
@@ -85,7 +86,11 @@ class CallbackCalendar extends CallbackBase<
       this.logger.debug("Loaded tokens from file");
       return tokens;
     } catch (error) {
-      this.logger.debug("Using refresh token from environment variable");
+      if (error instanceof SyntaxError) {
+        this.logger.warn({ error, path: this.tokenFilePath }, "Failed to parse token file as JSON, falling back to environment variable");
+      } else {
+        this.logger.debug("Token file not found, using refresh token from environment variable");
+      }
       return {
         refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
       };
@@ -110,9 +115,20 @@ class CallbackCalendar extends CallbackBase<
 
   /**
    * Creates OAuth2 client with refresh token for authentication
-   * and sets up automatic token refresh handling
+   * and sets up automatic token refresh handling.
+   * The client is created once and reused to prevent duplicate event listeners.
    */
   private async getAuthClient() {
+    if (!this.authClientPromise) {
+      this.authClientPromise = this.createAuthClient();
+    }
+    return this.authClientPromise;
+  }
+
+  /**
+   * Internal method to create and configure the OAuth2 client
+   */
+  private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
