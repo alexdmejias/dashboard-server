@@ -1,10 +1,10 @@
-import {
+import { writeFile } from "node:fs/promises";
+import type { ScreenshotSizeOption } from "../types";
+import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
 } from "../types/browser-renderer";
-import { ScreenshotSizeOption } from "../types";
-import { writeFile } from "node:fs/promises";
 
 export interface BrowserlessIOConfig {
   token: string;
@@ -40,15 +40,14 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
 
   private async captureScreenshot(
     htmlContent: string,
-    size: ScreenshotSizeOption
+    size: ScreenshotSizeOption,
   ): Promise<Buffer> {
-    const url = `${this.endpoint}/screenshot`;
-    
+    const url = `${this.endpoint}/screenshot?token=${this.token}`;
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.token}`,
       },
       body: JSON.stringify({
         html: htmlContent,
@@ -66,7 +65,7 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Browserless.io rendering failed: ${response.status} ${response.statusText} - ${errorText}`
+        `Browserless.io rendering failed: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 

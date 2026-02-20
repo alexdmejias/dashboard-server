@@ -1,3 +1,5 @@
+1. since we know how often the clients will be requesting images, can we setup a cron job, so the image is ready when the client requests it
+
 1.should add a picture callback to display images/movies/gifs
 2.switch to vitest
 3. move pupperter to docker image

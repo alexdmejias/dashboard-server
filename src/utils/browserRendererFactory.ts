@@ -1,10 +1,10 @@
-import { BrowserRenderer } from "../types/browser-renderer";
-import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
-import PuppeteerBrowserRenderer from "./PuppeteerBrowserRenderer";
-import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
-import ServiceRotator, { ServiceConfig } from "./ServiceRotator";
 import logger from "../logger";
+import type { BrowserRenderer } from "../types/browser-renderer";
+import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
+import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import { getBrowserRendererType } from "./getBrowserRendererType";
+import PuppeteerBrowserRenderer from "./PuppeteerBrowserRenderer";
+import ServiceRotator, { type ServiceConfig } from "./ServiceRotator";
 
 export function createBrowserRenderer(): BrowserRenderer {
   const rendererType = getBrowserRendererType();
@@ -18,7 +18,7 @@ export function createBrowserRenderer(): BrowserRenderer {
 
       if (!accountId || !apiToken) {
         throw new Error(
-          "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables"
+          "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables",
         );
       }
 
@@ -33,7 +33,7 @@ export function createBrowserRenderer(): BrowserRenderer {
 
       if (!token || !endpoint) {
         throw new Error(
-          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT environment variables"
+          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT environment variables",
         );
       }
 
@@ -46,10 +46,9 @@ export function createBrowserRenderer(): BrowserRenderer {
       // Create services based on enabled flags
       const services: ServiceConfig[] = [];
 
-      const enableCloudflare = 
+      const enableCloudflare =
         process.env.ENABLE_CLOUDFLARE_BROWSER_RENDERING === "true";
-      const enableBrowserless = 
-        process.env.ENABLE_BROWSERLESS_IO === "true";
+      const enableBrowserless = process.env.ENABLE_BROWSERLESS_IO === "true";
 
       if (enableCloudflare) {
         const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -65,9 +64,7 @@ export function createBrowserRenderer(): BrowserRenderer {
           });
           logger.info("Cloudflare renderer enabled in multi-service mode");
         } else {
-          logger.warn(
-            "Cloudflare enabled but missing credentials, skipping"
-          );
+          logger.warn("Cloudflare enabled but missing credentials, skipping");
         }
       }
 
@@ -86,7 +83,7 @@ export function createBrowserRenderer(): BrowserRenderer {
           logger.info("Browserless.io renderer enabled in multi-service mode");
         } else {
           logger.warn(
-            "Browserless.io enabled but missing credentials, skipping"
+            "Browserless.io enabled but missing credentials, skipping",
           );
         }
       }
@@ -94,13 +91,13 @@ export function createBrowserRenderer(): BrowserRenderer {
       // Fallback to Puppeteer if no services are configured
       if (services.length === 0) {
         logger.info(
-          "No external services configured, falling back to Puppeteer"
+          "No external services configured, falling back to Puppeteer",
         );
         return new PuppeteerBrowserRenderer();
       }
 
       logger.info(
-        `Multi-service mode with ${services.length} service(s): ${services.map((s) => s.name).join(", ")}`
+        `Multi-service mode with ${services.length} service(s): ${services.map((s) => s.name).join(", ")}`,
       );
       return new ServiceRotator(services);
     }

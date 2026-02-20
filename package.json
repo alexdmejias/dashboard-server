@@ -36,7 +36,6 @@
     "pino": "^8.11.0",
     "pino-pretty": "^10.0.0",
     "showdown": "^2.1.0",
-    "sqlite3": "^5.1.6",
     "ts-import": "^5.0.0-beta.1",
     "ts-node": "^10.9.1",
     "zod": "^3.25.0"
