@@ -5,12 +5,7 @@ import {
 } from "@tanstack/solid-query";
 import { createSignal, For, Show } from "solid-js";
 import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
-
-interface PlaylistItem {
-  id: string;
-  layout: "full" | "2-col";
-  callbacks: Record<string, { name: string; options?: Record<string, unknown> }>;
-}
+import type { PlaylistItem, SupportedLayout } from "../types";
 
 interface AvailableCallback {
   id: string;
@@ -318,7 +313,7 @@ function AddNewPlaylistItem(props: {
 
   const item = props.newItem;
 
-  const handleLayoutChange = (layout: "full" | "2-col") => {
+  const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = item();
     if (layout === "full") {
       const firstCallback = Object.values(currentItem.callbacks)[0] || {
@@ -400,7 +395,7 @@ function AddNewPlaylistItem(props: {
           class="select select-bordered"
           value={item().layout}
           onChange={(e) =>
-            handleLayoutChange(e.currentTarget.value as "full" | "2-col")
+            handleLayoutChange(e.currentTarget.value as SupportedLayout)
           }
         >
           <option value="full">Full (1 callback)</option>
@@ -497,7 +492,7 @@ function EditablePlaylistItem(props: {
     Record<string, string | null>
   >(Object.fromEntries(Object.keys(props.item.callbacks).map((key) => [key, null])));
 
-  const handleLayoutChange = (layout: "full" | "2-col") => {
+  const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = editedItem();
     if (layout === "full") {
       const firstCallback = Object.values(currentItem.callbacks)[0] || {
@@ -585,7 +580,7 @@ function EditablePlaylistItem(props: {
           class="select select-bordered"
           value={editedItem().layout}
           onChange={(e) =>
-            handleLayoutChange(e.currentTarget.value as "full" | "2-col")
+            handleLayoutChange(e.currentTarget.value as SupportedLayout)
           }
         >
           <option value="full">Full (1 callback)</option>

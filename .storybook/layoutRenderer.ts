@@ -3,6 +3,7 @@ import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
 import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
 import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2-col.liquid?raw";
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
+import type { SupportedLayout } from "../src/types";
 // Import callback templates
 // Import layout templates
 import twoColLayout from "../views/layouts/2-col.liquid?raw";
@@ -25,10 +26,8 @@ const engine = new Liquid({
   } as any,
 });
 
-type Layout = "full" | "2-col";
-
 // Map of available callback templates
-const callbackTemplates: Record<string, Record<Layout, string>> = {
+const callbackTemplates: Record<string, Record<SupportedLayout, string>> = {
   "year-progress": {
     full: yearProgressTemplate,
     "2-col": yearProgressTemplate2Col,
@@ -44,7 +43,7 @@ const callbackTemplates: Record<string, Record<Layout, string>> = {
 export function renderCallbackContent(
   callbackName: string,
   data: any,
-  layout: Layout = "full",
+  layout: SupportedLayout = "full",
 ): string {
   const template =
     callbackTemplates[callbackName]?.[layout] ??
@@ -61,7 +60,7 @@ export function renderCallbackContent(
  * Create a layout story renderer for use in Storybook
  */
 export function createLayoutStoryRenderer(
-  layout: Layout,
+  layout: SupportedLayout,
   callbacks: { name: string; data: any }[],
 ) {
   return () => {

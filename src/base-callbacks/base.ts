@@ -9,6 +9,7 @@ import type {
   PossibleTemplateData,
   ScreenshotSizeOption,
   SupportedImageViewType,
+  SupportedLayout,
   SupportedViewType,
   TemplateDataError,
 } from "../types";
@@ -231,7 +232,7 @@ class CallbackBase<
   async render(
     viewType: SupportedViewType,
     options?: unknown,
-    layout?: "full" | "2-col",
+    layout?: SupportedLayout,
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
@@ -572,7 +573,7 @@ class CallbackBase<
    * For 2-col layout, tries to load template.2col.{ext} first
    * Falls back to the default template if layout-specific template doesn't exist
    */
-  resolveLayoutTemplate(layout: "full" | "2-col"): string {
+  resolveLayoutTemplate(layout: SupportedLayout): string {
     // Try to find layout-specific template: template.{layout}.liquid
     const layoutFileName = layout; // "2-col" or "full"
     const layoutSpecific = path.join(
