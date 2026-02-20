@@ -48,16 +48,17 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
         html: htmlContent,
         options: {
           fullPage: false,
           type: "png",
-          viewport: {
-            width: size.width,
-            height: size.height,
-          },
+        },
+        viewport: {
+          width: size.width,
+          height: size.height,
         },
       }),
     });
