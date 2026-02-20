@@ -1,14 +1,23 @@
-import * as dotenv from "dotenv";
+// Load environment variables from .env file first (before any other imports)
+import dotenv from "dotenv";
+import path from "node:path";
+
+// When running from dist/, look for .env in parent directory
+const envPath = path.resolve(__dirname, "../.env");
+dotenv.config({ path: envPath });
+
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import getApp from "./app";
 import type { PossibleCallbacks } from "./types";
-
-dotenv.config();
 
 const start = async () => {
   const callbacks: { callbackName: string }[] = [
     { callbackName: "reddit" },
     { callbackName: "weather" },
     { callbackName: "year-progress" },
+    { callbackName: "calendar" },
+    { callbackName: "todoist" },
   ];
   const possibleCallbacks: PossibleCallbacks = {};
   const currentExtension = __filename.endsWith(".ts") ? "ts" : "js";
@@ -29,38 +38,19 @@ const start = async () => {
     const port = process.env.PORT || 3333;
     await app.listen({ port, host: "0.0.0.0" });
 
-    app.inject({
-      path: "/register/inkplate",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: {
-        playlist: [
-          {
-            id: "astoria",
-            callbackName: "reddit",
-            options: {
-              qty: 2,
-              title: "astoria posts",
-              subreddit: "astoria",
-            },
-          },
-          {
-            id: "asknyc",
-            callbackName: "reddit",
-            options: {
-              qty: 10,
-              subreddit: "asknyc",
-            },
-          },
-          {
-            id: "cal",
-            callbackName: "year-progress",
-          },
-        ],
-      },
-    });
+    if (existsSync("./init-payload.json")) {
+      const fileContents = await readFile("./init-payload.json", "utf-8");
+      const initPayload = JSON.parse(fileContents) as any[];
+      initPayload.forEach(async (item) => {
+        await app.inject(item);
+      });
+    } else {
+      app.log.warn(
+        "No init-payload.json file found. Skipping initial payload injection.",
+      );
+    }
+
+    app.log.info(`Server running on port ${port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -12,15 +12,14 @@ type ForecastWeather = {
   };
 };
 
-type TodayWeather = ForecastWeather & { current: number };
-
 type TemplateDataWeather = {
-  today: TodayWeather;
+  current: WeatherApiResponseRoot["current"];
   forecast: ForecastWeather[];
 };
 
 export const expectedConfig = z.object({
   zipcode: z.string(),
+  title: z.string().optional(),
 });
 
 type ConfigType = z.infer<typeof expectedConfig>;
@@ -47,38 +46,24 @@ class CallbackWeather extends CallbackBase<
     const { zipcode } = config;
 
     const data = await fetch(
-      `http://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
+      `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${zipcode}&days=3&aqi=no&alerts=no`,
     );
     return (await data.json()) as WeatherApiResponseRoot;
   }
 
-  getToday(payload: WeatherApiResponseRoot): TodayWeather {
-    return {
-      max: payload.forecast.forecastday[0].day.maxtemp_f,
-      low: payload.forecast.forecastday[0].day.mintemp_f,
-      date: new Date(payload.forecast.forecastday[0].date).toLocaleDateString(),
-      current: payload.current.temp_f,
-      condition: {
-        text: payload.current.condition.text,
-        image: `http:${payload.current.condition.icon}`,
-      },
-    };
-  }
-
   getForecast(payload: WeatherApiResponseRoot): ForecastWeather[] {
-    const forecast = payload.forecast.forecastday.slice(1).map((dayData) => {
+    const forecast = payload.forecast.forecastday.map((dayData) => {
       const {
         day: { maxtemp_f, mintemp_f, condition },
       } = dayData;
 
-      const date = new Date(`${dayData.date} 00:00:00`);
       return {
-        max: maxtemp_f,
-        low: mintemp_f,
-        date: date.toDateString().slice(0, -5),
+        max: Math.round(maxtemp_f),
+        low: Math.round(mintemp_f),
+        date: new Date(dayData.date).toLocaleDateString().slice(0, -5),
         condition: {
           text: condition.text,
-          image: `http:${condition.icon}`,
+          image: `https:${condition.icon}`,
         },
       };
     });
@@ -87,7 +72,7 @@ class CallbackWeather extends CallbackBase<
   }
 
   async getData(config: ConfigType) {
-    this.logger.debug(
+    this.logger.trace(
       {
         runtimeConfig: config,
       },
@@ -95,17 +80,16 @@ class CallbackWeather extends CallbackBase<
     );
     const weather = await this.getWeather(config);
     const forecast = this.getForecast(weather);
-    const today = this.getToday(weather);
 
-    this.logger.debug(
+    this.logger.trace(
       {
-        today,
         forecast,
+        current: weather.current,
       },
       "Weather data fetched successfully",
     );
     return {
-      today,
+      current: weather.current,
       forecast,
     };
   }

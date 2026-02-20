@@ -12,10 +12,12 @@ import type {
   SupportedViewType,
   TemplateDataError,
 } from "../types";
+import { getBrowserRendererType } from "../utils/getBrowserRendererType";
 import getRenderedTemplate from "../utils/getRenderedTemplate";
 import getScreenshot from "../utils/getScreenshot";
-import { getImagesPath } from "../utils/imagesPath";
+import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
+import { PROJECT_ROOT } from "../utils/projectRoot";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -130,7 +132,10 @@ class CallbackBase<
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
@@ -226,15 +231,19 @@ class CallbackBase<
   async render(
     viewType: SupportedViewType,
     options?: unknown,
+    layout?: "full" | "2-col",
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     // allow callers to supply runtime options (e.g. from a playlist item).
-    const runtimeOptions =
-      typeof options !== "undefined" ? options : this.receivedConfig;
+    const runtimeConfig = this.#buildRuntimeConfig(options);
+    this.logger.debug(
+      { runtimeConfig, options },
+      `Built runtimeConfig for ${this.name}`,
+    );
     const data = await this.getData(
-      runtimeOptions as unknown as Record<string, unknown>,
+      runtimeConfig as unknown as Record<string, unknown>,
     );
 
     let templateOverride: string | undefined;
@@ -247,43 +256,194 @@ class CallbackBase<
       };
     }
 
-    if (isSupportedImageViewType(viewType)) {
-      if (this.cacheable && templateOverride !== "error") {
-        const newDataCache = objectHash(data);
-        const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.${viewType}`,
+    // Resolve layout-specific template if layout is provided
+    this.logger.debug(
+      { layout, hasLayout: !!layout },
+      `Resolving template for ${this.name}`,
+    );
+    const templateToUse = layout
+      ? this.resolveLayoutTemplate(layout)
+      : this.template;
+
+    // Always include head/footer wrapper (layout is no longer passed from stateMachine)
+    const includeWrapper = true;
+
+    // For image viewTypes with a layout, render callback as HTML first,
+    // wrap in layout template, then convert to image
+    if (isSupportedImageViewType(viewType) && layout) {
+      try {
+        // First render the callback content as HTML
+        const callbackHtml = await this.#renderAsHTML({
+          data,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
+          includeWrapper: false, // Don't include wrapper for callback content
+        });
+
+        // Then wrap in the layout template
+        const { Liquid } = await import("liquidjs");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const layoutPath = path.join(
+          PROJECT_ROOT,
+          `views/layouts/${layout}.liquid`,
         );
-        if (newDataCache === this.oldDataCache) {
+        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
+
+        const engine = new Liquid({
+          root: path.join(PROJECT_ROOT, "views/layouts"),
+          partials: path.join(PROJECT_ROOT, "views/partials"),
+          extname: ".liquid",
+        });
+
+        const finalHtml = await engine.parseAndRender(layoutTemplate, {
+          content: callbackHtml,
+        });
+
+        // Now render the final HTML to image
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
+
+        // Write the HTML to a temp file to pass to getScreenshot
+        const os = await import("node:os");
+        const tmpHtmlPath = path.join(
+          os.tmpdir(),
+          `callback-${timestamp}-${random}.html`,
+        );
+        await fs.writeFile(tmpHtmlPath, finalHtml, "utf-8");
+
+        try {
+          const screenshot = await getScreenshot({
+            template: tmpHtmlPath,
+            data: {}, // Data already rendered in HTML
+            runtimeConfig: runtimeConfig as ExpectedConfig,
+            imagePath: screenshotPath,
+            viewType,
+            size: this.screenshotSize,
+            includeWrapper: false, // HTML already complete
+          });
+
+          const rendererType = getBrowserRendererType();
+          const fileNameOnly = path.basename(screenshotPath);
+
+          this.logger.info(
+            {
+              imagePath: screenshotPath,
+              fileName: fileNameOnly,
+              rendererType,
+              width: this.screenshotSize.width,
+              height: this.screenshotSize.height,
+              viewType,
+              clientName: this.name,
+              layout,
+            },
+            `Saved callback image with layout: ${fileNameOnly}`,
+          );
+
+          cleanupOldImages();
+
           return {
             viewType,
-            imagePath: screenshotPath,
+            imagePath: screenshot.path,
+          };
+        } finally {
+          // Clean up temp HTML file
+          try {
+            await fs.unlink(tmpHtmlPath);
+          } catch (e) {
+            this.logger.debug({ err: e }, "Failed to remove temp HTML file");
+          }
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          { error, callback: this.name, layout },
+          "Failed to render callback with layout as image",
+        );
+        return {
+          viewType: "error",
+          error: errorMessage,
+        };
+      }
+    }
+
+    if (isSupportedImageViewType(viewType)) {
+      try {
+        if (this.cacheable && templateOverride !== "error") {
+          const newDataCache = objectHash(data);
+          const screenshotPath = getImagesPath(
+            `${this.name}-${newDataCache}.${viewType}`,
+          );
+          if (newDataCache === this.oldDataCache) {
+            return {
+              viewType,
+              imagePath: screenshotPath,
+            };
+          }
+
+          this.oldDataCache = newDataCache;
+          return {
+            viewType,
+            imagePath: await this.#renderAsImage({
+              viewType,
+              data,
+              runtimeConfig: runtimeConfig as ExpectedConfig,
+              imagePath: screenshotPath,
+              templateOverride,
+              templateToUse,
+              includeWrapper,
+              clientName: this.name,
+            }),
           };
         }
 
-        this.oldDataCache = newDataCache;
+        // const screenshotPath = getImagesPath(`image.${viewType}`);
+
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
+        const screenshotPath = getImagesPath(fileName);
         return {
           viewType,
           imagePath: await this.#renderAsImage({
             viewType,
             data,
-            runtimeConfig: runtimeOptions as ExpectedConfig,
+            runtimeConfig: runtimeConfig as ExpectedConfig,
             imagePath: screenshotPath,
             templateOverride,
+            templateToUse,
+            includeWrapper,
+            clientName: this.name,
           }),
         };
-      }
 
-      const screenshotPath = getImagesPath(`image.${viewType}`);
-      return {
-        viewType,
-        imagePath: await this.#renderAsImage({
-          viewType,
-          data,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
-          imagePath: screenshotPath,
-          templateOverride,
-        }),
-      };
+        // return {
+        //   viewType,
+        //   imagePath: await this.#renderAsImage({
+        //     viewType,
+        //     data,
+        //     runtimeConfig: runtimeConfig as ExpectedConfig,
+        //     imagePath: screenshotPath,
+        //     templateOverride,
+        //     clientName: this.name,
+        //   }),
+        // };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          { error, callback: this.name },
+          "Browser rendering failed",
+        );
+        return {
+          viewType: "error",
+          error: errorMessage,
+        };
+      }
     }
 
     if (viewType === "html") {
@@ -293,7 +453,9 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
+          includeWrapper,
         }),
       };
     }
@@ -307,21 +469,50 @@ class CallbackBase<
     runtimeConfig,
     imagePath,
     templateOverride,
+    templateToUse,
+    includeWrapper = true,
+    clientName,
   }: {
     viewType: SupportedImageViewType;
     data: T;
     runtimeConfig: ExpectedConfig;
     imagePath: string;
     templateOverride?: string;
+    templateToUse?: string;
+    includeWrapper?: boolean;
+    clientName: string;
   }): Promise<string> {
     const screenshot = await getScreenshot<T>({
       data,
       runtimeConfig,
-      template: templateOverride ? templateOverride : this.template,
+      template: templateOverride
+        ? templateOverride
+        : templateToUse || this.template,
       size: this.screenshotSize,
       imagePath,
       viewType,
+      includeWrapper,
     });
+
+    const rendererType = getBrowserRendererType();
+    const fileName = path.basename(imagePath);
+
+    // Log image save details
+    this.logger.info(
+      {
+        imagePath,
+        fileName,
+        rendererType,
+        width: this.screenshotSize.width,
+        height: this.screenshotSize.height,
+        viewType,
+        clientName,
+      },
+      `Saved callback image: ${fileName}`,
+    );
+
+    // Cleanup old images if limit exceeded
+    cleanupOldImages();
 
     return screenshot.path;
   }
@@ -330,55 +521,107 @@ class CallbackBase<
     data,
     template,
     runtimeConfig,
+    templateToUse,
+    includeWrapper = true,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
     runtimeConfig?: ExpectedConfig;
+    templateToUse?: string;
+    includeWrapper?: boolean;
   }) {
     return getRenderedTemplate({
-      template: template ? template : this.template,
+      template: template ? template : templateToUse || this.template,
       data,
       runtimeConfig,
+      includeWrapper,
     });
   }
 
-  #resolveTemplate(name: string, template?: string): string {
-    const extPreference = ["liquid", "ejs"];
+  #buildRuntimeConfig(options?: unknown) {
+    const merged =
+      typeof options === "undefined"
+        ? this.receivedConfig
+        : this.#mergeWithReceivedConfig(options);
 
+    if (!this.expectedConfig) {
+      return merged;
+    }
+
+    return this.expectedConfig.loose().parse(merged);
+  }
+
+  #mergeWithReceivedConfig(options: unknown) {
+    if (
+      typeof options === "object" &&
+      options !== null &&
+      typeof this.receivedConfig === "object" &&
+      this.receivedConfig !== null
+    ) {
+      return {
+        ...(this.receivedConfig as Record<string, unknown>),
+        ...(options as Record<string, unknown>),
+      };
+    }
+
+    return options;
+  }
+
+  /**
+   * Resolve a layout-specific template for this callback
+   * For 2-col layout, tries to load template.2col.{ext} first
+   * Falls back to the default template if layout-specific template doesn't exist
+   */
+  resolveLayoutTemplate(layout: "full" | "2-col"): string {
+    // Try to find layout-specific template: template.{layout}.liquid
+    const layoutFileName = layout; // "2-col" or "full"
+    const layoutSpecific = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${this.name}/template.${layoutFileName}.liquid`,
+    );
+
+    if (fs.existsSync(layoutSpecific)) {
+      this.logger.info(
+        `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
+      );
+      return layoutSpecific;
+    }
+
+    this.logger.debug(
+      `No layout-specific template found for ${this.name} at: ${layoutSpecific}, using default`,
+    );
+
+    // Fallback to default template
+    return this.template;
+  }
+
+  #resolveTemplate(name: string, template?: string): string {
     // 1) If a specific template was requested, prefer resolving that first
     if (template) {
       // try exact resolution in callbacks folder if the template includes an ext or matches a preference
-      for (const ext of extPreference) {
-        if (template.endsWith(`.${ext}`) || template.endsWith(ext)) {
-          const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
-          if (fs.existsSync(candidate)) return candidate;
-          const viewsCandidate = path.resolve(`./views/${template}`);
-          if (fs.existsSync(viewsCandidate)) return viewsCandidate;
-        }
-      }
+      const candidate = path.join(
+        PROJECT_ROOT,
+        `src/callbacks/${name}/${template}`,
+      );
+      if (fs.existsSync(candidate)) return candidate;
+      const viewsCandidate = path.join(PROJECT_ROOT, `views/${template}`);
+      if (fs.existsSync(viewsCandidate)) return viewsCandidate;
 
       // try templates folder (views) with preferred extensions
-      for (const ext of extPreference) {
-        const viewsPath = path.resolve(`./views/${template}.${ext}`);
-        if (fs.existsSync(viewsPath)) return viewsPath;
-      }
-    }
-
-    // 2) Look for callback-local templates (template.liquid/template.ejs)
-    for (const ext of extPreference) {
-      const local = path.resolve(`./src/callbacks/${name}/template.${ext}`);
-      if (fs.existsSync(local)) return local;
-    }
-
-    // 3) Fallback to views/{name}.{ext}
-    for (const ext of extPreference) {
-      const viewsPath = path.resolve(`./views/${name}.${ext}`);
+      const viewsPath = path.join(PROJECT_ROOT, `views/${template}.liquid`);
       if (fs.existsSync(viewsPath)) return viewsPath;
     }
 
-    // 4) Fallback to generic template
-    const genericTemplatePath = path.resolve("./views/generic.ejs");
-    if (fs.existsSync(genericTemplatePath)) return genericTemplatePath;
+    // 2) Look for callback-local templates (template.liquid)
+    const local = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${name}/template.liquid`,
+    );
+    if (fs.existsSync(local)) return local;
+
+    // 3) Fallback to views/{name}.{ext}
+    const viewsPath = path.join(PROJECT_ROOT, `views/${name}.liquid`);
+    if (fs.existsSync(viewsPath)) return viewsPath;
 
     throw new Error(`No valid template found for callback: ${name}`);
   }

@@ -1,0 +1,15 @@
+meta {
+  name: todoist
+  type: http
+  seq: 8
+}
+
+get {
+  url: https://api.todoist.com/rest/v2/tasks
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

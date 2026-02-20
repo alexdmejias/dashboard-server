@@ -12,9 +12,12 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       size = { width: 1200, height: 825 },
     } = options;
 
-    let puppeteer;
+    let puppeteer: any;
     try {
-      puppeteer = await import("puppeteer");
+      // Dynamic import to handle optional dependency
+      // Using a variable prevents TypeScript from resolving the module at compile time
+      const puppeteerModule = "puppeteer";
+      puppeteer = await import(puppeteerModule);
     } catch (error) {
       throw new Error(
         "Puppeteer is not installed. Install it with 'npm install puppeteer' or use a different renderer like 'cloudflare'.",

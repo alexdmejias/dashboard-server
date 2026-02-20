@@ -1,22 +1,28 @@
 // import * as Sentry from "@sentry/node";
-import * as dotenv from "dotenv";
-import "./instrument";
-dotenv.config();
+// import "./instrument";
 
 import fs from "node:fs/promises";
 import os from "node:os";
 import { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import fastifyView from "@fastify/view";
 import fastify, { type FastifyReply } from "fastify";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
 import clientsPlugin from "./plugins/clients";
-import type { PossibleCallbacks, SupportedViewType } from "./types";
+import type {
+  PlaylistItem,
+  PossibleCallbacks,
+  SupportedViewType,
+} from "./types";
 import { getBrowserRendererType } from "./utils/getBrowserRendererType";
 import getRenderedTemplate from "./utils/getRenderedTemplate";
 import getScreenshot from "./utils/getScreenshot";
+import {
+  cleanupOldImages,
+  clearImagesOnStartup,
+  getImagesPath,
+} from "./utils/imagesPath";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
@@ -38,6 +44,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     throw new Error("no callbacks provided");
   }
 
+  // Clear tmpdir on server startup
+  clearImagesOnStartup();
+
   const app = fastify({
     loggerInstance: logger,
   });
@@ -49,6 +58,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   // const messageHandler = new CallbackMessage();
 
   app.register(clientsPlugin, { possibleCallbacks });
+
+  // Register admin plugin for authentication and client details
+  const adminPlugin = await import("./plugins/admin");
+  app.register(adminPlugin.default);
 
   app.decorateReply(
     "internalServerError",
@@ -97,12 +110,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     prefix: "/public/",
   });
 
-  app.register(fastifyView, {
-    engine: {
-      ejs: import("ejs"),
-    },
-  });
-
   app.register(fastifyCors);
 
   app.get("/health", async (_req, res) => {
@@ -119,17 +126,25 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       clientName: string;
     };
     Body: {
-      playlist?: {
-        id: string;
-        callbackName: string;
-        options?: Record<string, unknown>;
-      }[];
+      playlist?: PlaylistItem[];
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
     const { playlist = [] } = req.body;
 
     const client = app.getClient(clientName);
+
+    // Log the request
+    app.logClientRequest(
+      clientName,
+      "POST",
+      `/register/${clientName}`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>,
+    );
 
     if (!client) {
       const clientRes = await app.registerClient(clientName, playlist);
@@ -139,11 +154,23 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           { error: clientRes.error },
           `error registering client: ${clientName}`,
         );
+        app.logClientActivity(
+          clientName,
+          "error",
+          `Error registering client: ${clientRes.error}`,
+          req.id,
+        );
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
       }
       app.log.info(`created new client: ${clientName}`, clientRes);
+      app.logClientActivity(
+        clientName,
+        "info",
+        "Client registered successfully",
+        req.id,
+      );
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -152,6 +179,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
 
     app.log.info(`client already exists: ${clientName}`);
+    app.logClientActivity(clientName, "warn", "Client already exists", req.id);
     return res.internalServerError(
       serverMessages.duplicateClientName(clientName),
     );
@@ -164,10 +192,29 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       callback?: string;
     };
   }>("/display/:clientName/:viewType/:callback?", async (req, res) => {
+    const startTime = Date.now();
     const { clientName, viewType, callback = "next" } = req.params;
+
+    // Log the incoming request
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>,
+    );
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Unsupported viewType: ${viewType}`,
+        req.id,
+      );
       return res.internalServerError(
         serverMessages.viewTypeNotSupported(viewType),
       );
@@ -180,37 +227,82 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
+      app.logClientActivity(clientName, "error", "Client not found", req.id);
       return res.notFound(serverMessages.clientNotFound(clientName));
     }
 
     app.log.info(`retrieved existing client: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "info",
+      `Displaying ${callback} as ${viewTypeToUse}`,
+      req.id,
+    );
 
     let data: RenderResponse;
     try {
       if (callback === "next") {
         data = await client.tick(viewTypeToUse);
       } else {
-        const callbackInstance = client.getCallbackInstance(callback);
+        // First, check if this is a playlist item ID
         const playlistItem = client.getPlaylistItemById(callback);
-        if (!callbackInstance || !playlistItem) {
-          app.log.error(`callback not found: ${callback}`);
-          return res.notFound(serverMessages.callbackNotFound(callback));
-        }
 
-        // render may accept runtime options; use a typed cast to avoid `any`
-        type RenderWithOptions = (
-          viewType: SupportedViewType,
-          options?: Record<string, unknown>,
-        ) => Promise<RenderResponse>;
+        if (playlistItem) {
+          // Render the complete playlist item (layout with all callbacks)
+          app.log.info(`Rendering playlist item by ID: ${callback}`);
+          data = await client.renderPlaylistItemById(callback, viewTypeToUse);
+        } else {
+          // Fallback to callback ID lookup (for individual slot rendering)
+          // In the new system, callback ID has the format: playlistItemId-slotName
+          const callbackInstance = client.getCallbackInstance(callback);
 
-        data = await (
-          callbackInstance as unknown as {
-            render: RenderWithOptions;
+          if (!callbackInstance) {
+            app.log.error(`callback or playlist item not found: ${callback}`);
+            app.logClientActivity(
+              clientName,
+              "error",
+              `Callback or playlist item not found: ${callback}`,
+              req.id,
+            );
+            return res.notFound(serverMessages.callbackNotFound(callback));
           }
-        ).render(
-          viewTypeToUse,
-          playlistItem.options as Record<string, unknown> | undefined,
-        );
+
+          // Find the playlist item that contains this callback
+          // The callback ID format is: playlistItemId-slotName
+          // So we need to find which playlist item and slot this belongs to
+          let playlistItemForCallback: PlaylistItem | undefined;
+          let callbackOptions: Record<string, unknown> | undefined;
+
+          for (const item of client.getConfig().playlist) {
+            const callbackEntries = Object.entries(item.callbacks) as [
+              string,
+              { name: string; options?: any },
+            ][];
+            for (const [slotName, cb] of callbackEntries) {
+              const expectedCallbackId = `${item.id}-${slotName}`;
+              if (expectedCallbackId === callback) {
+                playlistItemForCallback = item;
+                callbackOptions = cb.options as
+                  | Record<string, unknown>
+                  | undefined;
+                break;
+              }
+            }
+            if (playlistItemForCallback) break;
+          }
+
+          // render may accept runtime options; use a typed cast to avoid `any`
+          type RenderWithOptions = (
+            viewType: SupportedViewType,
+            options?: Record<string, unknown>,
+          ) => Promise<RenderResponse>;
+
+          data = await (
+            callbackInstance as unknown as {
+              render: RenderWithOptions;
+            }
+          ).render(viewTypeToUse, callbackOptions);
+        }
       }
     } catch (error) {
       const errorMessage =
@@ -222,17 +314,28 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
-    const rendererType = getBrowserRendererType();
+    const rendererType =
+      viewTypeToUse === "html" ? undefined : getBrowserRendererType();
 
-    app.log.info(
-      `sending: ${data} | client: ${clientName} | requested viewType: ${viewTypeToUse} | rendererType: ${rendererType}`,
+    app.log.info({ viewType: viewTypeToUse, rendererType }, "rendering");
+
+    const responseTime = Date.now() - startTime;
+    app.logClientRequest(
+      clientName,
+      "GET",
+      `/display/${clientName}/${viewType}/${callback}`,
+      "outgoing",
+      200,
+      responseTime,
+      req.id,
+      req.headers as Record<string, string | string[]>,
     );
+
     return getResponseFromData(res, data);
   });
 
   app.post<{
     Body: {
-      templateType: "liquid" | "ejs";
       template: string;
       templateData?: Record<string, unknown>;
       screenDetails: {
@@ -243,26 +346,19 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       };
     };
   }>("/test-template", async (req, res) => {
-    const {
-      templateType,
-      template,
-      templateData = {},
-      screenDetails,
-    } = req.body;
+    const { template, templateData = {}, screenDetails } = req.body;
 
-    if (!templateType || !template || !screenDetails) {
+    if (!template || !screenDetails) {
       return res.code(400).send({ error: "invalid request body" });
     }
 
     try {
-      const ext = templateType === "liquid" ? "liquid" : "ejs";
-
       // write the provided template body to a temporary template file.
       // We write only the body; getRenderedTemplate will compose head/footer
       // when given a template path.
       const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
         Math.random() * 1e9,
-      )}.${ext}`;
+      )}.liquid`;
       const tmpPath = resolve(os.tmpdir(), tmpName);
       await fs.writeFile(tmpPath, template, "utf-8");
 
@@ -279,8 +375,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
         // image output (png or bmp) — use shared getScreenshot utility
         const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
-        const fileName = `test-template-${Date.now()}.${extOut}`;
-        const imagePath = resolve(`./public/images/${fileName}`);
+        const rendererType = getBrowserRendererType();
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `template-test-${template}-${timestamp}-${random}.${extOut}`;
+        const imagePath = getImagesPath(fileName);
 
         const width = screenDetails.width ?? 1200;
         const height = screenDetails.height ?? 825;
@@ -293,6 +392,23 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           viewType: extOut,
           size: { width, height },
         });
+
+        // Log image save details
+        app.log.info(
+          {
+            imagePath,
+            fileName,
+            rendererType,
+            width,
+            height,
+            viewType: extOut,
+            template,
+          },
+          `Saved test template image: ${fileName}`,
+        );
+
+        // Cleanup old images if limit exceeded
+        cleanupOldImages();
 
         const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
         return res.type(contentType).send(buffer);
@@ -308,6 +424,127 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       app.log.error(err);
       return res.internalServerError("Error rendering template");
     }
+  });
+
+  // SSE endpoint for streaming client updates
+  app.get("/api/clients/stream", async (req, res) => {
+    res.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+
+    // Send initial client state
+    const clients = app.getClients();
+    res.raw.write(`data: ${JSON.stringify({ clients })}\n\n`);
+
+    // Add this connection to the set of SSE connections
+    app.addSSEConnection(res);
+
+    // Set up heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.raw.write(":heartbeat\n\n");
+      } catch (_err) {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    // Clean up on connection close
+    req.raw.on("close", () => {
+      clearInterval(heartbeat);
+      app.removeSSEConnection(res);
+      app.log.info("SSE connection closed");
+    });
+  });
+
+  // REST endpoint for getting current client state
+  app.get("/api/clients", async (_req, res) => {
+    const clients = app.getClients();
+    return res.send({ clients });
+  });
+
+  // Get available callbacks
+  app.get("/api/callbacks", async (_req, res) => {
+    const callbacks = Object.entries(possibleCallbacks).map(([key, value]) => ({
+      id: key,
+      name: value.name,
+      expectedConfig: value.expectedConfig,
+    }));
+    return res.send({ callbacks });
+  });
+
+  // Update client playlist
+  app.put<{
+    Params: {
+      clientName: string;
+    };
+    Body: {
+      playlist: PlaylistItem[];
+    };
+  }>("/api/clients/:clientName/playlist", async (req, res) => {
+    const { clientName } = req.params;
+    const { playlist } = req.body;
+
+    if (!playlist || !Array.isArray(playlist)) {
+      return res.code(400).send({
+        error: "Bad Request",
+        message: "playlist must be an array",
+        statusCode: 400,
+      });
+    }
+
+    const client = app.getClient(clientName);
+    if (!client) {
+      app.log.error(`client not found: ${clientName}`);
+      return res.notFound(serverMessages.clientNotFound(clientName));
+    }
+
+    // Log the update request
+    app.logClientRequest(
+      clientName,
+      "PUT",
+      `/api/clients/${clientName}/playlist`,
+      "incoming",
+      undefined,
+      undefined,
+      req.id,
+      req.headers as Record<string, string | string[]>,
+    );
+
+    const clientRes = await app.updateClientPlaylist(clientName, playlist);
+
+    if ("error" in clientRes) {
+      app.log.error(
+        { error: clientRes.error },
+        `error updating playlist for client: ${clientName}`,
+      );
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Error updating playlist: ${clientRes.error}`,
+        req.id,
+      );
+      return res.code(400).send({
+        error: "Bad Request",
+        message: clientRes.error,
+        statusCode: 400,
+      });
+    }
+
+    app.log.info(`updated playlist for client: ${clientName}`);
+    app.logClientActivity(
+      clientName,
+      "info",
+      "Playlist updated successfully",
+      req.id,
+    );
+
+    return res.send({
+      statusCode: 200,
+      message: `Successfully updated playlist for ${clientName}`,
+      client: clientRes.toString(),
+    });
   });
 
   // type TestParams = {
@@ -426,6 +663,60 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
   // //   return res.status(200).send("ok");
   // // });
+
+  app.setNotFoundHandler(async (req, res) => {
+    // Check if this is an API route that doesn't exist
+    if (req.url.startsWith("/api/")) {
+      return res.code(404).send({
+        error: "Not Found",
+        message: `Route ${req.url} not found`,
+        statusCode: 404,
+      });
+    }
+
+    // Try to serve static files from admin directory (for /assets/*)
+    if (req.url.startsWith("/assets/")) {
+      try {
+        // Validate path to prevent directory traversal
+        const requestedPath = req.url.replace("/assets/", "assets/");
+        const filePath = resolve(`./public/admin/${requestedPath}`);
+        const adminDir = resolve("./public/admin");
+
+        // Ensure the resolved path is within the admin directory
+        if (!filePath.startsWith(adminDir)) {
+          return res.code(403).send({
+            error: "Forbidden",
+            message: "Access denied",
+            statusCode: 403,
+          });
+        }
+
+        const stat = await fs.stat(filePath);
+        if (stat.isFile()) {
+          return res.sendFile(
+            req.url.replace("/assets/", "assets/"),
+            resolve("./public/admin"),
+          );
+        }
+      } catch (_err) {
+        // File not found, continue to serve index.html
+      }
+    }
+
+    // For all other routes, serve the admin index.html
+    try {
+      const adminIndexPath = resolve("./public/admin/index.html");
+      const content = await fs.readFile(adminIndexPath, "utf-8");
+      return res.type("text/html").send(content);
+    } catch (err) {
+      app.log.error("Error serving admin index:", err);
+      return res.code(404).send({
+        error: "Not Found",
+        message: "Admin interface not found. Please build the admin app.",
+        statusCode: 404,
+      });
+    }
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     // TODO temp disabling because errorCodes is undefined in raspberry

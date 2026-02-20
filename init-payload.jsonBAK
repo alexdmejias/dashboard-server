@@ -1,0 +1,52 @@
+[
+  {
+    "path": "/register/inkplate",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "playlist": [
+        {
+          "id": "weather",
+          "callbackName": "weather",
+          "options": {
+            "zipcode": "11106"
+          }
+        },
+        {
+          "id": "astoria",
+          "callbackName": "reddit",
+          "options": {
+            "qty": 10,
+            "title": "/r/astoria",
+            "subreddit": "astoria"
+          }
+        },
+        {
+          "id": "asknyc",
+          "callbackName": "reddit",
+          "options": {
+            "qty": 10,
+            "title": "/r/asknyc",
+            "subreddit": "asknyc"
+          }
+        },
+        {
+          "id": "year",
+          "callbackName": "year-progress"
+        },
+        {
+          "id": "cal",
+          "callbackName": "calendar",
+          "options": {
+            "calendarId": [
+              "primary",
+              "bdcd3ad8328f1bb04aeec934f2bda1dc1800c6c3f1ffb99deffab8cccce50176@group.calendar.google.com"
+            ]
+          }
+        }
+      ]
+    }
+  }
+]
