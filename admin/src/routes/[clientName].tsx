@@ -3,6 +3,7 @@ import { createQuery } from "@tanstack/solid-query";
 import { For, Show, createSignal } from "solid-js";
 import { fetchClientDetail, fetchClientLogs, fetchClientRequests } from "../lib/api";
 import { PlaylistEditor } from "../components/PlaylistEditor";
+import type { ClientConfig } from "../types";
 
 interface ClientLog {
   timestamp: string;
@@ -106,6 +107,19 @@ export default function ClientDetail() {
     return new Date(timestamp).toLocaleString();
   };
 
+  const getCallbackOptions = (callbackId: string): Record<string, unknown> => {
+    const playlist: ClientConfig["playlist"] =
+      clientQuery.data?.config?.playlist ?? [];
+    for (const item of playlist) {
+      for (const [slot, cb] of Object.entries(item.callbacks)) {
+        if (`${item.id}-${slot}` === callbackId) {
+          return cb.options ?? {};
+        }
+      }
+    }
+    return {};
+  };
+
   return (
     <main class="min-h-screen bg-base-200">
       <div class="navbar bg-base-100 shadow-lg">
@@ -193,11 +207,7 @@ export default function ClientDetail() {
                           <td class="font-mono text-sm">{id}</td>
                           <td>{callback.name}</td>
                           <td class="text-xs">
-                            {JSON.stringify(
-                              clientQuery.data?.config?.playlist?.find(
-                                (p: any) => p.id === id
-                              )?.options ?? {}
-                            )}
+                            {JSON.stringify(getCallbackOptions(id))}
                           </td>
                         </tr>
                       )}

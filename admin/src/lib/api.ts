@@ -66,11 +66,11 @@ export async function fetchAvailableCallbacks() {
 
 export async function updateClientPlaylist(
   clientName: string,
-  playlist: {
+  playlist: Array<{
     id: string;
-    callbackName: string;
-    options?: Record<string, unknown>;
-  }[]
+    layout: "full" | "2-col";
+    callbacks: Record<string, { name: string; options?: Record<string, unknown> }>;
+  }>
 ) {
   const response = await fetch(`/api/clients/${clientName}/playlist`, {
     method: "PUT",
