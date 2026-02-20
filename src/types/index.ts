@@ -41,6 +41,9 @@ export type PossibleCallbacks = Record<string, PossibleCallback>;
 
 export * from "./browser-renderer";
 
+export const supportedLayouts = ["full", "2-col"] as const;
+export type SupportedLayout = (typeof supportedLayouts)[number];
+
 export type CallbackConfig = {
   name: string;
   options?: object;
@@ -57,7 +60,7 @@ export type FullCallbacks = {
 
 export type PlaylistItem = {
   id: string;
-  layout: "full" | "2-col";
+  layout: SupportedLayout;
   callbacks: TwoColCallbacks | FullCallbacks;
 };
 export type Playlist = PlaylistItem[];

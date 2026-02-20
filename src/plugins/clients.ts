@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { ZodError, z } from "zod/v4";
 import type CallbackBase from "../base-callbacks/base";
 import StateMachine from "../stateMachine";
+import { supportedLayouts } from "../types";
 import type { Playlist, PossibleCallbacks, ValidCallback } from "../types";
 
 declare module "fastify" {
@@ -33,8 +34,8 @@ function validatePlaylist(
     .array(
       z.object({
         id: z.string().min(1, "ID must be a non-empty string"),
-        layout: z.enum(["full", "2-col"], {
-          message: "Layout must be 'full' or '2-col'",
+        layout: z.enum(supportedLayouts, {
+          message: `Layout must be one of: ${supportedLayouts.join(", ")}`,
         }),
         callbacks: z.union([
           z.object({

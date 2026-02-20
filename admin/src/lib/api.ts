@@ -1,4 +1,4 @@
-import type { ClientsData } from "../types";
+import type { ClientsData, PlaylistItem } from "../types";
 
 // Helper function to create headers with authorization token
 function getAuthHeaders(): HeadersInit {
@@ -66,11 +66,7 @@ export async function fetchAvailableCallbacks() {
 
 export async function updateClientPlaylist(
   clientName: string,
-  playlist: {
-    id: string;
-    callbackName: string;
-    options?: Record<string, unknown>;
-  }[]
+  playlist: PlaylistItem[]
 ) {
   const response = await fetch(`/api/clients/${clientName}/playlist`, {
     method: "PUT",

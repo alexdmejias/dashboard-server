@@ -5,15 +5,7 @@ import {
 } from "@tanstack/solid-query";
 import { createSignal, For, Show } from "solid-js";
 import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
-
-interface PlaylistItem {
-  id: string;
-  layout: "full" | "split";
-  callbacks: Array<{
-    name: string;
-    options?: Record<string, unknown>;
-  }>;
-}
+import type { PlaylistItem, SupportedLayout } from "../types";
 
 interface AvailableCallback {
   id: string;
@@ -49,7 +41,7 @@ export function PlaylistEditor(props: {
   const [newItem, setNewItem] = createSignal<PlaylistItem>({
     id: "",
     layout: "full",
-    callbacks: [{ name: "", options: {} }],
+    callbacks: { content: { name: "", options: {} } },
   });
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal(false);
@@ -95,16 +87,22 @@ export function PlaylistEditor(props: {
       return;
     }
     // Validate callbacks based on layout
-    if (item.layout === "full" && item.callbacks.length !== 1) {
-      setError("Full layout requires exactly 1 callback");
+    if (item.layout === "full" && !("content" in item.callbacks)) {
+      setError("Full layout requires a 'content' callback slot");
       return;
     }
-    if (item.layout === "split" && item.callbacks.length !== 2) {
-      setError("Split layout requires exactly 2 callbacks");
+    if (
+      item.layout === "2-col" &&
+      (!("content_left" in item.callbacks) ||
+        !("content_right" in item.callbacks))
+    ) {
+      setError(
+        "2-col layout requires 'content_left' and 'content_right' callback slots",
+      );
       return;
     }
     // Validate all callbacks have names
-    for (const callback of item.callbacks) {
+    for (const callback of Object.values(item.callbacks)) {
       if (!callback.name) {
         setError("All callbacks must have a name");
         return;
@@ -114,7 +112,7 @@ export function PlaylistEditor(props: {
     setNewItem({
       id: "",
       layout: "full",
-      callbacks: [{ name: "", options: {} }],
+      callbacks: { content: { name: "", options: {} } },
     });
     setIsAddingNew(false);
     setError(null);
@@ -216,7 +214,7 @@ export function PlaylistEditor(props: {
                         Layout: {item.layout}
                       </div>
                       <div class="text-xs font-mono mt-1">
-                        Callbacks: {item.callbacks.map((cb) => cb.name).join(", ")}
+                        Callbacks: {Object.values(item.callbacks).map((cb) => cb.name).join(", ")}
                       </div>
                     </div>
                     <div class="flex gap-1">
@@ -309,48 +307,64 @@ function AddNewPlaylistItem(props: {
   newItem: () => PlaylistItem;
   setNewItem: (item: PlaylistItem) => void;
 }) {
-  const [jsonErrors, setJsonErrors] = createSignal<(string | null)[]>([null]);
+  const [jsonErrors, setJsonErrors] = createSignal<
+    Record<string, string | null>
+  >({});
 
   const item = props.newItem;
 
-  const handleLayoutChange = (layout: "full" | "split") => {
+  const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = item();
     if (layout === "full") {
+      const firstCallback = Object.values(currentItem.callbacks)[0] || {
+        name: "",
+        options: {},
+      };
       props.setNewItem({
         ...currentItem,
         layout: "full",
-        callbacks: [currentItem.callbacks[0] || { name: "", options: {} }],
+        callbacks: { content: firstCallback },
       });
     } else {
+      const callbackValues = Object.values(currentItem.callbacks);
       props.setNewItem({
         ...currentItem,
-        layout: "split",
-        callbacks: [
-          currentItem.callbacks[0] || { name: "", options: {} },
-          currentItem.callbacks[1] || { name: "", options: {} },
-        ],
+        layout: "2-col",
+        callbacks: {
+          content_left: callbackValues[0] || { name: "", options: {} },
+          content_right: callbackValues[1] || { name: "", options: {} },
+        },
       });
     }
   };
 
-  const handleCallbackNameChange = (index: number, name: string) => {
+  const handleCallbackNameChange = (slotName: string, name: string) => {
     const currentItem = item();
-    const newCallbacks = [...currentItem.callbacks];
-    newCallbacks[index] = { ...newCallbacks[index], name };
-    props.setNewItem({ ...currentItem, callbacks: newCallbacks });
+    props.setNewItem({
+      ...currentItem,
+      callbacks: {
+        ...currentItem.callbacks,
+        [slotName]: { ...currentItem.callbacks[slotName], name },
+      },
+    });
   };
 
-  const handleCallbackOptionsChange = (index: number, optionsStr: string) => {
+  const handleCallbackOptionsChange = (
+    slotName: string,
+    optionsStr: string,
+  ) => {
     const { result, error } = parseOptions(optionsStr);
-    const errors = [...jsonErrors()];
-    errors[index] = error || null;
-    setJsonErrors(errors);
+    setJsonErrors({ ...jsonErrors(), [slotName]: error || null });
 
     if (!error) {
       const currentItem = item();
-      const newCallbacks = [...currentItem.callbacks];
-      newCallbacks[index] = { ...newCallbacks[index], options: result };
-      props.setNewItem({ ...currentItem, callbacks: newCallbacks });
+      props.setNewItem({
+        ...currentItem,
+        callbacks: {
+          ...currentItem.callbacks,
+          [slotName]: { ...currentItem.callbacks[slotName], options: result },
+        },
+      });
     }
   };
 
@@ -381,20 +395,24 @@ function AddNewPlaylistItem(props: {
           class="select select-bordered"
           value={item().layout}
           onChange={(e) =>
-            handleLayoutChange(e.currentTarget.value as "full" | "split")
+            handleLayoutChange(e.currentTarget.value as SupportedLayout)
           }
         >
           <option value="full">Full (1 callback)</option>
-          <option value="split">Split (2 callbacks)</option>
+          <option value="2-col">2-Col (2 callbacks)</option>
         </select>
       </div>
 
       <div class="space-y-4">
-        <For each={item().callbacks}>
-          {(callback, callbackIndex) => (
+        <For each={Object.entries(item().callbacks)}>
+          {([slotName, callback]) => (
             <div class="p-3 border border-base-300 rounded">
               <h4 class="font-semibold mb-2">
-                Callback {callbackIndex() + 1}
+                {slotName === "content"
+                  ? "Content"
+                  : slotName === "content_left"
+                    ? "Left Column"
+                    : "Right Column"}
               </h4>
               <div class="form-control mb-2">
                 <label class="label">
@@ -404,10 +422,7 @@ function AddNewPlaylistItem(props: {
                   class="select select-bordered"
                   value={callback.name}
                   onChange={(e) =>
-                    handleCallbackNameChange(
-                      callbackIndex(),
-                      e.currentTarget.value
-                    )
+                    handleCallbackNameChange(slotName, e.currentTarget.value)
                   }
                 >
                   <option value="">Select callback...</option>
@@ -426,22 +441,19 @@ function AddNewPlaylistItem(props: {
                 </label>
                 <textarea
                   class={`textarea textarea-bordered font-mono text-sm ${
-                    jsonErrors()[callbackIndex()] ? "textarea-error" : ""
+                    jsonErrors()[slotName] ? "textarea-error" : ""
                   }`}
                   placeholder='{"key": "value"}'
                   value={JSON.stringify(callback.options || {}, null, 2)}
                   onInput={(e) =>
-                    handleCallbackOptionsChange(
-                      callbackIndex(),
-                      e.currentTarget.value
-                    )
+                    handleCallbackOptionsChange(slotName, e.currentTarget.value)
                   }
                   rows={3}
                 />
-                <Show when={jsonErrors()[callbackIndex()]}>
+                <Show when={jsonErrors()[slotName]}>
                   <label class="label">
                     <span class="label-text-alt text-error">
-                      {jsonErrors()[callbackIndex()]}
+                      {jsonErrors()[slotName]}
                     </span>
                   </label>
                 </Show>
@@ -455,7 +467,7 @@ function AddNewPlaylistItem(props: {
         <button
           onClick={() => props.onAdd(item())}
           class="btn btn-primary"
-          disabled={jsonErrors().some((e) => e !== null)}
+          disabled={Object.values(jsonErrors()).some((e) => e !== null)}
         >
           Add
         </button>
@@ -476,53 +488,67 @@ function EditablePlaylistItem(props: {
   const [editedItem, setEditedItem] = createSignal<PlaylistItem>({
     ...props.item,
   });
-  const [jsonErrors, setJsonErrors] = createSignal<(string | null)[]>(
-    props.item.callbacks.map(() => null)
-  );
+  const [jsonErrors, setJsonErrors] = createSignal<
+    Record<string, string | null>
+  >(Object.fromEntries(Object.keys(props.item.callbacks).map((key) => [key, null])));
 
-  const handleLayoutChange = (layout: "full" | "split") => {
+  const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = editedItem();
     if (layout === "full") {
+      const firstCallback = Object.values(currentItem.callbacks)[0] || {
+        name: "",
+        options: {},
+      };
       setEditedItem({
         ...currentItem,
         layout: "full",
-        callbacks: [currentItem.callbacks[0] || { name: "", options: {} }],
+        callbacks: { content: firstCallback },
       });
     } else {
+      const callbackValues = Object.values(currentItem.callbacks);
       setEditedItem({
         ...currentItem,
-        layout: "split",
-        callbacks: [
-          currentItem.callbacks[0] || { name: "", options: {} },
-          currentItem.callbacks[1] || { name: "", options: {} },
-        ],
+        layout: "2-col",
+        callbacks: {
+          content_left: callbackValues[0] || { name: "", options: {} },
+          content_right: callbackValues[1] || { name: "", options: {} },
+        },
       });
     }
   };
 
-  const handleCallbackNameChange = (index: number, name: string) => {
+  const handleCallbackNameChange = (slotName: string, name: string) => {
     const currentItem = editedItem();
-    const newCallbacks = [...currentItem.callbacks];
-    newCallbacks[index] = { ...newCallbacks[index], name };
-    setEditedItem({ ...currentItem, callbacks: newCallbacks });
+    setEditedItem({
+      ...currentItem,
+      callbacks: {
+        ...currentItem.callbacks,
+        [slotName]: { ...currentItem.callbacks[slotName], name },
+      },
+    });
   };
 
-  const handleCallbackOptionsChange = (index: number, optionsStr: string) => {
+  const handleCallbackOptionsChange = (
+    slotName: string,
+    optionsStr: string,
+  ) => {
     const { result, error } = parseOptions(optionsStr);
-    const errors = [...jsonErrors()];
-    errors[index] = error || null;
-    setJsonErrors(errors);
+    setJsonErrors({ ...jsonErrors(), [slotName]: error || null });
 
     if (!error) {
       const currentItem = editedItem();
-      const newCallbacks = [...currentItem.callbacks];
-      newCallbacks[index] = { ...newCallbacks[index], options: result };
-      setEditedItem({ ...currentItem, callbacks: newCallbacks });
+      setEditedItem({
+        ...currentItem,
+        callbacks: {
+          ...currentItem.callbacks,
+          [slotName]: { ...currentItem.callbacks[slotName], options: result },
+        },
+      });
     }
   };
 
   const handleSave = () => {
-    if (jsonErrors().some((e) => e !== null)) {
+    if (Object.values(jsonErrors()).some((e) => e !== null)) {
       return;
     }
     props.onSave(editedItem());
@@ -554,20 +580,24 @@ function EditablePlaylistItem(props: {
           class="select select-bordered"
           value={editedItem().layout}
           onChange={(e) =>
-            handleLayoutChange(e.currentTarget.value as "full" | "split")
+            handleLayoutChange(e.currentTarget.value as SupportedLayout)
           }
         >
           <option value="full">Full (1 callback)</option>
-          <option value="split">Split (2 callbacks)</option>
+          <option value="2-col">2-Col (2 callbacks)</option>
         </select>
       </div>
 
       <div class="space-y-4">
-        <For each={editedItem().callbacks}>
-          {(callback, callbackIndex) => (
+        <For each={Object.entries(editedItem().callbacks)}>
+          {([slotName, callback]) => (
             <div class="p-3 border border-base-300 rounded">
               <h4 class="font-semibold mb-2">
-                Callback {callbackIndex() + 1}
+                {slotName === "content"
+                  ? "Content"
+                  : slotName === "content_left"
+                    ? "Left Column"
+                    : "Right Column"}
               </h4>
               <div class="form-control mb-2">
                 <label class="label">
@@ -577,10 +607,7 @@ function EditablePlaylistItem(props: {
                   class="select select-bordered"
                   value={callback.name}
                   onChange={(e) =>
-                    handleCallbackNameChange(
-                      callbackIndex(),
-                      e.currentTarget.value
-                    )
+                    handleCallbackNameChange(slotName, e.currentTarget.value)
                   }
                 >
                   <For each={props.availableCallbacks}>
@@ -598,21 +625,18 @@ function EditablePlaylistItem(props: {
                 </label>
                 <textarea
                   class={`textarea textarea-bordered font-mono text-sm ${
-                    jsonErrors()[callbackIndex()] ? "textarea-error" : ""
+                    jsonErrors()[slotName] ? "textarea-error" : ""
                   }`}
                   value={JSON.stringify(callback.options || {}, null, 2)}
                   onInput={(e) =>
-                    handleCallbackOptionsChange(
-                      callbackIndex(),
-                      e.currentTarget.value
-                    )
+                    handleCallbackOptionsChange(slotName, e.currentTarget.value)
                   }
                   rows={3}
                 />
-                <Show when={jsonErrors()[callbackIndex()]}>
+                <Show when={jsonErrors()[slotName]}>
                   <label class="label">
                     <span class="label-text-alt text-error">
-                      {jsonErrors()[callbackIndex()]}
+                      {jsonErrors()[slotName]}
                     </span>
                   </label>
                 </Show>
@@ -626,7 +650,7 @@ function EditablePlaylistItem(props: {
         <button
           onClick={handleSave}
           class="btn btn-primary"
-          disabled={jsonErrors().some((e) => e !== null)}
+          disabled={Object.values(jsonErrors()).some((e) => e !== null)}
         >
           Save
         </button>
