@@ -1,4 +1,4 @@
-FROM node:22-bookworm
+FROM node:25-bookworm
 
 # Install Chromium and dependencies, then clean up apt cache to reduce image size
 RUN apt-get update && apt-get install -y \
