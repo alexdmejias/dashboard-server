@@ -1,6 +1,6 @@
 # Browser Rendering Configuration
 
-This application supports multiple browser rendering backends for generating screenshots and images. You can choose between a local Puppeteer renderer or external services like Cloudflare Browser Rendering.
+This application supports multiple browser rendering backends for generating screenshots and images. You can choose between a local Puppeteer renderer or external services like Cloudflare Browser Rendering and Browserless.io. You can also enable multiple services simultaneously with automatic rotation and fallback.
 
 ## Configuration
 
@@ -11,6 +11,8 @@ The browser renderer is configured via environment variables. See `.env.sample` 
 - `BROWSER_RENDERER`: Specifies which renderer to use
   - `puppeteer` (default): Uses local Puppeteer with Chromium
   - `cloudflare`: Uses Cloudflare Browser Rendering API
+  - `browserless`: Uses Browserless.io API
+  - `multi`: Uses multiple services with round-robin rotation and automatic fallback
 
 ### Puppeteer Renderer (Default)
 
@@ -58,6 +60,65 @@ CLOUDFLARE_API_TOKEN=your-api-token
    - Select or create a custom token with Browser Rendering permissions
    - Save the generated token
 
+### Browserless.io Browser Rendering
+
+When using the Browserless.io renderer, the following environment variables are required:
+
+- `BROWSERLESS_IO_TOKEN`: Your Browserless.io API token
+- `BROWSERLESS_IO_ENDPOINT`: Your Browserless.io endpoint URL (e.g., `https://chrome.browserless.io`)
+
+**No additional installation required** - uses Browserless.io's remote rendering service.
+
+**Example configuration:**
+
+```env
+BROWSER_RENDERER=browserless
+BROWSERLESS_IO_TOKEN=your-api-token
+BROWSERLESS_IO_ENDPOINT=https://chrome.browserless.io
+```
+
+#### Getting Browserless.io Credentials
+
+1. Sign up for Browserless.io at https://www.browserless.io/
+2. Navigate to your account dashboard to find your API token
+3. Note your endpoint URL (typically `https://chrome.browserless.io` or a custom endpoint for enterprise plans)
+
+### Multi-Service Mode with Rotation and Fallback
+
+The multi-service mode enables using multiple rendering services simultaneously with round-robin load distribution and automatic fallback when services fail.
+
+**Configuration:**
+
+```env
+BROWSER_RENDERER=multi
+
+# Enable/disable specific services
+ENABLE_CLOUDFLARE_BROWSER_RENDERING=true
+ENABLE_BROWSERLESS_IO=true
+
+# Cloudflare credentials (required if enabled)
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+CLOUDFLARE_API_TOKEN=your-api-token
+
+# Browserless.io credentials (required if enabled)
+BROWSERLESS_IO_TOKEN=your-api-token
+BROWSERLESS_IO_ENDPOINT=https://chrome.browserless.io
+```
+
+**How it works:**
+
+1. **Round-robin rotation**: Each rendering request is distributed to the next service in the rotation
+2. **Automatic fallback**: If a service fails, the request automatically retries with the next available service
+3. **Graceful degradation**: If no external services are configured or all fail, the system falls back to Puppeteer
+4. **Flexible configuration**: Enable only the services you need by setting the appropriate flags
+
+**Example scenarios:**
+
+- Both services enabled: Requests alternate between Cloudflare and Browserless.io
+- One service enabled: All requests use that service with no rotation
+- No services enabled: Falls back to Puppeteer renderer
+- Service failure: Automatically tries the next service in rotation
+
 ## Architecture
 
 The browser rendering functionality is abstracted through the `BrowserRenderer` interface, which allows different implementations to be plugged in without changing core application code.
@@ -67,6 +128,8 @@ The browser rendering functionality is abstracted through the `BrowserRenderer` 
 - **BrowserRenderer Interface** (`src/types/browser-renderer.ts`): Defines the contract for all browser rendering implementations
 - **CloudflareBrowserRenderer** (`src/utils/CloudflareBrowserRenderer.ts`): Implementation using Cloudflare's Browser Rendering API
 - **PuppeteerBrowserRenderer** (`src/utils/PuppeteerBrowserRenderer.ts`): Implementation using local Puppeteer
+- **BrowserlessIOBrowserRenderer** (`src/utils/BrowserlessIOBrowserRenderer.ts`): Implementation using Browserless.io API
+- **ServiceRotator** (`src/utils/ServiceRotator.ts`): Implements round-robin rotation and fallback logic for multiple services
 - **browserRendererFactory** (`src/utils/browserRendererFactory.ts`): Factory function that creates the appropriate renderer based on configuration
 
 ### Adding New Renderers
@@ -113,6 +176,14 @@ export default MyCustomRenderer;
 - Easier deployment and scaling
 - No browser binary maintenance
 
+### Browserless.io
+
+- No need to install Chromium/Puppeteer locally
+- Reduced server resource usage
+- Supports WebSockets and additional browser automation features
+- Enterprise-grade browser automation with monitoring
+- Flexible pricing options including self-hosted
+
 ### Puppeteer (Local)
 
 - Works offline
@@ -120,13 +191,21 @@ export default MyCustomRenderer;
 - No usage costs
 - Full control over browser configuration
 
+### Multi-Service Mode
+
+- Load distribution across multiple services
+- High availability with automatic fallback
+- Reduced dependency on single provider
+- Cost optimization by balancing usage
+
 ## Migration Guide
 
 If you're migrating from the old Puppeteer-only setup:
 
 1. Update your `.env` file to include `BROWSER_RENDERER=puppeteer` to maintain current behavior
-2. (Optional) Switch to Cloudflare by setting `BROWSER_RENDERER=cloudflare` and adding Cloudflare credentials
-3. No code changes are required - the abstraction handles the switching automatically
+2. (Optional) Switch to a remote service by setting `BROWSER_RENDERER=cloudflare` or `BROWSER_RENDERER=browserless` and adding credentials
+3. (Optional) Enable multi-service mode with `BROWSER_RENDERER=multi` and configure multiple services
+4. No code changes are required - the abstraction handles the switching automatically
 
 ## Troubleshooting
 
@@ -135,9 +214,13 @@ If you're migrating from the old Puppeteer-only setup:
 If you get this error, either:
 
 - Install Puppeteer: `npm install puppeteer`
-- Switch to Cloudflare renderer: `BROWSER_RENDERER=cloudflare`
+- Switch to a remote renderer: `BROWSER_RENDERER=cloudflare` or `BROWSER_RENDERER=browserless`
 
 ### Error: "Cloudflare Browser Rendering requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+
+Make sure you've set both required environment variables in your `.env` file.
+
+### Error: "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT"
 
 Make sure you've set both required environment variables in your `.env` file.
 
@@ -146,3 +229,10 @@ Make sure you've set both required environment variables in your `.env` file.
 - Check that your API token has the correct permissions
 - Verify your account ID is correct
 - Check Cloudflare's status page for service issues
+
+### Browserless.io API Errors
+
+- Check that your API token is valid
+- Verify your endpoint URL is correct
+- Check your usage limits and quota
+- Verify network connectivity to the endpoint

@@ -3,7 +3,7 @@ import path from "node:path";
 import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
-// import DB from "../db";
+
 import logger from "../logger";
 import type {
   PossibleTemplateData,

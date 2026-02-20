@@ -1,9 +1,10 @@
+1. since we know how often the clients will be requesting images, can we setup a cron job, so the image is ready when the client requests it
 1. endpoint to register heart beat from device or register when the last request was made
-1.should add a picture callback to display images/movies/gifs
-2.switch to vitest
-3. move pupperter to docker image
-4. callback: load a notion page
-5. callback: calendar
+1. should add a picture callback to display images/movies/gifs
+1. switch to vitest
+1. move pupperter to docker image
+1. callback: load a notion page
+1. callback: calendar
 
 # Dashboard Server
 
