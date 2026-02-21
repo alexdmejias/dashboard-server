@@ -1,8 +1,6 @@
 import { google } from "googleapis";
 import { z } from "zod/v4";
-import * as fs from "fs/promises";
-import * as path from "path";
-import type { Credentials, OAuth2Client } from "google-auth-library";
+import type { OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -49,7 +47,6 @@ class CallbackCalendar extends CallbackBase<
   CalendarData,
   typeof expectedConfig
 > {
-  private tokenFilePath: string;
   private authClientPromise: Promise<OAuth2Client> | null = null;
 
   static defaultOptions: ConfigType = {
@@ -71,62 +68,11 @@ class CallbackCalendar extends CallbackBase<
       ],
       receivedConfig: options,
     });
-
-    this.tokenFilePath = process.env.GOOGLE_TOKEN_FILE_PATH ||
-      path.join(process.cwd(), ".google-tokens.json");
   }
 
   /**
-   * Load tokens from file if available, otherwise use environment variable
-   */
-  private async loadTokens(): Promise<Credentials> {
-    try {
-      const data = await fs.readFile(this.tokenFilePath, "utf-8");
-      const tokens = JSON.parse(data);
-      
-      // Validate that we have a valid object with at least a refresh_token or access_token
-      if (!tokens || tokens === null || Array.isArray(tokens) || typeof tokens !== 'object' || 
-          (!tokens.refresh_token && !tokens.access_token)) {
-        this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to environment variable");
-        return {
-          refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-        };
-      }
-      
-      this.logger.debug("Loaded tokens from file");
-      return tokens;
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        this.logger.warn({ error, path: this.tokenFilePath }, "Failed to parse token file as JSON, falling back to environment variable");
-      } else {
-        this.logger.debug("Token file not found, using refresh token from environment variable");
-      }
-      return {
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-      };
-    }
-  }
-
-  /**
-   * Save tokens to file for persistence across server restarts
-   */
-  private async saveTokens(tokens: Credentials) {
-    try {
-      await fs.writeFile(
-        this.tokenFilePath,
-        JSON.stringify(tokens, null, 2),
-        "utf-8"
-      );
-      this.logger.debug("Saved refreshed tokens to file");
-    } catch (error) {
-      this.logger.error({ error }, "Failed to save tokens to file");
-    }
-  }
-
-  /**
-   * Creates OAuth2 client with refresh token for authentication
-   * and sets up automatic token refresh handling.
-   * The client is created once and reused to prevent duplicate event listeners.
+   * Creates OAuth2 client with refresh token for authentication.
+   * The client is created once and reused to prevent duplicate instances.
    */
   private async getAuthClient() {
     if (!this.authClientPromise) {
@@ -145,22 +91,8 @@ class CallbackCalendar extends CallbackBase<
       "https://developers.google.com/oauthplayground",
     );
 
-    const tokens = await this.loadTokens();
-    oauth2Client.setCredentials(tokens);
-
-    oauth2Client.on("tokens", (tokens) => {
-      if (tokens.refresh_token) {
-        this.logger.info("Received new refresh token from Google, saving to file");
-      } else {
-        this.logger.debug("Received refreshed access token from Google, saving to file");
-      }
-      
-      // Merge existing credentials with new tokens. New tokens override existing values,
-      // which is correct as new tokens from Google should always be used (including new refresh_token if provided)
-      this.saveTokens({
-        ...oauth2Client.credentials,
-        ...tokens,
-      });
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
     });
 
     return oauth2Client;
