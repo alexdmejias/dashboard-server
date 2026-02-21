@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
 import type { GoogleCalendarEvent } from "./types";
+import { updateEnvValue } from "../../utils/env";
 
 type CalendarEvent = {
   title: string;
@@ -94,8 +95,8 @@ class CallbackCalendar extends CallbackBase<
    * one before persisting to credentials. The "tokens" event fires before this
    * overwrite, so we capture the new value there and re-apply it via setImmediate
    * (which runs after the library's synchronous post-await code). We also update
-   * process.env.GOOGLE_REFRESH_TOKEN so that any future createAuthClient() call
-   * uses the new value.
+   * process.env.GOOGLE_REFRESH_TOKEN and persist the new value to the .env file
+   * so that it survives server restarts.
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
@@ -121,9 +122,16 @@ class CallbackCalendar extends CallbackBase<
         });
         // Update env so any future createAuthClient() call uses the new refresh token
         process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
-        this.logger.warn(
-          "Google issued a new refresh token. Update GOOGLE_REFRESH_TOKEN in .env to persist it across restarts.",
-        );
+        // Persist to .env file so the new token survives server restarts
+        try {
+          updateEnvValue("GOOGLE_REFRESH_TOKEN", newRefreshToken);
+          this.logger.info("Persisted new Google refresh token to .env");
+        } catch (error) {
+          this.logger.error(
+            { error },
+            "Google issued a new refresh token but failed to persist it to .env. Update GOOGLE_REFRESH_TOKEN manually.",
+          );
+        }
       } else {
         this.logger.debug("Access token refreshed");
       }

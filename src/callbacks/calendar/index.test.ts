@@ -1,6 +1,11 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
 
+// Mock the env utility to avoid touching the real .env file in tests
+jest.mock("../../utils/env", () => ({
+  updateEnvValue: jest.fn(),
+}));
+
 // Mock the Google APIs
 jest.mock("googleapis", () => ({
   google: {
@@ -279,6 +284,7 @@ describe("CallbackCalendar", () => {
 
     beforeEach(() => {
       originalRefreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+      jest.clearAllMocks();
     });
 
     afterEach(() => {
@@ -302,8 +308,9 @@ describe("CallbackCalendar", () => {
       expect(mockOn).toHaveBeenCalledWith("tokens", expect.any(Function));
     });
 
-    it("should handle refresh token rotation: re-apply new refresh token and update env", async () => {
+    it("should handle refresh token rotation: re-apply new refresh token, update env and persist to .env", async () => {
       const { google } = require("googleapis");
+      const { updateEnvValue } = require("../../utils/env");
 
       let capturedTokensHandler: ((tokens: any) => void) | null = null;
       let mockCredentials: Record<string, any> = { refresh_token: "old-refresh-token" };
@@ -332,6 +339,9 @@ describe("CallbackCalendar", () => {
       // process.env should be updated immediately
       expect(process.env.GOOGLE_REFRESH_TOKEN).toBe("new-refresh-token");
 
+      // updateEnvValue should be called to persist the new token to .env
+      expect(updateEnvValue).toHaveBeenCalledWith("GOOGLE_REFRESH_TOKEN", "new-refresh-token");
+
       // The setImmediate callback re-applies the new refresh token
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(mockSetCredentials).toHaveBeenLastCalledWith(
@@ -339,8 +349,9 @@ describe("CallbackCalendar", () => {
       );
     });
 
-    it("should only log debug when access token is refreshed without rotation", async () => {
+    it("should not call updateEnvValue when access token is refreshed without rotation", async () => {
       const { google } = require("googleapis");
+      const { updateEnvValue } = require("../../utils/env");
 
       let capturedTokensHandler: ((tokens: any) => void) | null = null;
       google.auth.OAuth2.mockImplementation(() => ({
@@ -360,6 +371,8 @@ describe("CallbackCalendar", () => {
 
       // process.env should NOT change
       expect(process.env.GOOGLE_REFRESH_TOKEN).toBe(originalRefreshToken);
+      // updateEnvValue should NOT be called
+      expect(updateEnvValue).not.toHaveBeenCalled();
     });
   });
 });
