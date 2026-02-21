@@ -3,6 +3,9 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true }],
+    '^.+\\.[tj]sx?$': ['ts-jest', { isolatedModules: true, tsconfig: './tsconfig.jest.json' }],
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(lowdb|steno)/).*',
+  ],
 };
