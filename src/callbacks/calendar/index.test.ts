@@ -275,6 +275,16 @@ describe("CallbackCalendar", () => {
   });
 
   describe("auth client", () => {
+    let originalRefreshToken: string | undefined;
+
+    beforeEach(() => {
+      originalRefreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    });
+
+    afterEach(() => {
+      process.env.GOOGLE_REFRESH_TOKEN = originalRefreshToken;
+    });
+
     it("should register a tokens event listener for observing token refreshes", async () => {
       const { google } = require("googleapis");
       const mockOn = jest.fn();
@@ -290,6 +300,66 @@ describe("CallbackCalendar", () => {
       await getAuthClient();
 
       expect(mockOn).toHaveBeenCalledWith("tokens", expect.any(Function));
+    });
+
+    it("should handle refresh token rotation: re-apply new refresh token and update env", async () => {
+      const { google } = require("googleapis");
+
+      let capturedTokensHandler: ((tokens: any) => void) | null = null;
+      let mockCredentials: Record<string, any> = { refresh_token: "old-refresh-token" };
+      const mockSetCredentials = jest.fn((creds) => { mockCredentials = { ...mockCredentials, ...creds }; });
+
+      google.auth.OAuth2.mockImplementation(() => {
+        const client = {
+          setCredentials: mockSetCredentials,
+          on: (_event: string, handler: (tokens: any) => void) => {
+            capturedTokensHandler = handler;
+          },
+          get credentials() { return mockCredentials; },
+        };
+        return client;
+      });
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      expect(capturedTokensHandler).not.toBeNull();
+
+      // Simulate Google issuing a new refresh token
+      capturedTokensHandler!({ refresh_token: "new-refresh-token" });
+
+      // process.env should be updated immediately
+      expect(process.env.GOOGLE_REFRESH_TOKEN).toBe("new-refresh-token");
+
+      // The setImmediate callback re-applies the new refresh token
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mockSetCredentials).toHaveBeenLastCalledWith(
+        expect.objectContaining({ refresh_token: "new-refresh-token" }),
+      );
+    });
+
+    it("should only log debug when access token is refreshed without rotation", async () => {
+      const { google } = require("googleapis");
+
+      let capturedTokensHandler: ((tokens: any) => void) | null = null;
+      google.auth.OAuth2.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        on: (_event: string, handler: (tokens: any) => void) => {
+          capturedTokensHandler = handler;
+        },
+        credentials: { refresh_token: "existing-refresh-token" },
+      }));
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      // Simulate normal access token refresh (no new refresh token)
+      capturedTokensHandler!({ access_token: "new-access-token" });
+
+      // process.env should NOT change
+      expect(process.env.GOOGLE_REFRESH_TOKEN).toBe(originalRefreshToken);
     });
   });
 });

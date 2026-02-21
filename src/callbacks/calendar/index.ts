@@ -83,8 +83,19 @@ class CallbackCalendar extends CallbackBase<
 
   /**
    * Internal method to create and configure the OAuth2 client.
+   *
    * The library automatically refreshes the access token using the refresh_token
-   * whenever it expires. The "tokens" listener logs when a refresh occurs.
+   * whenever it expires and stores the new access token in oauth2Client.credentials
+   * (in-memory). This is sufficient for access tokens because they can always be
+   * regenerated from the refresh_token on the next request or server restart.
+   *
+   * However, the library has a quirk: if Google rotates the refresh_token, the
+   * refreshAccessTokenAsync() method overwrites the new refresh_token with the old
+   * one before persisting to credentials. The "tokens" event fires before this
+   * overwrite, so we capture the new value there and re-apply it via setImmediate
+   * (which runs after the library's synchronous post-await code). We also update
+   * process.env.GOOGLE_REFRESH_TOKEN so that any future createAuthClient() call
+   * uses the new value.
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
@@ -99,7 +110,20 @@ class CallbackCalendar extends CallbackBase<
 
     oauth2Client.on("tokens", (tokens) => {
       if (tokens.refresh_token) {
-        this.logger.info("Received new refresh token from Google");
+        // Capture the new refresh_token value before the library mutates the object
+        const newRefreshToken = tokens.refresh_token;
+        // Re-apply after the library's synchronous overwrite in refreshAccessTokenAsync()
+        setImmediate(() => {
+          oauth2Client.setCredentials({
+            ...oauth2Client.credentials,
+            refresh_token: newRefreshToken,
+          });
+        });
+        // Update env so any future createAuthClient() call uses the new refresh token
+        process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
+        this.logger.warn(
+          "Google issued a new refresh token. Update GOOGLE_REFRESH_TOKEN in .env to persist it across restarts.",
+        );
       } else {
         this.logger.debug("Access token refreshed");
       }
