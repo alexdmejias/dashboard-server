@@ -1,6 +1,22 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
+import {
+  type AppSettings,
+  VALID_RENDERERS,
+  getSettings,
+  updateSettings,
+} from "../settings";
+
+const VALID_LOG_LEVELS = [
+  "trace",
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "fatal",
+  "silent",
+] as const;
 
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
@@ -223,6 +239,64 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     { preHandler: checkAuth },
     async (_req, res) => {
       return res.send({ logs: serverLogs });
+    },
+  );
+
+  // Get current settings
+  fastify.get(
+    "/api/settings",
+    { preHandler: checkAuth },
+    async (_req, res) => {
+      return res.send(getSettings());
+    },
+  );
+
+  // Update settings (partial patch)
+  fastify.put<{ Body: Partial<AppSettings> }>(
+    "/api/settings",
+    { preHandler: checkAuth },
+    async (req, res) => {
+      const patch = req.body;
+      const errors: string[] = [];
+
+      if (
+        patch.logLevel !== undefined &&
+        !VALID_LOG_LEVELS.includes(
+          patch.logLevel as (typeof VALID_LOG_LEVELS)[number],
+        )
+      ) {
+        errors.push(
+          `logLevel must be one of: ${VALID_LOG_LEVELS.join(", ")}`,
+        );
+      }
+
+      if (
+        patch.browserRenderer !== undefined &&
+        !VALID_RENDERERS.includes(patch.browserRenderer)
+      ) {
+        errors.push(
+          `browserRenderer must be one of: ${VALID_RENDERERS.join(", ")}`,
+        );
+      }
+
+      if (patch.maxImagesToKeep !== undefined) {
+        const n = Number(patch.maxImagesToKeep);
+        if (!Number.isFinite(n) || n < 1) {
+          errors.push("maxImagesToKeep must be a positive integer");
+        }
+      }
+
+      if (errors.length > 0) {
+        return res.code(400).send({ error: errors.join("; ") });
+      }
+
+      try {
+        const updated = await updateSettings(patch);
+        return res.send(updated);
+      } catch (err) {
+        fastify.log.error({ err }, "Failed to update settings");
+        return res.code(500).send({ error: "Failed to update settings" });
+      }
     },
   );
 

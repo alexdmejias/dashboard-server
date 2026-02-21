@@ -17,3 +17,4 @@ init-payload.json
 *.db
 storybook-static
 .google-tokens.json
+settings.json

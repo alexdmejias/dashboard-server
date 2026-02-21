@@ -1,4 +1,5 @@
 import logger from "../logger";
+import { getSettings } from "../settings";
 import type { BrowserRenderer } from "../types/browser-renderer";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
@@ -8,6 +9,7 @@ import ServiceRotator, { type ServiceConfig } from "./ServiceRotator";
 
 export function createBrowserRenderer(): BrowserRenderer {
   const rendererType = getBrowserRendererType();
+  const settings = getSettings();
 
   logger.info(`Creating browser renderer: ${rendererType}`);
 
@@ -29,11 +31,11 @@ export function createBrowserRenderer(): BrowserRenderer {
     }
     case "browserless": {
       const token = process.env.BROWSERLESS_IO_TOKEN;
-      const endpoint = process.env.BROWSERLESS_IO_ENDPOINT;
+      const endpoint = settings.browserlessEndpoint;
 
       if (!token || !endpoint) {
         throw new Error(
-          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT environment variables",
+          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN env variable and browserlessEndpoint setting",
         );
       }
 
@@ -43,12 +45,10 @@ export function createBrowserRenderer(): BrowserRenderer {
       });
     }
     case "multi": {
-      // Create services based on enabled flags
       const services: ServiceConfig[] = [];
 
-      const enableCloudflare =
-        process.env.ENABLE_CLOUDFLARE_BROWSER_RENDERING === "true";
-      const enableBrowserless = process.env.ENABLE_BROWSERLESS_IO === "true";
+      const enableCloudflare = settings.enableCloudflareBrowserRendering;
+      const enableBrowserless = settings.enableBrowserlessIO;
 
       if (enableCloudflare) {
         const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -70,7 +70,7 @@ export function createBrowserRenderer(): BrowserRenderer {
 
       if (enableBrowserless) {
         const token = process.env.BROWSERLESS_IO_TOKEN;
-        const endpoint = process.env.BROWSERLESS_IO_ENDPOINT;
+        const endpoint = settings.browserlessEndpoint;
 
         if (token && endpoint) {
           services.push({
@@ -88,7 +88,6 @@ export function createBrowserRenderer(): BrowserRenderer {
         }
       }
 
-      // Fallback to Puppeteer if no services are configured
       if (services.length === 0) {
         logger.info(
           "No external services configured, falling back to Puppeteer",
