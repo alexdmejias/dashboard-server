@@ -273,4 +273,23 @@ describe("CallbackCalendar", () => {
       expect(formatted).toContain("Tue");
     });
   });
+
+  describe("auth client", () => {
+    it("should register a tokens event listener for observing token refreshes", async () => {
+      const { google } = require("googleapis");
+      const mockOn = jest.fn();
+      google.auth.OAuth2.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        on: mockOn,
+        credentials: {},
+      }));
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      // Reset cached promise so a new client is created with our mock
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      expect(mockOn).toHaveBeenCalledWith("tokens", expect.any(Function));
+    });
+  });
 });

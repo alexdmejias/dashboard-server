@@ -82,7 +82,9 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Internal method to create and configure the OAuth2 client
+   * Internal method to create and configure the OAuth2 client.
+   * The library automatically refreshes the access token using the refresh_token
+   * whenever it expires. The "tokens" listener logs when a refresh occurs.
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
@@ -93,6 +95,14 @@ class CallbackCalendar extends CallbackBase<
 
     oauth2Client.setCredentials({
       refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    });
+
+    oauth2Client.on("tokens", (tokens) => {
+      if (tokens.refresh_token) {
+        this.logger.info("Received new refresh token from Google");
+      } else {
+        this.logger.debug("Access token refreshed");
+      }
     });
 
     return oauth2Client;
