@@ -90,7 +90,7 @@ class CallbackCalendar extends CallbackBase<
           (!tokens.refresh_token && !tokens.access_token)) {
         this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to googleRefreshToken setting");
         return {
-          refresh_token: getSettings().googleRefreshToken || undefined,
+          refresh_token: getSettings().googleRefreshToken,
         };
       }
       
@@ -103,7 +103,7 @@ class CallbackCalendar extends CallbackBase<
         this.logger.debug("Token file not found, using googleRefreshToken from settings");
       }
       return {
-        refresh_token: getSettings().googleRefreshToken || undefined,
+        refresh_token: getSettings().googleRefreshToken,
       };
     }
   }
@@ -141,8 +141,8 @@ class CallbackCalendar extends CallbackBase<
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
-      getSettings().googleClientId || undefined,
-      getSettings().googleClientSecret || undefined,
+      getSettings().googleClientId,
+      getSettings().googleClientSecret,
       "https://developers.google.com/oauthplayground",
     );
 

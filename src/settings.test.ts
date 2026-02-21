@@ -1,6 +1,3 @@
-import path from "node:path";
-import fs from "node:fs/promises";
-import os from "node:os";
 import {
   initSettings,
   getSettings,
@@ -8,72 +5,49 @@ import {
   _resetForTesting,
 } from "./settings";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-let tmpDir: string;
-let settingsFilePath: string;
-
 // ─── setup / teardown ───────────────────────────────────────────────────────
 
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "settings-test-"));
-  settingsFilePath = path.join(tmpDir, "settings.json");
-  // Reset in-memory state and point to an isolated temp file for each test
-  _resetForTesting(settingsFilePath);
-});
-
-afterEach(async () => {
+beforeEach(() => {
   _resetForTesting();
   delete process.env.SETTINGS_FILE;
-  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+afterEach(() => {
+  _resetForTesting();
+  delete process.env.SETTINGS_FILE;
 });
 
 // ─── tests ──────────────────────────────────────────────────────────────────
 
 describe("settings", () => {
-  it("creates settings.json with defaults on first run", async () => {
+  it("returns operational defaults on first init", async () => {
     const settings = await initSettings();
-
-    // Verify file was created
-    const raw = JSON.parse(await fs.readFile(settingsFilePath, "utf-8"));
-
     expect(settings.browserRenderer).toBe("puppeteer");
     expect(settings.maxImagesToKeep).toBe(1000);
-    expect(raw.browserRenderer).toBe("puppeteer");
-    // logLevel is NOT in settings – it lives in .env only
-    expect(raw).not.toHaveProperty("logLevel");
+    expect(settings.logtailEndpoint).toBe("https://in.logs.betterstack.com");
+    // logLevel is NOT a settings field – it lives in .env only
+    expect((settings as Record<string, unknown>)).not.toHaveProperty("logLevel");
   });
 
-  it("reads an existing settings.json without overwriting it", async () => {
-    // Write a pre-existing settings file
-    await fs.writeFile(
-      settingsFilePath,
-      JSON.stringify({ maxImagesToKeep: 42 }),
-      "utf-8",
-    );
-
+  it("API key fields are absent by default", async () => {
     const settings = await initSettings();
-
-    // File values win
-    expect(settings.maxImagesToKeep).toBe(42);
+    expect(settings.weatherApiKey).toBeUndefined();
+    expect(settings.todoistApiKey).toBeUndefined();
+    expect(settings.googleClientId).toBeUndefined();
+    expect(settings.cloudflareAccountId).toBeUndefined();
   });
 
-  it("getSettings() returns defaults synchronously before initSettings()", () => {
+  it("getSettings() returns operational defaults synchronously before initSettings()", () => {
     const settings = getSettings();
     expect(settings).toHaveProperty("browserRenderer");
     expect(settings).toHaveProperty("maxImagesToKeep");
-    expect(settings).not.toHaveProperty("logLevel");
+    expect((settings as Record<string, unknown>)).not.toHaveProperty("logLevel");
   });
 
-  it("updateSettings() persists a partial patch", async () => {
+  it("updateSettings() merges a partial patch", async () => {
     await initSettings();
     const updated = await updateSettings({ maxImagesToKeep: 250 });
-
     expect(updated.maxImagesToKeep).toBe(250);
-
-    // Verify it was written to disk
-    const raw = JSON.parse(await fs.readFile(settingsFilePath, "utf-8"));
-    expect(raw.maxImagesToKeep).toBe(250);
   });
 
   it("updateSettings() does not clobber un-patched keys", async () => {
@@ -83,44 +57,32 @@ describe("settings", () => {
     const settings = getSettings();
     expect(settings.maxImagesToKeep).toBe(99);
     expect(settings.browserRenderer).toBe("puppeteer"); // untouched
-    expect(settings.weatherApiKey).toBe("");             // untouched
+    expect(settings.weatherApiKey).toBeUndefined();     // untouched
   });
 
-  // ── SETTINGS_FILE env var ──────────────────────────────────────────────────
-
-  it("SETTINGS_FILE env var overrides the default settings path", async () => {
-    const customPath = path.join(tmpDir, "custom-settings.json");
-    _resetForTesting(); // clear explicit path override so env var is picked up
-    process.env.SETTINGS_FILE = customPath;
-
+  it("SETTINGS_FILE env var is accepted (path used when not in test mode)", async () => {
+    process.env.SETTINGS_FILE = "/custom/path/settings.json";
+    // In NODE_ENV=test lowdb uses MemorySync regardless of path –
+    // this just verifies initSettings() doesn't blow up with the env var set.
     const settings = await initSettings();
-
-    // Custom file should have been created
-    const raw = JSON.parse(await fs.readFile(customPath, "utf-8"));
-    expect(raw.browserRenderer).toBe(settings.browserRenderer);
-    expect(settings.maxImagesToKeep).toBe(1000);
-  });
-
-  // ── API key fields ─────────────────────────────────────────────────────────
-
-  it("API key fields default to empty string", async () => {
-    const settings = await initSettings();
-
-    expect(settings.weatherApiKey).toBe("");
-    expect(settings.todoistApiKey).toBe("");
-    expect(settings.googleClientId).toBe("");
-    expect(settings.cloudflareAccountId).toBe("");
+    expect(settings.browserRenderer).toBe("puppeteer");
   });
 
   it("updateSettings() can store and retrieve an API key", async () => {
     await initSettings();
     await updateSettings({ weatherApiKey: "test-weather-key" });
+    expect(getSettings().weatherApiKey).toBe("test-weather-key");
+  });
 
-    const settings = getSettings();
-    expect(settings.weatherApiKey).toBe("test-weather-key");
-
-    const raw = JSON.parse(await fs.readFile(settingsFilePath, "utf-8"));
-    expect(raw.weatherApiKey).toBe("test-weather-key");
+  it("updateSettings() returns the merged result", async () => {
+    await initSettings();
+    const result = await updateSettings({
+      weatherApiKey: "key",
+      maxImagesToKeep: 500,
+    });
+    expect(result.weatherApiKey).toBe("key");
+    expect(result.maxImagesToKeep).toBe(500);
+    expect(result.browserRenderer).toBe("puppeteer"); // unchanged
   });
 });
 

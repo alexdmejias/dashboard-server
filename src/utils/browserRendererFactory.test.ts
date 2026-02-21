@@ -2,9 +2,6 @@ import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import ServiceRotator from "./ServiceRotator";
-import path from "node:path";
-import os from "node:os";
-import fs from "node:fs/promises";
 import { _resetForTesting, initSettings, updateSettings } from "../settings";
 
 jest.mock("./CloudflareBrowserRenderer");
@@ -21,18 +18,14 @@ jest.mock("./PuppeteerBrowserRenderer", () => {
 const PuppeteerBrowserRenderer = require("./PuppeteerBrowserRenderer");
 
 describe("browserRendererFactory", () => {
-  let tmpDir: string;
-
   beforeEach(async () => {
     jest.clearAllMocks();
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "factory-test-"));
-    _resetForTesting(path.join(tmpDir, "settings.json"));
+    _resetForTesting();
     await initSettings();
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     _resetForTesting();
-    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   it("should create Puppeteer renderer by default", () => {

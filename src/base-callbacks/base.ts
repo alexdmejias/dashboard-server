@@ -187,8 +187,7 @@ class CallbackBase<
     const missingKeys: string[] = [];
     const settings = getSettings();
     for (const key of this.dbSettingsNeeded) {
-      const value = settings[key as keyof typeof settings];
-      if (!value || value === "") {
+      if (!settings[key as keyof typeof settings]) {
         missingKeys.push(key);
       }
     }

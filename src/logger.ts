@@ -4,7 +4,7 @@ import { getSettings } from "./settings";
 const isProduction = process.env.NODE_ENV === "production";
 const logLevel = process.env.LOG_LEVEL || "warn";
 const settings = getSettings();
-const logtailSourceToken = settings.logtailSourceToken || undefined;
+const logtailSourceToken = settings.logtailSourceToken;
 const hasLogtailToken = !!logtailSourceToken;
 
 // Define each transport as a variable

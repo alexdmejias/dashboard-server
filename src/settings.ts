@@ -1,16 +1,16 @@
-import fs from "node:fs";
 import path from "node:path";
+import { JSONFileSyncPreset } from "lowdb/node";
 import { PROJECT_ROOT } from "./utils/projectRoot";
 
 /**
- * Runtime-editable settings persisted in settings.json.
+ * Runtime-editable settings persisted via lowdb (JSON file).
  *
- * API keys / tokens for third-party services live here so they can be updated
- * without a server restart.  ADMIN_PASSWORD and LOG_LEVEL are the only values
- * that must stay exclusively in .env.
+ * Operational fields always have defaults and are guaranteed to be present.
+ * API key fields are optional – they are absent until explicitly configured
+ * via PUT /api/settings.  ADMIN_PASSWORD and LOG_LEVEL are env-only.
  */
 export type AppSettings = {
-  // ── Operational settings ──────────────────────────────────────────────────
+  // ── Operational settings (always present, have defaults) ─────────────────
   /** Optional custom Logtail / Better Stack ingest endpoint */
   logtailEndpoint: string;
   /** Which browser renderer to use for screenshot generation */
@@ -26,25 +26,16 @@ export type AppSettings = {
   /** Maximum number of generated images to keep in the temp directory */
   maxImagesToKeep: number;
 
-  // ── API keys / tokens ─────────────────────────────────────────────────────
-  /** Weather API key (weatherapi.com) */
-  weatherApiKey: string;
-  /** Todoist API key */
-  todoistApiKey: string;
-  /** Google OAuth2 client ID */
-  googleClientId: string;
-  /** Google OAuth2 client secret */
-  googleClientSecret: string;
-  /** Google OAuth2 refresh token */
-  googleRefreshToken: string;
-  /** Cloudflare account ID for browser rendering */
-  cloudflareAccountId: string;
-  /** Cloudflare API token for browser rendering */
-  cloudflareApiToken: string;
-  /** Browserless.io API token */
-  browserlessIoToken: string;
-  /** Logtail / Better Stack source token */
-  logtailSourceToken: string;
+  // ── API keys / tokens (optional – absent until configured) ────────────────
+  weatherApiKey?: string;
+  todoistApiKey?: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRefreshToken?: string;
+  cloudflareAccountId?: string;
+  cloudflareApiToken?: string;
+  browserlessIoToken?: string;
+  logtailSourceToken?: string;
 };
 
 const DEFAULTS: AppSettings = {
@@ -55,15 +46,6 @@ const DEFAULTS: AppSettings = {
   enableBrowserlessIO: false,
   chromiumBin: "",
   maxImagesToKeep: 1000,
-  weatherApiKey: "",
-  todoistApiKey: "",
-  googleClientId: "",
-  googleClientSecret: "",
-  googleRefreshToken: "",
-  cloudflareAccountId: "",
-  cloudflareApiToken: "",
-  browserlessIoToken: "",
-  logtailSourceToken: "",
 };
 
 const VALID_RENDERERS: AppSettings["browserRenderer"][] = [
@@ -77,73 +59,45 @@ export { VALID_RENDERERS };
 
 // ─── Internal state ──────────────────────────────────────────────────────────
 
+let _db: ReturnType<typeof JSONFileSyncPreset<AppSettings>> | null = null;
+// Explicit path override – set by _resetForTesting() in tests
 let _settingsFilePath: string | null = null;
-let _cache: AppSettings | null = null;
 
 function getSettingsFilePath(): string {
-  if (!_settingsFilePath) {
-    // Allow a custom path via the SETTINGS_FILE environment variable
-    _settingsFilePath = process.env.SETTINGS_FILE
-      ? path.resolve(process.env.SETTINGS_FILE)
-      : path.join(PROJECT_ROOT, "settings.json");
-  }
-  return _settingsFilePath;
+  if (_settingsFilePath) return _settingsFilePath;
+  if (process.env.SETTINGS_FILE) return path.resolve(process.env.SETTINGS_FILE);
+  return path.join(PROJECT_ROOT, "settings.json");
 }
 
-function readFromDisk(): AppSettings | null {
-  const filePath = getSettingsFilePath();
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw) as AppSettings;
-  } catch {
-    return null;
+function getDB() {
+  if (!_db) {
+    _db = JSONFileSyncPreset<AppSettings>(getSettingsFilePath(), DEFAULTS);
+    // Merge DEFAULTS with on-disk data so any newly-added operational fields
+    // get their default value even when reading an older settings.json.
+    _db.data = { ...DEFAULTS, ..._db.data };
   }
-}
-
-function writeToDisk(settings: AppSettings): void {
-  const filePath = getSettingsFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
+  return _db;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Returns a snapshot of the current settings.
- * Safe to call synchronously at any point; returns defaults when called
- * before `initSettings()` has completed (e.g. during logger bootstrap).
+ * Safe to call synchronously at any point – lowdb initialises the db on first
+ * access, reading from disk (or using in-memory storage in NODE_ENV=test).
  */
 export function getSettings(): AppSettings {
-  if (_cache) return { ..._cache };
-
-  // Try to load from disk (handles the case where the file exists but
-  // initSettings hasn't been called yet, e.g. in logger bootstrap).
-  const onDisk = readFromDisk();
-  if (onDisk) {
-    _cache = onDisk;
-    return { ..._cache };
-  }
-
-  // Synchronous fallback used only during very early bootstrap
-  return { ...DEFAULTS };
+  return { ...getDB().data };
 }
 
 /**
- * Initialise the settings store.  Must be called once at application startup
- * before any code that reads settings.  Idempotent – safe to call multiple times.
+ * Initialise the settings store and ensure the file is persisted.
+ * Must be called once at application startup.  Idempotent.
  */
 export async function initSettings(): Promise<AppSettings> {
-  if (_cache) return { ..._cache };
-
-  const onDisk = readFromDisk();
-  if (onDisk) {
-    _cache = onDisk;
-    return { ..._cache };
-  }
-
-  // First run: write defaults and persist
-  writeToDisk(DEFAULTS);
-  _cache = { ...DEFAULTS };
-  return { ..._cache };
+  const db = getDB();
+  db.write(); // creates the file on first run (no-op with in-memory adapter)
+  return { ...db.data };
 }
 
 /**
@@ -152,22 +106,17 @@ export async function initSettings(): Promise<AppSettings> {
 export async function updateSettings(
   patch: Partial<AppSettings>,
 ): Promise<AppSettings> {
-  // Ensure we have a base to merge into
-  if (!_cache) {
-    await initSettings();
-  }
-
-  const updated: AppSettings = { ..._cache!, ...patch };
-  writeToDisk(updated);
-  _cache = updated;
-  return { ...updated };
+  const db = getDB();
+  Object.assign(db.data, patch);
+  db.write();
+  return { ...db.data };
 }
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
 /** @internal Reset module-level state – used in tests only. */
 export function _resetForTesting(filePath?: string): void {
+  _db = null;
   _settingsFilePath = filePath ?? null;
-  _cache = null;
 }
 

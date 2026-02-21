@@ -1,8 +1,5 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
-import path from "node:path";
-import os from "node:os";
-import fs from "node:fs/promises";
 import { _resetForTesting, initSettings, updateSettings } from "../../settings";
 
 // Mock fs/promises
@@ -33,11 +30,9 @@ jest.mock("googleapis", () => ({
 
 describe("CallbackCalendar", () => {
   let callback: CallbackCalendar;
-  let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "calendar-test-"));
-    _resetForTesting(path.join(tmpDir, "settings.json"));
+    _resetForTesting();
     await initSettings();
     await updateSettings({
       googleClientId: "test-client-id",
@@ -52,9 +47,8 @@ describe("CallbackCalendar", () => {
     });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     _resetForTesting();
-    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   describe("timezone handling", () => {

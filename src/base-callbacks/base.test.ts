@@ -1,9 +1,6 @@
 import CallbackBase from "./base";
 import getScreenshot from "../utils/getScreenshot";
 import { initSettings, updateSettings, _resetForTesting } from "../settings";
-import path from "node:path";
-import os from "node:os";
-import fs from "node:fs/promises";
 
 jest.mock("../utils/getScreenshot");
 
@@ -98,22 +95,16 @@ describe("CallbackBase", () => {
   // ── checkDBSettings ────────────────────────────────────────────────────────
 
   describe("checkDBSettings()", () => {
-    let tmpDir: string;
-    let settingsFilePath: string;
-
-    beforeEach(async () => {
-      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "base-test-"));
-      settingsFilePath = path.join(tmpDir, "settings.json");
-      _resetForTesting(settingsFilePath);
+    beforeEach(() => {
+      _resetForTesting();
     });
 
-    afterEach(async () => {
+    afterEach(() => {
       _resetForTesting();
-      await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
     it("throws when a required settings key is missing", async () => {
-      await initSettings(); // initialises with empty string defaults
+      await initSettings();
 
       class SettingsCallback extends CallbackBase {
         getData() {
