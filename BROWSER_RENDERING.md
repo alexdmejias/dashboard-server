@@ -65,7 +65,6 @@ CLOUDFLARE_API_TOKEN=your-api-token
 When using the Browserless.io renderer, the following environment variables are required:
 
 - `BROWSERLESS_IO_TOKEN`: Your Browserless.io API token
-- `BROWSERLESS_IO_ENDPOINT`: Your Browserless.io endpoint URL (e.g., `https://chrome.browserless.io`)
 
 **No additional installation required** - uses Browserless.io's remote rendering service.
 
@@ -74,14 +73,12 @@ When using the Browserless.io renderer, the following environment variables are 
 ```env
 BROWSER_RENDERER=browserless
 BROWSERLESS_IO_TOKEN=your-api-token
-BROWSERLESS_IO_ENDPOINT=https://chrome.browserless.io
 ```
 
 #### Getting Browserless.io Credentials
 
 1. Sign up for Browserless.io at https://www.browserless.io/
 2. Navigate to your account dashboard to find your API token
-3. Note your endpoint URL (typically `https://chrome.browserless.io` or a custom endpoint for enterprise plans)
 
 ### Multi-Service Mode with Rotation and Fallback
 
@@ -102,7 +99,6 @@ CLOUDFLARE_API_TOKEN=your-api-token
 
 # Browserless.io credentials (required if enabled)
 BROWSERLESS_IO_TOKEN=your-api-token
-BROWSERLESS_IO_ENDPOINT=https://chrome.browserless.io
 ```
 
 **How it works:**
@@ -220,7 +216,7 @@ If you get this error, either:
 
 Make sure you've set both required environment variables in your `.env` file.
 
-### Error: "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT"
+### Error: "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN"
 
 Make sure you've set both required environment variables in your `.env` file.
 
@@ -233,6 +229,5 @@ Make sure you've set both required environment variables in your `.env` file.
 ### Browserless.io API Errors
 
 - Check that your API token is valid
-- Verify your endpoint URL is correct
 - Check your usage limits and quota
 - Verify network connectivity to the endpoint

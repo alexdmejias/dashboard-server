@@ -1,6 +1,6 @@
+import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
-import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import ServiceRotator from "./ServiceRotator";
 
 jest.mock("./CloudflareBrowserRenderer");
@@ -69,7 +69,7 @@ describe("browserRendererFactory", () => {
     delete process.env.CLOUDFLARE_API_TOKEN;
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
     );
   });
 
@@ -79,7 +79,7 @@ describe("browserRendererFactory", () => {
     delete process.env.CLOUDFLARE_API_TOKEN;
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
     );
   });
 
@@ -89,20 +89,18 @@ describe("browserRendererFactory", () => {
     process.env.CLOUDFLARE_API_TOKEN = "test-api-token";
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
     );
   });
 
   it("should create Browserless renderer when configured", () => {
     process.env.BROWSER_RENDERER = "browserless";
     process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
 
     createBrowserRenderer();
 
     expect(BrowserlessIOBrowserRenderer).toHaveBeenCalledWith({
       token: "test-token",
-      endpoint: "https://chrome.browserless.io",
     });
     expect(PuppeteerBrowserRenderer).not.toHaveBeenCalled();
     expect(CloudflareBrowserRenderer).not.toHaveBeenCalled();
@@ -111,10 +109,9 @@ describe("browserRendererFactory", () => {
   it("should throw error when Browserless credentials are missing", () => {
     process.env.BROWSER_RENDERER = "browserless";
     delete process.env.BROWSERLESS_IO_TOKEN;
-    delete process.env.BROWSERLESS_IO_ENDPOINT;
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN and BROWSERLESS_IO_ENDPOINT"
+      "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN",
     );
   });
 
@@ -125,7 +122,6 @@ describe("browserRendererFactory", () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
     process.env.CLOUDFLARE_API_TOKEN = "test-api-token";
     process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
 
     createBrowserRenderer();
 
@@ -151,7 +147,6 @@ describe("browserRendererFactory", () => {
     process.env.ENABLE_BROWSERLESS_IO = "true";
     // Only provide Browserless credentials
     process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
 
     createBrowserRenderer();
 

@@ -8,16 +8,13 @@ import type {
 
 export interface BrowserlessIOConfig {
   token: string;
-  endpoint: string;
 }
 
 class BrowserlessIOBrowserRenderer implements BrowserRenderer {
   private token: string;
-  private endpoint: string;
 
   constructor(config: BrowserlessIOConfig) {
     this.token = config.token;
-    this.endpoint = config.endpoint;
   }
 
   async renderPage(options: RenderOptions): Promise<RenderResult> {
@@ -42,7 +39,7 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
     htmlContent: string,
     size: ScreenshotSizeOption,
   ): Promise<Buffer> {
-    const url = `${this.endpoint}/screenshot?token=${this.token}`;
+    const url = `https://production-sfo.browserless.io/screenshot?token=${this.token}`;
 
     const response = await fetch(url, {
       method: "POST",
