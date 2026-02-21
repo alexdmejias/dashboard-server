@@ -1,10 +1,9 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
 
-// Mock fs/promises
-jest.mock("fs/promises", () => ({
-  readFile: jest.fn().mockRejectedValue(new Error("File not found")),
-  writeFile: jest.fn().mockResolvedValue(undefined),
+// Mock the env utility to avoid touching the real .env file in tests
+jest.mock("../../utils/env", () => ({
+  updateEnvValue: jest.fn(),
 }));
 
 // Mock the Google APIs
@@ -277,6 +276,103 @@ describe("CallbackCalendar", () => {
       
       expect(formatted).toContain("1/20");
       expect(formatted).toContain("Tue");
+    });
+  });
+
+  describe("auth client", () => {
+    let originalRefreshToken: string | undefined;
+
+    beforeEach(() => {
+      originalRefreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+      jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+      process.env.GOOGLE_REFRESH_TOKEN = originalRefreshToken;
+    });
+
+    it("should register a tokens event listener for observing token refreshes", async () => {
+      const { google } = require("googleapis");
+      const mockOn = jest.fn();
+      google.auth.OAuth2.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        on: mockOn,
+        credentials: {},
+      }));
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      // Reset cached promise so a new client is created with our mock
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      expect(mockOn).toHaveBeenCalledWith("tokens", expect.any(Function));
+    });
+
+    it("should handle refresh token rotation: re-apply new refresh token, update env and persist to .env", async () => {
+      const { google } = require("googleapis");
+      const { updateEnvValue } = require("../../utils/env");
+
+      let capturedTokensHandler: ((tokens: any) => void) | null = null;
+      let mockCredentials: Record<string, any> = { refresh_token: "old-refresh-token" };
+      const mockSetCredentials = jest.fn((creds) => { mockCredentials = { ...mockCredentials, ...creds }; });
+
+      google.auth.OAuth2.mockImplementation(() => {
+        const client = {
+          setCredentials: mockSetCredentials,
+          on: (_event: string, handler: (tokens: any) => void) => {
+            capturedTokensHandler = handler;
+          },
+          get credentials() { return mockCredentials; },
+        };
+        return client;
+      });
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      expect(capturedTokensHandler).not.toBeNull();
+
+      // Simulate Google issuing a new refresh token
+      capturedTokensHandler!({ refresh_token: "new-refresh-token" });
+
+      // process.env should be updated immediately
+      expect(process.env.GOOGLE_REFRESH_TOKEN).toBe("new-refresh-token");
+
+      // updateEnvValue should be called to persist the new token to .env
+      expect(updateEnvValue).toHaveBeenCalledWith("GOOGLE_REFRESH_TOKEN", "new-refresh-token");
+
+      // The setImmediate callback re-applies the new refresh token
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mockSetCredentials).toHaveBeenLastCalledWith(
+        expect.objectContaining({ refresh_token: "new-refresh-token" }),
+      );
+    });
+
+    it("should not call updateEnvValue when access token is refreshed without rotation", async () => {
+      const { google } = require("googleapis");
+      const { updateEnvValue } = require("../../utils/env");
+
+      let capturedTokensHandler: ((tokens: any) => void) | null = null;
+      google.auth.OAuth2.mockImplementation(() => ({
+        setCredentials: jest.fn(),
+        on: (_event: string, handler: (tokens: any) => void) => {
+          capturedTokensHandler = handler;
+        },
+        credentials: { refresh_token: "existing-refresh-token" },
+      }));
+
+      const getAuthClient = (callback as any).getAuthClient.bind(callback);
+      (callback as any).authClientPromise = null;
+      await getAuthClient();
+
+      // Simulate normal access token refresh (no new refresh token)
+      capturedTokensHandler!({ access_token: "new-access-token" });
+
+      // process.env should NOT change
+      expect(process.env.GOOGLE_REFRESH_TOKEN).toBe(originalRefreshToken);
+      // updateEnvValue should NOT be called
+      expect(updateEnvValue).not.toHaveBeenCalled();
     });
   });
 });
