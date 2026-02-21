@@ -9,9 +9,12 @@ dotenv.config({ path: envPath });
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import getApp from "./app";
+import { initSettings } from "./settings";
 import type { PossibleCallbacks } from "./types";
 
 const start = async () => {
+  // Initialise the settings store before any other module reads settings
+  await initSettings();
   const callbacks: { callbackName: string }[] = [
     { callbackName: "reddit" },
     { callbackName: "weather" },

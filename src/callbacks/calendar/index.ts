@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { Credentials, OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
+import { getSettings } from "../../settings";
 import type { GoogleCalendarEvent } from "./types";
 
 type CalendarEvent = {
@@ -64,10 +65,10 @@ class CallbackCalendar extends CallbackBase<
     super({
       name: "calendar",
       expectedConfig,
-      envVariablesNeeded: [
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "GOOGLE_REFRESH_TOKEN",
+      dbSettingsNeeded: [
+        "googleClientId",
+        "googleClientSecret",
+        "googleRefreshToken",
       ],
       receivedConfig: options,
     });
@@ -87,9 +88,9 @@ class CallbackCalendar extends CallbackBase<
       // Validate that we have a valid object with at least a refresh_token or access_token
       if (!tokens || tokens === null || Array.isArray(tokens) || typeof tokens !== 'object' || 
           (!tokens.refresh_token && !tokens.access_token)) {
-        this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to environment variable");
+        this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to googleRefreshToken setting");
         return {
-          refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+          refresh_token: getSettings().googleRefreshToken,
         };
       }
       
@@ -97,12 +98,12 @@ class CallbackCalendar extends CallbackBase<
       return tokens;
     } catch (error) {
       if (error instanceof SyntaxError) {
-        this.logger.warn({ error, path: this.tokenFilePath }, "Failed to parse token file as JSON, falling back to environment variable");
+        this.logger.warn({ error, path: this.tokenFilePath }, "Failed to parse token file as JSON, falling back to googleRefreshToken setting");
       } else {
-        this.logger.debug("Token file not found, using refresh token from environment variable");
+        this.logger.debug("Token file not found, using googleRefreshToken from settings");
       }
       return {
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+        refresh_token: getSettings().googleRefreshToken,
       };
     }
   }
@@ -140,8 +141,8 @@ class CallbackCalendar extends CallbackBase<
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
+      getSettings().googleClientId,
+      getSettings().googleClientSecret,
       "https://developers.google.com/oauthplayground",
     );
 

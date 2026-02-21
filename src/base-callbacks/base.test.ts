@@ -1,5 +1,6 @@
 import CallbackBase from "./base";
 import getScreenshot from "../utils/getScreenshot";
+import { initSettings, updateSettings, _resetForTesting } from "../settings";
 
 jest.mock("../utils/getScreenshot");
 
@@ -90,4 +91,72 @@ describe("CallbackBase", () => {
       });
     });
   });
+
+  // ── checkDBSettings ────────────────────────────────────────────────────────
+
+  describe("checkDBSettings()", () => {
+    beforeEach(() => {
+      _resetForTesting();
+    });
+
+    afterEach(() => {
+      _resetForTesting();
+    });
+
+    it("throws when a required settings key is missing", async () => {
+      await initSettings();
+
+      class SettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      expect(
+        () =>
+          new SettingsCallback({
+            name: "weather",
+            dbSettingsNeeded: ["weatherApiKey"],
+          }),
+      ).toThrow("weatherApiKey");
+    });
+
+    it("does not throw when all required settings keys are present", async () => {
+      await initSettings();
+      await updateSettings({ weatherApiKey: "my-api-key" });
+
+      class SettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      expect(
+        () =>
+          new SettingsCallback({
+            name: "weather",
+            dbSettingsNeeded: ["weatherApiKey"],
+          }),
+      ).not.toThrow();
+    });
+
+    it("exposes dbSettingsNeeded on the instance", async () => {
+      await initSettings();
+      await updateSettings({ weatherApiKey: "key", todoistApiKey: "key2" });
+
+      class MultiSettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      const cb = new MultiSettingsCallback({
+        name: "weather",
+        dbSettingsNeeded: ["weatherApiKey", "todoistApiKey"],
+      });
+
+      expect(cb.dbSettingsNeeded).toEqual(["weatherApiKey", "todoistApiKey"]);
+    });
+  });
 });
+
