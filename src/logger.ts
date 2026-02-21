@@ -1,10 +1,11 @@
 import pino, { type LoggerOptions } from "pino";
-import { getSettings } from "./settings";
+import { getApiKey, getSettings } from "./settings";
 
-const hasLogtailToken = !!process.env.LOGTAIL_SOURCE_TOKEN;
 const isProduction = process.env.NODE_ENV === "production";
 const settings = getSettings();
 const logLevel = settings.logLevel;
+const logtailSourceToken = getApiKey("LOGTAIL_SOURCE_TOKEN");
+const hasLogtailToken = !!logtailSourceToken;
 
 // Define each transport as a variable
 const prettyTransport = {
@@ -18,7 +19,7 @@ const prettyTransport = {
 const logtailTransport = {
   target: "@logtail/pino",
   options: {
-    sourceToken: process.env.LOGTAIL_SOURCE_TOKEN,
+    sourceToken: logtailSourceToken,
     endpoint: settings.logtailEndpoint || undefined,
   },
 };

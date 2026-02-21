@@ -114,7 +114,7 @@ describe("browserRendererFactory", () => {
     delete process.env.BROWSERLESS_IO_ENDPOINT;
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN env variable and browserlessEndpoint setting"
+      "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN (env or settings) and browserlessEndpoint setting"
     );
   });
 

@@ -1,5 +1,5 @@
 import logger from "../logger";
-import { getSettings } from "../settings";
+import { getApiKey, getSettings } from "../settings";
 import type { BrowserRenderer } from "../types/browser-renderer";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
@@ -15,12 +15,12 @@ export function createBrowserRenderer(): BrowserRenderer {
 
   switch (rendererType) {
     case "cloudflare": {
-      const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-      const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+      const accountId = getApiKey("CLOUDFLARE_ACCOUNT_ID");
+      const apiToken = getApiKey("CLOUDFLARE_API_TOKEN");
 
       if (!accountId || !apiToken) {
         throw new Error(
-          "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables",
+          "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (env or settings)",
         );
       }
 
@@ -30,12 +30,12 @@ export function createBrowserRenderer(): BrowserRenderer {
       });
     }
     case "browserless": {
-      const token = process.env.BROWSERLESS_IO_TOKEN;
+      const token = getApiKey("BROWSERLESS_IO_TOKEN");
       const endpoint = settings.browserlessEndpoint;
 
       if (!token || !endpoint) {
         throw new Error(
-          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN env variable and browserlessEndpoint setting",
+          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN (env or settings) and browserlessEndpoint setting",
         );
       }
 
@@ -51,8 +51,8 @@ export function createBrowserRenderer(): BrowserRenderer {
       const enableBrowserless = settings.enableBrowserlessIO;
 
       if (enableCloudflare) {
-        const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-        const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+        const accountId = getApiKey("CLOUDFLARE_ACCOUNT_ID");
+        const apiToken = getApiKey("CLOUDFLARE_API_TOKEN");
 
         if (accountId && apiToken) {
           services.push({
@@ -69,7 +69,7 @@ export function createBrowserRenderer(): BrowserRenderer {
       }
 
       if (enableBrowserless) {
-        const token = process.env.BROWSERLESS_IO_TOKEN;
+        const token = getApiKey("BROWSERLESS_IO_TOKEN");
         const endpoint = settings.browserlessEndpoint;
 
         if (token && endpoint) {

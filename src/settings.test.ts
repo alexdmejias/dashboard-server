@@ -5,6 +5,7 @@ import {
   initSettings,
   getSettings,
   updateSettings,
+  getApiKey,
   _resetForTesting,
 } from "./settings";
 
@@ -24,6 +25,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   _resetForTesting();
+  delete process.env.SETTINGS_FILE;
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
@@ -101,5 +103,73 @@ describe("settings", () => {
     expect(settings.logLevel).toBe("silent");
     expect(settings.browserRenderer).toBe("puppeteer"); // untouched
     expect(settings.maxImagesToKeep).toBe(1000); // untouched
+  });
+
+  // ── SETTINGS_FILE env var ──────────────────────────────────────────────────
+
+  it("SETTINGS_FILE env var overrides the default settings path", async () => {
+    const customPath = path.join(tmpDir, "custom-settings.json");
+    // Point to a custom file via env var (reset module state so path is re-read)
+    _resetForTesting(); // clear explicit path override first
+    process.env.SETTINGS_FILE = customPath;
+
+    const settings = await initSettings();
+
+    // Custom file should have been created
+    const raw = JSON.parse(await fs.readFile(customPath, "utf-8"));
+    expect(raw.logLevel).toBe(settings.logLevel);
+    expect(settings.maxImagesToKeep).toBe(1000);
+  });
+
+  // ── API key seeding from env ───────────────────────────────────────────────
+
+  it("seeds API keys from env vars on first run", async () => {
+    process.env.WEATHER_APIKEY = "weather-key-123";
+    process.env.TODOIST_APIKEY = "todoist-key-456";
+
+    const settings = await initSettings();
+
+    expect(settings.weatherApiKey).toBe("weather-key-123");
+    expect(settings.todoistApiKey).toBe("todoist-key-456");
+
+    delete process.env.WEATHER_APIKEY;
+    delete process.env.TODOIST_APIKEY;
+  });
+
+  // ── getApiKey() ────────────────────────────────────────────────────────────
+
+  it("getApiKey() returns value from settings when set", async () => {
+    await initSettings();
+    await updateSettings({ weatherApiKey: "from-settings" });
+
+    expect(getApiKey("WEATHER_APIKEY")).toBe("from-settings");
+  });
+
+  it("getApiKey() falls back to env var when not in settings", async () => {
+    // Start with empty settings (no weatherApiKey)
+    await fs.writeFile(settingsFilePath, JSON.stringify({ weatherApiKey: "" }), "utf-8");
+    await initSettings();
+
+    process.env.WEATHER_APIKEY = "from-env";
+    expect(getApiKey("WEATHER_APIKEY")).toBe("from-env");
+    delete process.env.WEATHER_APIKEY;
+  });
+
+  it("getApiKey() settings take precedence over env var", async () => {
+    process.env.WEATHER_APIKEY = "from-env";
+    await initSettings();
+    await updateSettings({ weatherApiKey: "from-settings" });
+
+    // settings win over env
+    expect(getApiKey("WEATHER_APIKEY")).toBe("from-settings");
+    delete process.env.WEATHER_APIKEY;
+  });
+
+  it("getApiKey() returns undefined when key is absent from both settings and env", async () => {
+    await fs.writeFile(settingsFilePath, JSON.stringify({ weatherApiKey: "" }), "utf-8");
+    await initSettings();
+    delete process.env.WEATHER_APIKEY;
+
+    expect(getApiKey("WEATHER_APIKEY")).toBeUndefined();
   });
 });

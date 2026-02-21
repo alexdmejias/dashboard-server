@@ -25,7 +25,7 @@ const clientRequests: Map<string, Array<any>> = new Map();
 // Store for server-wide logs
 const serverLogs: Array<any> = [];
 
-// Session tokens
+// Session tokens (for admin UI login flow)
 const validTokens = new Set<string>();
 
 declare module "fastify" {
@@ -51,7 +51,6 @@ declare module "fastify" {
 
 function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
   const adminPassword = process.env.ADMIN_PASSWORD;
-  const authRequired = Boolean(adminPassword);
 
   // Hook into Fastify logs through onResponse hook
   fastify.addHook("onResponse", async (request, reply) => {
@@ -135,17 +134,20 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     },
   );
 
-  // Check if auth is required
+  // Auth is always required for the admin UI
   fastify.get("/api/admin/auth-required", async (_req, res) => {
-    return res.send({ required: authRequired });
+    return res.send({ required: true });
   });
 
-  // Login endpoint
+  // Login endpoint – requires ADMIN_PASSWORD to be configured
   fastify.post<{ Body: { password: string } }>(
     "/api/admin/login",
     async (req, res) => {
-      if (!authRequired) {
-        return res.code(400).send({ error: "Authentication not required" });
+      if (!adminPassword) {
+        return res.code(503).send({
+          error:
+            "Admin authentication is not configured. Set the ADMIN_PASSWORD environment variable.",
+        });
       }
 
       const { password } = req.body;
@@ -159,12 +161,8 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     },
   );
 
-  // Verify token
+  // Verify session token
   fastify.get("/api/admin/verify", async (req, res) => {
-    if (!authRequired) {
-      return res.send({ valid: true });
-    }
-
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.code(401).send({ valid: false });
@@ -178,12 +176,9 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     return res.code(401).send({ valid: false });
   });
 
-  // Middleware to check authentication for protected routes
+  // ── Auth middleware for admin UI session-token routes ──────────────────────
+  // Admin UI always requires a valid session token obtained via /api/admin/login.
   const checkAuth = async (req: FastifyRequest, res: FastifyReply) => {
-    if (!authRequired) {
-      return; // No auth required
-    }
-
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.code(401).send({ error: "Unauthorized" });
@@ -192,6 +187,36 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     const token = authHeader.substring(7);
     if (!validTokens.has(token)) {
       return res.code(401).send({ error: "Invalid token" });
+    }
+  };
+
+  // ── Auth middleware for /api/settings routes ───────────────────────────────
+  // Settings endpoints require the Authorization header to carry the raw
+  // ADMIN_PASSWORD value directly (API-key style, separate from UI sessions).
+  const checkSettingsAuth = async (req: FastifyRequest, res: FastifyReply) => {
+    if (!adminPassword) {
+      return res.code(503).send({
+        error:
+          "Settings endpoint requires ADMIN_PASSWORD to be configured.",
+      });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.code(401).send({ error: "Unauthorized" });
+    }
+
+    const provided = authHeader.substring(7);
+
+    // Timing-safe comparison to prevent timing attacks
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(adminPassword);
+    const matches =
+      providedBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(providedBuf, expectedBuf);
+
+    if (!matches) {
+      return res.code(401).send({ error: "Invalid credentials" });
     }
   };
 
@@ -242,19 +267,19 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     },
   );
 
-  // Get current settings
+  // Get current settings – requires raw ADMIN_PASSWORD in Authorization header
   fastify.get(
     "/api/settings",
-    { preHandler: checkAuth },
+    { preHandler: checkSettingsAuth },
     async (_req, res) => {
       return res.send(getSettings());
     },
   );
 
-  // Update settings (partial patch)
+  // Update settings – requires raw ADMIN_PASSWORD in Authorization header
   fastify.put<{ Body: Partial<AppSettings> }>(
     "/api/settings",
-    { preHandler: checkAuth },
+    { preHandler: checkSettingsAuth },
     async (req, res) => {
       const patch = req.body;
       const errors: string[] = [];

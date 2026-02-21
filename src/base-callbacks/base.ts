@@ -19,6 +19,7 @@ import getScreenshot from "../utils/getScreenshot";
 import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 import { PROJECT_ROOT } from "../utils/projectRoot";
+import { getApiKey } from "../settings";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -155,7 +156,7 @@ class CallbackBase<
   checkEnvVariables() {
     const missingKeys: string[] = [];
     for (const key of this.envVariablesNeeded) {
-      if (!process.env[key]) {
+      if (!getApiKey(key)) {
         missingKeys.push(key);
       }
     }
@@ -163,7 +164,7 @@ class CallbackBase<
     if (missingKeys.length) {
       const message = `${
         this.name
-      } callback requires the following environment variable(s): ${missingKeys.join(
+      } callback requires the following environment variables or corresponding settings: ${missingKeys.join(
         ", ",
       )}`;
       this.logger.error(message);

@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { Credentials, OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
+import { getApiKey } from "../../settings";
 import type { GoogleCalendarEvent } from "./types";
 
 type CalendarEvent = {
@@ -89,7 +90,7 @@ class CallbackCalendar extends CallbackBase<
           (!tokens.refresh_token && !tokens.access_token)) {
         this.logger.warn({ path: this.tokenFilePath }, "Token file does not contain valid credentials, falling back to environment variable");
         return {
-          refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+          refresh_token: getApiKey("GOOGLE_REFRESH_TOKEN"),
         };
       }
       
@@ -102,7 +103,7 @@ class CallbackCalendar extends CallbackBase<
         this.logger.debug("Token file not found, using refresh token from environment variable");
       }
       return {
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+        refresh_token: getApiKey("GOOGLE_REFRESH_TOKEN"),
       };
     }
   }
@@ -140,8 +141,8 @@ class CallbackCalendar extends CallbackBase<
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
+      getApiKey("GOOGLE_CLIENT_ID"),
+      getApiKey("GOOGLE_CLIENT_SECRET"),
       "https://developers.google.com/oauthplayground",
     );
 
