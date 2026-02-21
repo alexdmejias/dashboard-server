@@ -5,7 +5,6 @@ import {
   initSettings,
   getSettings,
   updateSettings,
-  getApiKey,
   _resetForTesting,
 } from "./settings";
 
@@ -40,48 +39,30 @@ describe("settings", () => {
 
     expect(settings.browserRenderer).toBe("puppeteer");
     expect(settings.maxImagesToKeep).toBe(1000);
-    expect(raw.logLevel).toBe("warn");
+    expect(raw.browserRenderer).toBe("puppeteer");
+    // logLevel is NOT in settings – it lives in .env only
+    expect(raw).not.toHaveProperty("logLevel");
   });
 
-  it("seeds initial values from environment variables", async () => {
-    process.env.LOG_LEVEL = "debug";
-    process.env.MAX_IMAGES_TO_KEEP = "500";
-    process.env.BROWSER_RENDERER = "cloudflare";
-
-    const settings = await initSettings();
-
-    expect(settings.logLevel).toBe("debug");
-    expect(settings.maxImagesToKeep).toBe(500);
-    expect(settings.browserRenderer).toBe("cloudflare");
-
-    delete process.env.LOG_LEVEL;
-    delete process.env.MAX_IMAGES_TO_KEEP;
-    delete process.env.BROWSER_RENDERER;
-  });
-
-  it("does not overwrite existing settings.json on subsequent runs", async () => {
+  it("reads an existing settings.json without overwriting it", async () => {
     // Write a pre-existing settings file
     await fs.writeFile(
       settingsFilePath,
-      JSON.stringify({ logLevel: "error", maxImagesToKeep: 42 }),
+      JSON.stringify({ maxImagesToKeep: 42 }),
       "utf-8",
     );
 
-    process.env.LOG_LEVEL = "trace"; // should be ignored
-
     const settings = await initSettings();
 
-    // File values win over env
-    expect(settings.logLevel).toBe("error");
+    // File values win
     expect(settings.maxImagesToKeep).toBe(42);
-
-    delete process.env.LOG_LEVEL;
   });
 
   it("getSettings() returns defaults synchronously before initSettings()", () => {
     const settings = getSettings();
     expect(settings).toHaveProperty("browserRenderer");
     expect(settings).toHaveProperty("maxImagesToKeep");
+    expect(settings).not.toHaveProperty("logLevel");
   });
 
   it("updateSettings() persists a partial patch", async () => {
@@ -97,79 +78,49 @@ describe("settings", () => {
 
   it("updateSettings() does not clobber un-patched keys", async () => {
     await initSettings();
-    await updateSettings({ logLevel: "silent" });
+    await updateSettings({ maxImagesToKeep: 99 });
 
     const settings = getSettings();
-    expect(settings.logLevel).toBe("silent");
+    expect(settings.maxImagesToKeep).toBe(99);
     expect(settings.browserRenderer).toBe("puppeteer"); // untouched
-    expect(settings.maxImagesToKeep).toBe(1000); // untouched
+    expect(settings.weatherApiKey).toBe("");             // untouched
   });
 
   // ── SETTINGS_FILE env var ──────────────────────────────────────────────────
 
   it("SETTINGS_FILE env var overrides the default settings path", async () => {
     const customPath = path.join(tmpDir, "custom-settings.json");
-    // Point to a custom file via env var (reset module state so path is re-read)
-    _resetForTesting(); // clear explicit path override first
+    _resetForTesting(); // clear explicit path override so env var is picked up
     process.env.SETTINGS_FILE = customPath;
 
     const settings = await initSettings();
 
     // Custom file should have been created
     const raw = JSON.parse(await fs.readFile(customPath, "utf-8"));
-    expect(raw.logLevel).toBe(settings.logLevel);
+    expect(raw.browserRenderer).toBe(settings.browserRenderer);
     expect(settings.maxImagesToKeep).toBe(1000);
   });
 
-  // ── API key seeding from env ───────────────────────────────────────────────
+  // ── API key fields ─────────────────────────────────────────────────────────
 
-  it("seeds API keys from env vars on first run", async () => {
-    process.env.WEATHER_APIKEY = "weather-key-123";
-    process.env.TODOIST_APIKEY = "todoist-key-456";
-
+  it("API key fields default to empty string", async () => {
     const settings = await initSettings();
 
-    expect(settings.weatherApiKey).toBe("weather-key-123");
-    expect(settings.todoistApiKey).toBe("todoist-key-456");
-
-    delete process.env.WEATHER_APIKEY;
-    delete process.env.TODOIST_APIKEY;
+    expect(settings.weatherApiKey).toBe("");
+    expect(settings.todoistApiKey).toBe("");
+    expect(settings.googleClientId).toBe("");
+    expect(settings.cloudflareAccountId).toBe("");
   });
 
-  // ── getApiKey() ────────────────────────────────────────────────────────────
-
-  it("getApiKey() returns value from settings when set", async () => {
+  it("updateSettings() can store and retrieve an API key", async () => {
     await initSettings();
-    await updateSettings({ weatherApiKey: "from-settings" });
+    await updateSettings({ weatherApiKey: "test-weather-key" });
 
-    expect(getApiKey("WEATHER_APIKEY")).toBe("from-settings");
-  });
+    const settings = getSettings();
+    expect(settings.weatherApiKey).toBe("test-weather-key");
 
-  it("getApiKey() falls back to env var when not in settings", async () => {
-    // Start with empty settings (no weatherApiKey)
-    await fs.writeFile(settingsFilePath, JSON.stringify({ weatherApiKey: "" }), "utf-8");
-    await initSettings();
-
-    process.env.WEATHER_APIKEY = "from-env";
-    expect(getApiKey("WEATHER_APIKEY")).toBe("from-env");
-    delete process.env.WEATHER_APIKEY;
-  });
-
-  it("getApiKey() settings take precedence over env var", async () => {
-    process.env.WEATHER_APIKEY = "from-env";
-    await initSettings();
-    await updateSettings({ weatherApiKey: "from-settings" });
-
-    // settings win over env
-    expect(getApiKey("WEATHER_APIKEY")).toBe("from-settings");
-    delete process.env.WEATHER_APIKEY;
-  });
-
-  it("getApiKey() returns undefined when key is absent from both settings and env", async () => {
-    await fs.writeFile(settingsFilePath, JSON.stringify({ weatherApiKey: "" }), "utf-8");
-    await initSettings();
-    delete process.env.WEATHER_APIKEY;
-
-    expect(getApiKey("WEATHER_APIKEY")).toBeUndefined();
+    const raw = JSON.parse(await fs.readFile(settingsFilePath, "utf-8"));
+    expect(raw.weatherApiKey).toBe("test-weather-key");
   });
 });
+

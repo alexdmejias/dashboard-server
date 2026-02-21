@@ -1,5 +1,9 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
+import path from "node:path";
+import os from "node:os";
+import fs from "node:fs/promises";
+import { _resetForTesting, initSettings, updateSettings } from "../../settings";
 
 // Mock fs/promises
 jest.mock("fs/promises", () => ({
@@ -29,12 +33,17 @@ jest.mock("googleapis", () => ({
 
 describe("CallbackCalendar", () => {
   let callback: CallbackCalendar;
+  let tmpDir: string;
 
-  beforeEach(() => {
-    // Set up required environment variables
-    process.env.GOOGLE_CLIENT_ID = "test-client-id";
-    process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
-    process.env.GOOGLE_REFRESH_TOKEN = "test-refresh-token";
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "calendar-test-"));
+    _resetForTesting(path.join(tmpDir, "settings.json"));
+    await initSettings();
+    await updateSettings({
+      googleClientId: "test-client-id",
+      googleClientSecret: "test-client-secret",
+      googleRefreshToken: "test-refresh-token",
+    });
 
     callback = new CallbackCalendar({
       calendarId: "primary",
@@ -43,10 +52,9 @@ describe("CallbackCalendar", () => {
     });
   });
 
-  afterEach(() => {
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    delete process.env.GOOGLE_REFRESH_TOKEN;
+  afterEach(async () => {
+    _resetForTesting();
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   describe("timezone handling", () => {

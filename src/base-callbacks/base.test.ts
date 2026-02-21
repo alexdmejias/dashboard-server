@@ -1,5 +1,9 @@
 import CallbackBase from "./base";
 import getScreenshot from "../utils/getScreenshot";
+import { initSettings, updateSettings, _resetForTesting } from "../settings";
+import path from "node:path";
+import os from "node:os";
+import fs from "node:fs/promises";
 
 jest.mock("../utils/getScreenshot");
 
@@ -90,4 +94,78 @@ describe("CallbackBase", () => {
       });
     });
   });
+
+  // ── checkDBSettings ────────────────────────────────────────────────────────
+
+  describe("checkDBSettings()", () => {
+    let tmpDir: string;
+    let settingsFilePath: string;
+
+    beforeEach(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "base-test-"));
+      settingsFilePath = path.join(tmpDir, "settings.json");
+      _resetForTesting(settingsFilePath);
+    });
+
+    afterEach(async () => {
+      _resetForTesting();
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it("throws when a required settings key is missing", async () => {
+      await initSettings(); // initialises with empty string defaults
+
+      class SettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      expect(
+        () =>
+          new SettingsCallback({
+            name: "weather",
+            dbSettingsNeeded: ["weatherApiKey"],
+          }),
+      ).toThrow("weatherApiKey");
+    });
+
+    it("does not throw when all required settings keys are present", async () => {
+      await initSettings();
+      await updateSettings({ weatherApiKey: "my-api-key" });
+
+      class SettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      expect(
+        () =>
+          new SettingsCallback({
+            name: "weather",
+            dbSettingsNeeded: ["weatherApiKey"],
+          }),
+      ).not.toThrow();
+    });
+
+    it("exposes dbSettingsNeeded on the instance", async () => {
+      await initSettings();
+      await updateSettings({ weatherApiKey: "key", todoistApiKey: "key2" });
+
+      class MultiSettingsCallback extends CallbackBase {
+        getData() {
+          return Promise.resolve({});
+        }
+      }
+
+      const cb = new MultiSettingsCallback({
+        name: "weather",
+        dbSettingsNeeded: ["weatherApiKey", "todoistApiKey"],
+      });
+
+      expect(cb.dbSettingsNeeded).toEqual(["weatherApiKey", "todoistApiKey"]);
+    });
+  });
 });
+

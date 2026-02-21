@@ -8,16 +8,6 @@ import {
   updateSettings,
 } from "../settings";
 
-const VALID_LOG_LEVELS = [
-  "trace",
-  "debug",
-  "info",
-  "warn",
-  "error",
-  "fatal",
-  "silent",
-] as const;
-
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
 const clientRequests: Map<string, Array<any>> = new Map();
@@ -283,17 +273,6 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     async (req, res) => {
       const patch = req.body;
       const errors: string[] = [];
-
-      if (
-        patch.logLevel !== undefined &&
-        !VALID_LOG_LEVELS.includes(
-          patch.logLevel as (typeof VALID_LOG_LEVELS)[number],
-        )
-      ) {
-        errors.push(
-          `logLevel must be one of: ${VALID_LOG_LEVELS.join(", ")}`,
-        );
-      }
 
       if (
         patch.browserRenderer !== undefined &&

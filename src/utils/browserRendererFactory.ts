@@ -1,5 +1,5 @@
 import logger from "../logger";
-import { getApiKey, getSettings } from "../settings";
+import { getSettings } from "../settings";
 import type { BrowserRenderer } from "../types/browser-renderer";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
@@ -15,12 +15,12 @@ export function createBrowserRenderer(): BrowserRenderer {
 
   switch (rendererType) {
     case "cloudflare": {
-      const accountId = getApiKey("CLOUDFLARE_ACCOUNT_ID");
-      const apiToken = getApiKey("CLOUDFLARE_API_TOKEN");
+      const accountId = settings.cloudflareAccountId;
+      const apiToken = settings.cloudflareApiToken;
 
       if (!accountId || !apiToken) {
         throw new Error(
-          "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (env or settings)",
+          "Cloudflare Browser Renderer requires cloudflareAccountId and cloudflareApiToken to be configured in settings",
         );
       }
 
@@ -30,12 +30,12 @@ export function createBrowserRenderer(): BrowserRenderer {
       });
     }
     case "browserless": {
-      const token = getApiKey("BROWSERLESS_IO_TOKEN");
+      const token = settings.browserlessIoToken;
       const endpoint = settings.browserlessEndpoint;
 
       if (!token || !endpoint) {
         throw new Error(
-          "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN (env or settings) and browserlessEndpoint setting",
+          "Browserless.io Browser Renderer requires browserlessIoToken and browserlessEndpoint to be configured in settings",
         );
       }
 
@@ -51,8 +51,8 @@ export function createBrowserRenderer(): BrowserRenderer {
       const enableBrowserless = settings.enableBrowserlessIO;
 
       if (enableCloudflare) {
-        const accountId = getApiKey("CLOUDFLARE_ACCOUNT_ID");
-        const apiToken = getApiKey("CLOUDFLARE_API_TOKEN");
+        const accountId = settings.cloudflareAccountId;
+        const apiToken = settings.cloudflareApiToken;
 
         if (accountId && apiToken) {
           services.push({
@@ -69,7 +69,7 @@ export function createBrowserRenderer(): BrowserRenderer {
       }
 
       if (enableBrowserless) {
-        const token = getApiKey("BROWSERLESS_IO_TOKEN");
+        const token = settings.browserlessIoToken;
         const endpoint = settings.browserlessEndpoint;
 
         if (token && endpoint) {

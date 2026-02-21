@@ -1,10 +1,10 @@
 import pino, { type LoggerOptions } from "pino";
-import { getApiKey, getSettings } from "./settings";
+import { getSettings } from "./settings";
 
 const isProduction = process.env.NODE_ENV === "production";
+const logLevel = process.env.LOG_LEVEL || "warn";
 const settings = getSettings();
-const logLevel = settings.logLevel;
-const logtailSourceToken = getApiKey("LOGTAIL_SOURCE_TOKEN");
+const logtailSourceToken = settings.logtailSourceToken || undefined;
 const hasLogtailToken = !!logtailSourceToken;
 
 // Define each transport as a variable

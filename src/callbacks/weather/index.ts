@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import CallbackBase from "../../base-callbacks/base";
-import { getApiKey } from "../../settings";
+import { getSettings } from "../../settings";
 import type { WeatherApiResponseRoot } from "./types";
 
 type ForecastWeather = {
@@ -37,13 +37,13 @@ class CallbackWeather extends CallbackBase<
     super({
       name: "weather",
       expectedConfig,
-      envVariablesNeeded: ["WEATHER_APIKEY"],
+      dbSettingsNeeded: ["weatherApiKey"],
       receivedConfig: options,
     });
   }
 
   async getWeather(config: ConfigType) {
-    const key = getApiKey("WEATHER_APIKEY");
+    const key = getSettings().weatherApiKey;
     const { zipcode } = config;
 
     const data = await fetch(

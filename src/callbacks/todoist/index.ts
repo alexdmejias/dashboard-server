@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import CallbackBase from "../../base-callbacks/base";
-import { getApiKey } from "../../settings";
+import { getSettings } from "../../settings";
 
 export const expectedConfig = z.object({
   projectId: z.string().optional(),
@@ -61,7 +61,7 @@ class CallbackTodoist extends CallbackBase<
     super({
       name: "todoist",
       expectedConfig,
-      envVariablesNeeded: ["TODOIST_APIKEY"],
+      dbSettingsNeeded: ["todoistApiKey"],
       receivedConfig: options,
       template: "todoist",
       cacheable: false,
@@ -69,7 +69,7 @@ class CallbackTodoist extends CallbackBase<
   }
 
   async getData(config: ConfigType = { sections: [] }) {
-    const token = getApiKey("TODOIST_APIKEY");
+    const token = getSettings().todoistApiKey;
 
     try {
       const url = `https://api.todoist.com/api/v1/tasks/filter?query=${encodeURIComponent(config.sections.map((s) => `/${s.name}`).join(" | "))}`;

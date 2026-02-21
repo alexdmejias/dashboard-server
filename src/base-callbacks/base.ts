@@ -19,7 +19,7 @@ import getScreenshot from "../utils/getScreenshot";
 import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
 import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
 import { PROJECT_ROOT } from "../utils/projectRoot";
-import { getApiKey } from "../settings";
+import { getSettings } from "../settings";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -28,6 +28,7 @@ export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   screenshotSize?: ScreenshotSizeOption;
   cacheable?: boolean;
   envVariablesNeeded?: string[];
+  dbSettingsNeeded?: string[];
   receivedConfig?: unknown;
   expectedConfig?: ExpectedConfig;
 };
@@ -65,6 +66,7 @@ class CallbackBase<
   cacheable = false;
   oldDataCache = "";
   envVariablesNeeded: string[] = [];
+  dbSettingsNeeded: string[] = [];
   receivedConfig?: unknown;
   expectedConfig?: ExpectedConfig;
 
@@ -75,6 +77,7 @@ class CallbackBase<
     screenshotSize,
     cacheable = false,
     envVariablesNeeded = [],
+    dbSettingsNeeded = [],
     receivedConfig,
     expectedConfig,
   }: CallbackConstructor<ExpectedConfig>) {
@@ -88,6 +91,7 @@ class CallbackBase<
     };
     this.cacheable = cacheable;
     this.envVariablesNeeded = envVariablesNeeded;
+    this.dbSettingsNeeded = dbSettingsNeeded;
     this.expectedConfig = expectedConfig;
 
     // Merge defaults from the child's static defaultOptions with receivedConfig.
@@ -123,6 +127,10 @@ class CallbackBase<
     if (this.envVariablesNeeded.length) {
       this.checkEnvVariables();
     }
+
+    if (this.dbSettingsNeeded.length) {
+      this.checkDBSettings();
+    }
   }
 
   toString() {
@@ -130,6 +138,7 @@ class CallbackBase<
       cacheable: this.cacheable,
       screenshotSize: this.screenshotSize,
       envVariablesNeeded: this.envVariablesNeeded,
+      dbSettingsNeeded: this.dbSettingsNeeded,
       template: this.template,
       receivedConfig: this.receivedConfig,
     };
@@ -156,7 +165,7 @@ class CallbackBase<
   checkEnvVariables() {
     const missingKeys: string[] = [];
     for (const key of this.envVariablesNeeded) {
-      if (!getApiKey(key)) {
+      if (!process.env[key]) {
         missingKeys.push(key);
       }
     }
@@ -164,7 +173,30 @@ class CallbackBase<
     if (missingKeys.length) {
       const message = `${
         this.name
-      } callback requires the following environment variables or corresponding settings: ${missingKeys.join(
+      } callback requires the following environment variable(s): ${missingKeys.join(
+        ", ",
+      )}`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
+
+    return true;
+  }
+
+  checkDBSettings() {
+    const missingKeys: string[] = [];
+    const settings = getSettings();
+    for (const key of this.dbSettingsNeeded) {
+      const value = settings[key as keyof typeof settings];
+      if (!value || value === "") {
+        missingKeys.push(key);
+      }
+    }
+
+    if (missingKeys.length) {
+      const message = `${
+        this.name
+      } callback requires the following settings to be configured: ${missingKeys.join(
         ", ",
       )}`;
       this.logger.error(message);

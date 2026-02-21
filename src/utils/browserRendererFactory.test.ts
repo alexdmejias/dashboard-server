@@ -2,6 +2,10 @@ import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import ServiceRotator from "./ServiceRotator";
+import path from "node:path";
+import os from "node:os";
+import fs from "node:fs/promises";
+import { _resetForTesting, initSettings, updateSettings } from "../settings";
 
 jest.mock("./CloudflareBrowserRenderer");
 jest.mock("./BrowserlessIOBrowserRenderer");
@@ -17,19 +21,30 @@ jest.mock("./PuppeteerBrowserRenderer", () => {
 const PuppeteerBrowserRenderer = require("./PuppeteerBrowserRenderer");
 
 describe("browserRendererFactory", () => {
-  const originalEnv = process.env;
+  let tmpDir: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
-    process.env = { ...originalEnv };
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "factory-test-"));
+    _resetForTesting(path.join(tmpDir, "settings.json"));
+    await initSettings();
   });
 
-  afterAll(() => {
-    process.env = originalEnv;
+  afterEach(async () => {
+    _resetForTesting();
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   it("should create Puppeteer renderer by default", () => {
-    delete process.env.BROWSER_RENDERER;
+    createBrowserRenderer();
+
+    expect(PuppeteerBrowserRenderer).toHaveBeenCalledTimes(1);
+    expect(CloudflareBrowserRenderer).not.toHaveBeenCalled();
+    expect(BrowserlessIOBrowserRenderer).not.toHaveBeenCalled();
+  });
+
+  it("should create Puppeteer renderer when explicitly set", async () => {
+    await updateSettings({ browserRenderer: "puppeteer" });
 
     createBrowserRenderer();
 
@@ -38,20 +53,12 @@ describe("browserRendererFactory", () => {
     expect(BrowserlessIOBrowserRenderer).not.toHaveBeenCalled();
   });
 
-  it("should create Puppeteer renderer when explicitly set", () => {
-    process.env.BROWSER_RENDERER = "puppeteer";
-
-    createBrowserRenderer();
-
-    expect(PuppeteerBrowserRenderer).toHaveBeenCalledTimes(1);
-    expect(CloudflareBrowserRenderer).not.toHaveBeenCalled();
-    expect(BrowserlessIOBrowserRenderer).not.toHaveBeenCalled();
-  });
-
-  it("should create Cloudflare renderer when configured", () => {
-    process.env.BROWSER_RENDERER = "cloudflare";
-    process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
-    process.env.CLOUDFLARE_API_TOKEN = "test-api-token";
+  it("should create Cloudflare renderer when configured", async () => {
+    await updateSettings({
+      browserRenderer: "cloudflare",
+      cloudflareAccountId: "test-account-id",
+      cloudflareApiToken: "test-api-token",
+    });
 
     createBrowserRenderer();
 
@@ -63,40 +70,42 @@ describe("browserRendererFactory", () => {
     expect(BrowserlessIOBrowserRenderer).not.toHaveBeenCalled();
   });
 
-  it("should throw error when Cloudflare credentials are missing", () => {
-    process.env.BROWSER_RENDERER = "cloudflare";
-    delete process.env.CLOUDFLARE_ACCOUNT_ID;
-    delete process.env.CLOUDFLARE_API_TOKEN;
+  it("should throw error when Cloudflare credentials are missing", async () => {
+    await updateSettings({ browserRenderer: "cloudflare" });
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "cloudflareAccountId and cloudflareApiToken",
     );
   });
 
-  it("should throw error when only account ID is provided", () => {
-    process.env.BROWSER_RENDERER = "cloudflare";
-    process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
-    delete process.env.CLOUDFLARE_API_TOKEN;
+  it("should throw error when only account ID is provided", async () => {
+    await updateSettings({
+      browserRenderer: "cloudflare",
+      cloudflareAccountId: "test-account-id",
+    });
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "cloudflareAccountId and cloudflareApiToken",
     );
   });
 
-  it("should throw error when only API token is provided", () => {
-    process.env.BROWSER_RENDERER = "cloudflare";
-    delete process.env.CLOUDFLARE_ACCOUNT_ID;
-    process.env.CLOUDFLARE_API_TOKEN = "test-api-token";
+  it("should throw error when only API token is provided", async () => {
+    await updateSettings({
+      browserRenderer: "cloudflare",
+      cloudflareApiToken: "test-api-token",
+    });
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Cloudflare Browser Renderer requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
+      "cloudflareAccountId and cloudflareApiToken",
     );
   });
 
-  it("should create Browserless renderer when configured", () => {
-    process.env.BROWSER_RENDERER = "browserless";
-    process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
+  it("should create Browserless renderer when configured", async () => {
+    await updateSettings({
+      browserRenderer: "browserless",
+      browserlessIoToken: "test-token",
+      browserlessEndpoint: "https://chrome.browserless.io",
+    });
 
     createBrowserRenderer();
 
@@ -108,24 +117,24 @@ describe("browserRendererFactory", () => {
     expect(CloudflareBrowserRenderer).not.toHaveBeenCalled();
   });
 
-  it("should throw error when Browserless credentials are missing", () => {
-    process.env.BROWSER_RENDERER = "browserless";
-    delete process.env.BROWSERLESS_IO_TOKEN;
-    delete process.env.BROWSERLESS_IO_ENDPOINT;
+  it("should throw error when Browserless credentials are missing", async () => {
+    await updateSettings({ browserRenderer: "browserless" });
 
     expect(() => createBrowserRenderer()).toThrow(
-      "Browserless.io Browser Renderer requires BROWSERLESS_IO_TOKEN (env or settings) and browserlessEndpoint setting"
+      "browserlessIoToken and browserlessEndpoint",
     );
   });
 
-  it("should create ServiceRotator with multiple services in multi mode", () => {
-    process.env.BROWSER_RENDERER = "multi";
-    process.env.ENABLE_CLOUDFLARE_BROWSER_RENDERING = "true";
-    process.env.ENABLE_BROWSERLESS_IO = "true";
-    process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
-    process.env.CLOUDFLARE_API_TOKEN = "test-api-token";
-    process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
+  it("should create ServiceRotator with multiple services in multi mode", async () => {
+    await updateSettings({
+      browserRenderer: "multi",
+      enableCloudflareBrowserRendering: true,
+      enableBrowserlessIO: true,
+      cloudflareAccountId: "test-account-id",
+      cloudflareApiToken: "test-api-token",
+      browserlessIoToken: "test-token",
+      browserlessEndpoint: "https://chrome.browserless.io",
+    });
 
     createBrowserRenderer();
 
@@ -134,10 +143,12 @@ describe("browserRendererFactory", () => {
     expect(BrowserlessIOBrowserRenderer).toHaveBeenCalledTimes(1);
   });
 
-  it("should fallback to Puppeteer when multi mode has no enabled services", () => {
-    process.env.BROWSER_RENDERER = "multi";
-    process.env.ENABLE_CLOUDFLARE_BROWSER_RENDERING = "false";
-    process.env.ENABLE_BROWSERLESS_IO = "false";
+  it("should fallback to Puppeteer when multi mode has no enabled services", async () => {
+    await updateSettings({
+      browserRenderer: "multi",
+      enableCloudflareBrowserRendering: false,
+      enableBrowserlessIO: false,
+    });
 
     createBrowserRenderer();
 
@@ -145,13 +156,15 @@ describe("browserRendererFactory", () => {
     expect(ServiceRotator).not.toHaveBeenCalled();
   });
 
-  it("should skip services with missing credentials in multi mode", () => {
-    process.env.BROWSER_RENDERER = "multi";
-    process.env.ENABLE_CLOUDFLARE_BROWSER_RENDERING = "true";
-    process.env.ENABLE_BROWSERLESS_IO = "true";
-    // Only provide Browserless credentials
-    process.env.BROWSERLESS_IO_TOKEN = "test-token";
-    process.env.BROWSERLESS_IO_ENDPOINT = "https://chrome.browserless.io";
+  it("should skip services with missing credentials in multi mode", async () => {
+    await updateSettings({
+      browserRenderer: "multi",
+      enableCloudflareBrowserRendering: true,
+      enableBrowserlessIO: true,
+      // Only provide Browserless credentials
+      browserlessIoToken: "test-token",
+      browserlessEndpoint: "https://chrome.browserless.io",
+    });
 
     createBrowserRenderer();
 
@@ -160,3 +173,4 @@ describe("browserRendererFactory", () => {
     expect(BrowserlessIOBrowserRenderer).toHaveBeenCalledTimes(1);
   });
 });
+
