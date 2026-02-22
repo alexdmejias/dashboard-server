@@ -240,7 +240,7 @@ class CallbackCalendar extends CallbackBase<
 
   /**
    * Get current date at midnight in the specified timezone
-   * 
+   *
    * This method extracts the current calendar day in the specified timezone and creates
    * a Date object representing midnight of that day. The Date object itself is in
    * the local timezone, but represents the correct calendar day from the target timezone's perspective.
@@ -253,12 +253,12 @@ class CallbackCalendar extends CallbackBase<
       month: 'numeric',
       day: 'numeric'
     });
-    
+
     const parts = formatter.formatToParts(new Date());
     const year = parseInt(parts.find(p => p.type === 'year')!.value);
     const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
     const day = parseInt(parts.find(p => p.type === 'day')!.value);
-    
+
     // Create date at midnight for the calendar day in the specified timezone
     // Note: The Date object is in local timezone but represents the target timezone's calendar day
     const date = new Date(year, month, day, 0, 0, 0, 0);
@@ -267,14 +267,14 @@ class CallbackCalendar extends CallbackBase<
 
   /**
    * Parse a date string (YYYY-MM-DD) as a calendar day
-   * 
+   *
    * For all-day events, Google Calendar provides dates in YYYY-MM-DD format without
    * timezone information. This method parses such dates as calendar days, which is
-   * appropriate for all-day events. 
-   * 
-   * The resulting Date object is created in the local timezone at midnight for the 
-   * specified calendar day. It is used only for date arithmetic (calculating which 
-   * day slot the event belongs to) in conjunction with getNowInTimezone(), ensuring 
+   * appropriate for all-day events.
+   *
+   * The resulting Date object is created in the local timezone at midnight for the
+   * specified calendar day. It is used only for date arithmetic (calculating which
+   * day slot the event belongs to) in conjunction with getNowInTimezone(), ensuring
    * consistent day-based comparisons.
    */
   private parseDate(dateStr: string): Date {
@@ -320,13 +320,30 @@ class CallbackCalendar extends CallbackBase<
     if (!startStr) {
       throw new Error("Event has no start date");
     }
-    
+
     // For all-day events, parse as calendar day
     if (event.start?.date && !event.start?.dateTime) {
       return this.parseDate(startStr);
     }
-    
+
     return new Date(startStr);
+  }
+
+  /**
+   * Get end date for an event
+   */
+  private getEventEnd(event: GoogleCalendarEvent): Date {
+    const endStr = event.end?.dateTime || event.end?.date;
+    if (!endStr) {
+      throw new Error("Event has no end date");
+    }
+
+    // For all-day events, parse as calendar day
+    if (event.end?.date && !event.end?.dateTime) {
+      return this.parseDate(endStr);
+    }
+
+    return new Date(endStr);
   }
 
   /**
@@ -396,45 +413,76 @@ class CallbackCalendar extends CallbackBase<
       const startDay = new Date(startDate);
       startDay.setHours(0, 0, 0, 0);
 
-      // Find which day this event belongs to
-      const dayIndex = Math.floor(
-        (startDay.getTime() - now.getTime()) / MS_PER_DAY,
-      );
+      const isAllDay = this.isAllDayEvent(event);
+      let endDate: Date;
+      try {
+        endDate = this.getEventEnd(event);
+      } catch {
+        continue; // Skip events without end dates
+      }
 
-      if (dayIndex >= 0 && dayIndex < daysToFetch) {
-        const isAllDay = this.isAllDayEvent(event);
-        const endStr = event.end?.dateTime || event.end?.date;
-        if (!endStr) {
-          continue; // Skip events without end dates
+      // Format start/end for display
+      let startFormatted: string;
+      let endFormatted: string;
+
+      if (isAllDay) {
+        // Google all-day end dates are exclusive, so display the inclusive final day
+        const inclusiveEndDate = new Date(endDate);
+        inclusiveEndDate.setDate(inclusiveEndDate.getDate() - 1);
+
+        startFormatted = this.formatDate(startDate);
+        endFormatted = this.formatDate(inclusiveEndDate);
+      } else {
+        startFormatted = this.formatTime(startDate);
+        endFormatted = this.formatTime(endDate);
+      }
+
+      const calendarEvent: CalendarEvent = {
+        title: event.summary || "(No title)",
+        start: startFormatted,
+        end: endFormatted,
+        allDay: isAllDay,
+        category: this.categorizeEventByTime(event, isAllDay),
+      };
+
+      if (isAllDay) {
+        // All-day events can span multiple days. Google all-day end dates are exclusive.
+        const exclusiveEndDay = new Date(endDate);
+        exclusiveEndDay.setHours(0, 0, 0, 0);
+
+        const firstDayIndex = Math.floor(
+          (startDay.getTime() - now.getTime()) / MS_PER_DAY,
+        );
+        const endExclusiveIndex = Math.floor(
+          (exclusiveEndDay.getTime() - now.getTime()) / MS_PER_DAY,
+        );
+
+        const startIndex = Math.max(0, firstDayIndex);
+        const endIndex = Math.min(daysToFetch, endExclusiveIndex);
+
+        for (let dayIndex = startIndex; dayIndex < endIndex; dayIndex++) {
+          // Respect maxEventsPerDay limit for both events array and eventsByCategory
+          if (days[dayIndex].events.length < config.maxEventsPerDay) {
+            days[dayIndex].events.push(calendarEvent);
+            days[dayIndex].eventsByCategory[calendarEvent.category].push(
+              calendarEvent,
+            );
+          }
         }
-        const endDate = new Date(endStr);
+      } else {
+        // Timed events belong to their start day
+        const dayIndex = Math.floor(
+          (startDay.getTime() - now.getTime()) / MS_PER_DAY,
+        );
 
-        // Format start/end for display
-        let startFormatted: string;
-        let endFormatted: string;
-
-        if (isAllDay) {
-          startFormatted = this.formatDate(startDate);
-          endFormatted = this.formatDate(endDate);
-        } else {
-          startFormatted = this.formatTime(startDate);
-          endFormatted = this.formatTime(endDate);
-        }
-
-        const calendarEvent: CalendarEvent = {
-          title: event.summary || "(No title)",
-          start: startFormatted,
-          end: endFormatted,
-          allDay: isAllDay,
-          category: this.categorizeEventByTime(event, isAllDay),
-        };
-
-        // Respect maxEventsPerDay limit for both events array and eventsByCategory
-        if (days[dayIndex].events.length < config.maxEventsPerDay) {
-          days[dayIndex].events.push(calendarEvent);
-          days[dayIndex].eventsByCategory[calendarEvent.category].push(
-            calendarEvent,
-          );
+        if (dayIndex >= 0 && dayIndex < daysToFetch) {
+          // Respect maxEventsPerDay limit for both events array and eventsByCategory
+          if (days[dayIndex].events.length < config.maxEventsPerDay) {
+            days[dayIndex].events.push(calendarEvent);
+            days[dayIndex].eventsByCategory[calendarEvent.category].push(
+              calendarEvent,
+            );
+          }
         }
       }
     }
