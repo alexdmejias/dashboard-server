@@ -4,7 +4,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { Credentials, OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
-import { getSettings } from "../../settings";
+import { getSettings, updateSettings } from "../../settings";
 import type { GoogleCalendarEvent } from "./types";
 
 type CalendarEvent = {
@@ -151,13 +151,18 @@ class CallbackCalendar extends CallbackBase<
 
     oauth2Client.on("tokens", (tokens) => {
       if (tokens.refresh_token) {
-        this.logger.info("Received new refresh token from Google, saving to file");
+        this.logger.info("Received new refresh token from Google, persisting to settings and file");
+        // Keep the settings store in sync so the rotated token survives
+        // file deletion and is visible/manageable via the admin settings API.
+        updateSettings({ googleRefreshToken: tokens.refresh_token }).catch(
+          (err) => this.logger.error({ err }, "Failed to persist new refresh token to settings"),
+        );
       } else {
         this.logger.debug("Received refreshed access token from Google, saving to file");
       }
-      
-      // Merge existing credentials with new tokens. New tokens override existing values,
-      // which is correct as new tokens from Google should always be used (including new refresh_token if provided)
+
+      // Cache the full Credentials object (access_token + expiry) to the
+      // token file so the next server restart can skip a round-trip refresh.
       this.saveTokens({
         ...oauth2Client.credentials,
         ...tokens,

@@ -1,6 +1,9 @@
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
-import { _resetForTesting, initSettings, updateSettings } from "../../settings";
+import { _resetForTesting, initSettings, updateSettings, getSettings } from "../../settings";
+
+// Capture the "tokens" event handler so tests can fire it manually.
+let capturedTokensHandler: ((tokens: Record<string, unknown>) => void) | null = null;
 
 // Mock fs/promises
 jest.mock("fs/promises", () => ({
@@ -14,7 +17,11 @@ jest.mock("googleapis", () => ({
     auth: {
       OAuth2: jest.fn().mockImplementation(() => ({
         setCredentials: jest.fn(),
-        on: jest.fn(),
+        on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+          if (event === "tokens") {
+            capturedTokensHandler = handler as (tokens: Record<string, unknown>) => void;
+          }
+        }),
         credentials: {},
       })),
     },
@@ -32,6 +39,7 @@ describe("CallbackCalendar", () => {
   let callback: CallbackCalendar;
 
   beforeEach(async () => {
+    capturedTokensHandler = null;
     _resetForTesting();
     await initSettings();
     await updateSettings({
@@ -279,6 +287,37 @@ describe("CallbackCalendar", () => {
       
       expect(formatted).toContain("1/20");
       expect(formatted).toContain("Tue");
+    });
+  });
+
+  describe("refresh_token persistence", () => {
+    it("persists a new refresh_token to the settings store when Google rotates it", async () => {
+      // Trigger auth client creation so the tokens event handler is registered
+      await (callback as any).getAuthClient();
+
+      expect(capturedTokensHandler).not.toBeNull();
+
+      // Simulate Google issuing a new refresh_token
+      capturedTokensHandler!({ refresh_token: "new-refresh-token-xyz" });
+
+      // Allow the async updateSettings call inside the handler to settle
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(getSettings().googleRefreshToken).toBe("new-refresh-token-xyz");
+    });
+
+    it("does not update the settings store when no new refresh_token is present", async () => {
+      await (callback as any).getAuthClient();
+
+      expect(capturedTokensHandler).not.toBeNull();
+
+      // Simulate an access-token-only refresh (no new refresh_token)
+      capturedTokensHandler!({ access_token: "new-access-token", expiry_date: 9999999 });
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // settings store should still have the original value set in beforeEach
+      expect(getSettings().googleRefreshToken).toBe("test-refresh-token");
     });
   });
 });
