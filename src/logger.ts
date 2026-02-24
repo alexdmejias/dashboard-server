@@ -2,7 +2,7 @@ import pino, { type LoggerOptions } from "pino";
 import { getSettings } from "./settings";
 
 const isProduction = process.env.NODE_ENV === "production";
-const logLevel = process.env.LOG_LEVEL || "warn";
+const logLevel = process.env.LOG_LEVEL || "debug";
 const settings = getSettings();
 const logtailSourceToken = settings.logtailSourceToken;
 const hasLogtailToken = !!logtailSourceToken;
@@ -16,13 +16,13 @@ const prettyTransport = {
   },
 };
 
-const logtailTransport = {
-  target: "@logtail/pino",
-  options: {
-    sourceToken: logtailSourceToken,
-    endpoint: settings.logtailEndpoint || undefined,
-  },
-};
+// const logtailTransport = {
+//   target: "@logtail/pino",
+//   options: {
+//     sourceToken: logtailSourceToken,
+//     endpoint: settings.logtailEndpoint || undefined,
+//   },
+// };
 
 // Build the transport config as a variable
 // In production with PM2, don't use pino-pretty or logtail as they can cause issues
@@ -42,7 +42,7 @@ export const loggingOptions: LoggerOptions = {
   transport: loggerTransport,
 };
 
-console.log("######## logger options", {
+console.log("logger options", {
   transport: JSON.stringify(loggingOptions.transport, null, 2),
   hasLogtailToken,
   isProduction,

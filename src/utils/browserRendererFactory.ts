@@ -31,17 +31,15 @@ export function createBrowserRenderer(): BrowserRenderer {
     }
     case "browserless": {
       const token = settings.browserlessIoToken;
-      const endpoint = settings.browserlessEndpoint;
 
-      if (!token || !endpoint) {
+      if (!token) {
         throw new Error(
-          "Browserless.io Browser Renderer requires browserlessIoToken and browserlessEndpoint to be configured in settings",
+          "Browserless.io Browser Renderer requires browserlessIoToken to be configured in settings",
         );
       }
 
       return new BrowserlessIOBrowserRenderer({
         token,
-        endpoint,
       });
     }
     case "multi": {
@@ -70,14 +68,12 @@ export function createBrowserRenderer(): BrowserRenderer {
 
       if (enableBrowserless) {
         const token = settings.browserlessIoToken;
-        const endpoint = settings.browserlessEndpoint;
 
-        if (token && endpoint) {
+        if (token) {
           services.push({
             name: "browserless",
             renderer: new BrowserlessIOBrowserRenderer({
               token,
-              endpoint,
             }),
           });
           logger.info("Browserless.io renderer enabled in multi-service mode");

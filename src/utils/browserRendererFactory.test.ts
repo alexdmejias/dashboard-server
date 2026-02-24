@@ -1,8 +1,8 @@
+import { _resetForTesting, initSettings, updateSettings } from "../settings";
+import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
-import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import ServiceRotator from "./ServiceRotator";
-import { _resetForTesting, initSettings, updateSettings } from "../settings";
 
 jest.mock("./CloudflareBrowserRenderer");
 jest.mock("./BrowserlessIOBrowserRenderer");
@@ -97,14 +97,12 @@ describe("browserRendererFactory", () => {
     await updateSettings({
       browserRenderer: "browserless",
       browserlessIoToken: "test-token",
-      browserlessEndpoint: "https://chrome.browserless.io",
     });
 
     createBrowserRenderer();
 
     expect(BrowserlessIOBrowserRenderer).toHaveBeenCalledWith({
       token: "test-token",
-      endpoint: "https://chrome.browserless.io",
     });
     expect(PuppeteerBrowserRenderer).not.toHaveBeenCalled();
     expect(CloudflareBrowserRenderer).not.toHaveBeenCalled();
@@ -113,9 +111,7 @@ describe("browserRendererFactory", () => {
   it("should throw error when Browserless credentials are missing", async () => {
     await updateSettings({ browserRenderer: "browserless" });
 
-    expect(() => createBrowserRenderer()).toThrow(
-      "browserlessIoToken and browserlessEndpoint",
-    );
+    expect(() => createBrowserRenderer()).toThrow("browserlessIoToken");
   });
 
   it("should create ServiceRotator with multiple services in multi mode", async () => {
@@ -126,7 +122,6 @@ describe("browserRendererFactory", () => {
       cloudflareAccountId: "test-account-id",
       cloudflareApiToken: "test-api-token",
       browserlessIoToken: "test-token",
-      browserlessEndpoint: "https://chrome.browserless.io",
     });
 
     createBrowserRenderer();
@@ -156,7 +151,6 @@ describe("browserRendererFactory", () => {
       enableBrowserlessIO: true,
       // Only provide Browserless credentials
       browserlessIoToken: "test-token",
-      browserlessEndpoint: "https://chrome.browserless.io",
     });
 
     createBrowserRenderer();
@@ -166,4 +160,3 @@ describe("browserRendererFactory", () => {
     expect(BrowserlessIOBrowserRenderer).toHaveBeenCalledTimes(1);
   });
 });
-

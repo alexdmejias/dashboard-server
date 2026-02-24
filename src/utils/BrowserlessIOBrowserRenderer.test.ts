@@ -1,5 +1,5 @@
-import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { writeFile } from "node:fs/promises";
+import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 
 jest.mock("node:fs/promises");
 
@@ -14,7 +14,6 @@ describe("BrowserlessIOBrowserRenderer", () => {
     jest.clearAllMocks();
     renderer = new BrowserlessIOBrowserRenderer({
       token: mockToken,
-      endpoint: mockEndpoint,
     });
     originalFetch = global.fetch;
     (writeFile as jest.Mock).mockResolvedValue(undefined);
@@ -32,7 +31,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const mockBuffer = Buffer.from("test screenshot");
     const mockArrayBuffer = mockBuffer.buffer.slice(
       mockBuffer.byteOffset,
-      mockBuffer.byteOffset + mockBuffer.byteLength
+      mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -57,12 +56,12 @@ describe("BrowserlessIOBrowserRenderer", () => {
           "Content-Type": "application/json",
         }),
         body: expect.stringContaining("viewport"),
-      })
+      }),
     );
 
     expect(writeFile).toHaveBeenCalledWith(
       options.imagePath,
-      expect.any(Buffer)
+      expect.any(Buffer),
     );
 
     expect(result).toEqual({
@@ -75,7 +74,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const mockBuffer = Buffer.from("test screenshot");
     const mockArrayBuffer = mockBuffer.buffer.slice(
       mockBuffer.byteOffset,
-      mockBuffer.byteOffset + mockBuffer.byteLength
+      mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -103,7 +102,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const mockBuffer = Buffer.from("test screenshot");
     const mockArrayBuffer = mockBuffer.buffer.slice(
       mockBuffer.byteOffset,
-      mockBuffer.byteOffset + mockBuffer.byteLength
+      mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -139,7 +138,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
     };
 
     await expect(renderer.renderPage(options)).rejects.toThrow(
-      "Browserless.io rendering failed"
+      "Browserless.io rendering failed",
     );
   });
 });
