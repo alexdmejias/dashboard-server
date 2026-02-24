@@ -31,6 +31,9 @@ export default function Home() {
           <A href="/logs" class="btn btn-outline btn-sm">
             View Server Logs
           </A>
+          <A href="/settings" class="btn btn-outline btn-sm">
+            Settings
+          </A>
           <div class="badge badge-lg">
             <Show
               when={connected()}
