@@ -1,12 +1,8 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-import {
-  type AppSettings,
-  VALID_RENDERERS,
-  getSettings,
-  updateSettings,
-} from "../settings";
+import { type AppSettings, getSettings, updateSettings } from "../settings";
+import { settingsZodSchema } from "./settingsSchema";
 
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
@@ -271,31 +267,13 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     "/api/admin/settings",
     { preHandler: checkAuth },
     async (req, res) => {
-      const patch = req.body;
-      const errors: string[] = [];
-
-      if (
-        patch.browserRenderer !== undefined &&
-        !VALID_RENDERERS.includes(patch.browserRenderer)
-      ) {
-        errors.push(
-          `browserRenderer must be one of: ${VALID_RENDERERS.join(", ")}`,
-        );
-      }
-
-      if (patch.maxImagesToKeep !== undefined) {
-        const n = Number(patch.maxImagesToKeep);
-        if (!Number.isFinite(n) || n < 1) {
-          errors.push("maxImagesToKeep must be a positive integer");
-        }
-      }
-
-      if (errors.length > 0) {
-        return res.code(400).send({ error: errors.join("; ") });
+      const result = settingsZodSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.code(400).send({ error: result.error.issues.map((i) => i.message).join("; ") });
       }
 
       try {
-        const updated = await updateSettings(patch);
+        const updated = await updateSettings(result.data);
         return res.send(updated);
       } catch (err) {
         fastify.log.error({ err }, "Failed to update settings");
@@ -318,31 +296,13 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     "/api/settings",
     { preHandler: checkSettingsAuth },
     async (req, res) => {
-      const patch = req.body;
-      const errors: string[] = [];
-
-      if (
-        patch.browserRenderer !== undefined &&
-        !VALID_RENDERERS.includes(patch.browserRenderer)
-      ) {
-        errors.push(
-          `browserRenderer must be one of: ${VALID_RENDERERS.join(", ")}`,
-        );
-      }
-
-      if (patch.maxImagesToKeep !== undefined) {
-        const n = Number(patch.maxImagesToKeep);
-        if (!Number.isFinite(n) || n < 1) {
-          errors.push("maxImagesToKeep must be a positive integer");
-        }
-      }
-
-      if (errors.length > 0) {
-        return res.code(400).send({ error: errors.join("; ") });
+      const result = settingsZodSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.code(400).send({ error: result.error.issues.map((i) => i.message).join("; ") });
       }
 
       try {
-        const updated = await updateSettings(patch);
+        const updated = await updateSettings(result.data);
         return res.send(updated);
       } catch (err) {
         fastify.log.error({ err }, "Failed to update settings");

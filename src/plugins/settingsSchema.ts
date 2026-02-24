@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Metadata schema for a single settings field.
@@ -193,7 +193,7 @@ export const settingsZodSchema = z.object({
   enableCloudflareBrowserRendering: z.boolean().optional(),
   enableBrowserlessIO: z.boolean().optional(),
   maxImagesToKeep: z
-    .number({ invalid_type_error: "Must be a number" })
+    .number({ error: "Must be a number" })
     .int("Must be a whole number")
     .min(1, "Must be at least 1")
     .optional(),

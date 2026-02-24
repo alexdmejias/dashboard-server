@@ -19,7 +19,7 @@ import {
   settingsZodSchema,
   type SettingsFormValues,
   type FieldMeta,
-} from "../lib/settingsSchema";
+} from "../../../src/plugins/settingsSchema";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
