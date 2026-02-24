@@ -304,6 +304,53 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     },
   );
 
+  // Get current settings – requires valid admin session token
+  fastify.get(
+    "/api/admin/settings",
+    { preHandler: checkAuth },
+    async (_req, res) => {
+      return res.send(getSettings());
+    },
+  );
+
+  // Update settings – requires valid admin session token
+  fastify.put<{ Body: Partial<AppSettings> }>(
+    "/api/admin/settings",
+    { preHandler: checkAuth },
+    async (req, res) => {
+      const patch = req.body;
+      const errors: string[] = [];
+
+      if (
+        patch.browserRenderer !== undefined &&
+        !VALID_RENDERERS.includes(patch.browserRenderer)
+      ) {
+        errors.push(
+          `browserRenderer must be one of: ${VALID_RENDERERS.join(", ")}`,
+        );
+      }
+
+      if (patch.maxImagesToKeep !== undefined) {
+        const n = Number(patch.maxImagesToKeep);
+        if (!Number.isFinite(n) || n < 1) {
+          errors.push("maxImagesToKeep must be a positive integer");
+        }
+      }
+
+      if (errors.length > 0) {
+        return res.code(400).send({ errors });
+      }
+
+      try {
+        const updated = await updateSettings(patch);
+        return res.send(updated);
+      } catch (err) {
+        fastify.log.error({ err }, "Failed to update settings");
+        return res.code(500).send({ error: "Failed to update settings" });
+      }
+    },
+  );
+
   done();
 }
 
