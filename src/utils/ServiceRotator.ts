@@ -1,9 +1,9 @@
-import {
+import logger from "../logger";
+import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
 } from "../types/browser-renderer";
-import logger from "../logger";
 
 export interface ServiceConfig {
   name: string;
@@ -13,6 +13,7 @@ export interface ServiceConfig {
 class ServiceRotator implements BrowserRenderer {
   private services: ServiceConfig[];
   private currentIndex: number;
+  private queue: Promise<void> = Promise.resolve();
 
   constructor(services: ServiceConfig[]) {
     if (services.length === 0) {
@@ -22,15 +23,26 @@ class ServiceRotator implements BrowserRenderer {
     this.currentIndex = 0;
   }
 
+  // Enqueue requests so only one runs at a time. Each call waits for the
+  // previous to finish before starting, preserving strict round-robin order.
   async renderPage(options: RenderOptions): Promise<RenderResult> {
+    return new Promise<RenderResult>((resolve, reject) => {
+      this.queue = this.queue.then(() =>
+        this.executeRender(options).then(resolve, reject),
+      );
+    });
+  }
+
+  private async executeRender(options: RenderOptions): Promise<RenderResult> {
     const errors: Array<{ service: string; error: Error }> = [];
     const totalServices = this.services.length;
+    const maxAttempts = Math.min(totalServices, 3);
 
-    // Try each service in round-robin order
-    for (let attempt = 0; attempt < totalServices; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const service = this.services[this.currentIndex];
-      
-      // Move to next service for next request
+
+      // Advance index after each attempt so the next request (or next retry)
+      // always picks up from where we left off.
       this.currentIndex = (this.currentIndex + 1) % totalServices;
 
       try {
@@ -42,8 +54,8 @@ class ServiceRotator implements BrowserRenderer {
         const err = error instanceof Error ? error : new Error(String(error));
         errors.push({ service: service.name, error: err });
         logger.warn(
-          { error: err, service: service.name },
-          `Service ${service.name} failed, trying next service`
+          { err, service: service.name },
+          `Service ${service.name} failed, trying next service`,
         );
       }
     }
