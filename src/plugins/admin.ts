@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import {
@@ -7,6 +9,7 @@ import {
   getSettings,
   updateSettings,
 } from "../settings";
+import { getImagesDir } from "../utils/imagesPath";
 
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
@@ -35,6 +38,7 @@ declare module "fastify" {
       responseTime?: number,
       reqId?: string,
       headers?: Record<string, string | string[]>,
+      imageFileName?: string,
     ): void;
   }
 }
@@ -102,6 +106,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       responseTime?: number,
       reqId?: string,
       headers?: Record<string, string | string[]>,
+      imageFileName?: string,
     ) => {
       if (!clientRequests.has(clientName)) {
         clientRequests.set(clientName, []);
@@ -116,6 +121,7 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
         responseTime,
         reqId,
         headers,
+        imageFileName,
       });
       // Keep only last 50 requests per client
       if (requests.length > 50) {
@@ -223,6 +229,37 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       }
 
       return res.send(client.toString());
+    },
+  );
+
+  // Serve a previously rendered image by filename (no auth – filenames are unique)
+  fastify.get<{ Params: { filename: string } }>(
+    "/api/images/:filename",
+    async (req, res) => {
+      const { filename } = req.params;
+
+      // Only allow simple filenames – no path separators
+      if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+        return res.code(400).send({ error: "Invalid filename" });
+      }
+
+      const imagesDir = getImagesDir();
+      const filePath = path.join(imagesDir, filename);
+
+      // Ensure resolved path stays inside the images directory
+      if (!filePath.startsWith(imagesDir + path.sep)) {
+        return res.code(400).send({ error: "Invalid filename" });
+      }
+
+      try {
+        const fileBuffer = await fs.readFile(filePath);
+        const ext = path.extname(filename).slice(1).toLowerCase();
+        const contentType =
+          ext === "bmp" ? "image/bmp" : ext === "png" ? "image/png" : "application/octet-stream";
+        return res.type(contentType).send(fileBuffer);
+      } catch {
+        return res.code(404).send({ error: "Image not found" });
+      }
     },
   );
 
