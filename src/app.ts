@@ -63,6 +63,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   const adminPlugin = await import("./plugins/admin");
   app.register(adminPlugin.default);
 
+  // Register settings plugin (depends on adminPlugin for checkAdminAuth decorator)
+  const settingsPlugin = await import("./plugins/settings");
+  app.register(settingsPlugin.default);
+
   app.decorateReply(
     "internalServerError",
     function (this: FastifyReply, message: string) {
