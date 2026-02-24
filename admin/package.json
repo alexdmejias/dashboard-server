@@ -8,9 +8,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@modular-forms/solid": "^0.25.1",
     "@solidjs/router": "^0.15.2",
     "@tanstack/solid-query": "^5.90.15",
-    "solid-js": "^1.9.3"
+    "solid-js": "^1.9.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
