@@ -38,6 +38,138 @@ export type AppSettings = {
   logtailSourceToken?: string;
 };
 
+/**
+ * JSON Schema (Draft-07) for AppSettings.
+ *
+ * Standard keywords drive server-side validation.
+ * Custom `x-` extensions are consumed by the admin UI:
+ *   x-sensitive – render as password input; mask value in diffs
+ *   x-group     – section heading used to group related fields
+ */
+export const SETTINGS_SCHEMA = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  title: "Application Settings",
+  type: "object" as const,
+  properties: {
+    // ── General ──────────────────────────────────────────────────────────────
+    browserRenderer: {
+      type: "string" as const,
+      title: "Browser Renderer",
+      description: "Which browser renderer to use for screenshot generation.",
+      enum: ["puppeteer", "cloudflare", "browserless", "multi"],
+      default: "puppeteer",
+      "x-group": "General",
+    },
+    maxImagesToKeep: {
+      type: "integer" as const,
+      title: "Max Images to Keep",
+      description:
+        "Maximum number of generated images to keep in the temp directory.",
+      minimum: 1,
+      default: 1000,
+      "x-group": "General",
+    },
+    chromiumBin: {
+      type: "string" as const,
+      title: "Chromium Binary Path",
+      description: "Path to a custom Chromium binary (puppeteer renderer only).",
+      default: "",
+      "x-group": "General",
+    },
+    enableCloudflareBrowserRendering: {
+      type: "boolean" as const,
+      title: "Enable Cloudflare Browser Rendering",
+      description: "Enable Cloudflare browser rendering in multi-renderer mode.",
+      default: false,
+      "x-group": "General",
+    },
+    enableBrowserlessIO: {
+      type: "boolean" as const,
+      title: "Enable Browserless.io",
+      description: "Enable Browserless.io in multi-renderer mode.",
+      default: false,
+      "x-group": "General",
+    },
+    browserlessEndpoint: {
+      type: "string" as const,
+      title: "Browserless Endpoint",
+      description: "Browserless.io endpoint URL.",
+      format: "uri",
+      default: "",
+      "x-group": "General",
+    },
+    // ── Logging ───────────────────────────────────────────────────────────────
+    logtailEndpoint: {
+      type: "string" as const,
+      title: "Logtail Endpoint",
+      description: "Custom Logtail / Better Stack ingest endpoint.",
+      format: "uri",
+      default: "https://in.logs.betterstack.com",
+      "x-group": "Logging",
+    },
+    logtailSourceToken: {
+      type: "string" as const,
+      title: "Logtail Source Token",
+      description: "Logtail / Better Stack source token.",
+      "x-sensitive": true,
+      "x-group": "Logging",
+    },
+    // ── API Keys ──────────────────────────────────────────────────────────────
+    weatherApiKey: {
+      type: "string" as const,
+      title: "Weather API Key",
+      "x-sensitive": true,
+      "x-group": "API Keys",
+    },
+    todoistApiKey: {
+      type: "string" as const,
+      title: "Todoist API Key",
+      "x-sensitive": true,
+      "x-group": "API Keys",
+    },
+    // ── Google OAuth ──────────────────────────────────────────────────────────
+    googleClientId: {
+      type: "string" as const,
+      title: "Google Client ID",
+      "x-group": "Google OAuth",
+    },
+    googleClientSecret: {
+      type: "string" as const,
+      title: "Google Client Secret",
+      "x-sensitive": true,
+      "x-group": "Google OAuth",
+    },
+    googleRefreshToken: {
+      type: "string" as const,
+      title: "Google Refresh Token",
+      "x-sensitive": true,
+      "x-group": "Google OAuth",
+    },
+    // ── Cloudflare ────────────────────────────────────────────────────────────
+    cloudflareAccountId: {
+      type: "string" as const,
+      title: "Cloudflare Account ID",
+      "x-group": "Cloudflare",
+    },
+    cloudflareApiToken: {
+      type: "string" as const,
+      title: "Cloudflare API Token",
+      "x-sensitive": true,
+      "x-group": "Cloudflare",
+    },
+    // ── Browserless.io ────────────────────────────────────────────────────────
+    browserlessIoToken: {
+      type: "string" as const,
+      title: "Browserless.io Token",
+      "x-sensitive": true,
+      "x-group": "Browserless.io",
+    },
+  },
+} as const;
+
+/** Convenience type inferred from the schema's property keys. */
+export type SettingsPropertyKey = keyof typeof SETTINGS_SCHEMA.properties;
+
 const DEFAULTS: AppSettings = {
   logtailEndpoint: "https://in.logs.betterstack.com",
   browserRenderer: "puppeteer",

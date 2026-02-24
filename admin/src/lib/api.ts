@@ -89,3 +89,34 @@ export async function fetchServerLogs() {
   }
   return response.json();
 }
+
+export async function fetchSettingsSchema() {
+  const response = await fetch("/api/admin/settings/schema");
+  if (!response.ok) {
+    throw new Error("Failed to fetch settings schema");
+  }
+  return response.json();
+}
+
+export async function fetchAdminSettings() {
+  const response = await fetch("/api/admin/settings", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch settings");
+  }
+  return response.json();
+}
+
+export async function saveAdminSettings(patch: Record<string, unknown>) {
+  const response = await fetch("/api/admin/settings", {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(patch),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw data;
+  }
+  return data;
+}
