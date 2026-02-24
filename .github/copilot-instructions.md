@@ -1,0 +1,1 @@
+When creating a PR, do not end the PR description with anything that resembles an ad for copilot or any other service. The PR description should only include things like: background, description of the changes, changes that require migration etc. 
