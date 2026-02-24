@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import {
   type AppSettings,
+  SETTINGS_SCHEMA,
   VALID_RENDERERS,
   getSettings,
   updateSettings,
@@ -296,6 +297,76 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
 
       try {
         const updated = await updateSettings(patch);
+        return res.send(updated);
+      } catch (err) {
+        fastify.log.error({ err }, "Failed to update settings");
+        return res.code(500).send({ error: "Failed to update settings" });
+      }
+    },
+  );
+
+  // ── Settings schema (public) ───────────────────────────────────────────────
+
+  // Returns the JSON Schema that describes all editable settings fields.
+  // No auth required – the schema contains no sensitive data.
+  fastify.get("/api/admin/settings/schema", async (_req, res) => {
+    return res.send(SETTINGS_SCHEMA);
+  });
+
+  // ── Admin UI settings endpoints (session-token auth) ──────────────────────
+
+  // Get current settings
+  fastify.get(
+    "/api/admin/settings",
+    { preHandler: checkAuth },
+    async (_req, res) => {
+      return res.send(getSettings());
+    },
+  );
+
+  // Update settings – validate patch using the schema
+  fastify.put<{ Body: Partial<AppSettings> }>(
+    "/api/admin/settings",
+    { preHandler: checkAuth },
+    async (req, res) => {
+      const patch = req.body;
+      // Only allow keys that exist in the schema; silently discard the rest
+      const knownKeys = Object.keys(SETTINGS_SCHEMA.properties);
+      const filtered = Object.fromEntries(
+        Object.entries(patch).filter(([k]) => knownKeys.includes(k)),
+      ) as Partial<AppSettings>;
+
+      const errors: string[] = [];
+      const props = SETTINGS_SCHEMA.properties as Record<string, any>;
+
+      for (const [key, value] of Object.entries(filtered)) {
+        const propSchema = props[key];
+        if (!propSchema) continue;
+
+        // enum check
+        if (propSchema.enum && !propSchema.enum.includes(value)) {
+          errors.push(
+            `${key} must be one of: ${(propSchema.enum as string[]).join(", ")}`,
+          );
+        }
+
+        // integer minimum check
+        if (propSchema.type === "integer") {
+          const n = Number(value);
+          if (!Number.isFinite(n) || !Number.isInteger(n)) {
+            errors.push(`${key} must be an integer`);
+          } else if (propSchema.minimum !== undefined && n < propSchema.minimum) {
+            errors.push(`${key} must be at least ${propSchema.minimum}`);
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        return res.code(400).send({ errors });
+      }
+
+      try {
+        const updated = await updateSettings(filtered);
         return res.send(updated);
       } catch (err) {
         fastify.log.error({ err }, "Failed to update settings");
