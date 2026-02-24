@@ -1,12 +1,6 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-import {
-  type AppSettings,
-  VALID_RENDERERS,
-  getSettings,
-  updateSettings,
-} from "../settings";
 
 // Store for client-specific logs and requests
 const clientLogs: Map<string, Array<any>> = new Map();
@@ -20,6 +14,7 @@ const validTokens = new Set<string>();
 
 declare module "fastify" {
   interface FastifyInstance {
+    checkAdminAuth(req: FastifyRequest, res: FastifyReply): Promise<void>;
     logClientActivity(
       clientName: string,
       level: string,
@@ -180,35 +175,9 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     }
   };
 
-  // ── Auth middleware for /api/settings routes ───────────────────────────────
-  // Settings endpoints require the Authorization header to carry the raw
-  // ADMIN_PASSWORD value directly (API-key style, separate from UI sessions).
-  const checkSettingsAuth = async (req: FastifyRequest, res: FastifyReply) => {
-    if (!adminPassword) {
-      return res.code(503).send({
-        error:
-          "Settings endpoint requires ADMIN_PASSWORD to be configured.",
-      });
-    }
-
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.code(401).send({ error: "Unauthorized" });
-    }
-
-    const provided = authHeader.substring(7);
-
-    // Timing-safe comparison to prevent timing attacks
-    const providedBuf = Buffer.from(provided);
-    const expectedBuf = Buffer.from(adminPassword);
-    const matches =
-      providedBuf.length === expectedBuf.length &&
-      crypto.timingSafeEqual(providedBuf, expectedBuf);
-
-    if (!matches) {
-      return res.code(401).send({ error: "Invalid credentials" });
-    }
-  };
+  // Expose the session-token auth check so sibling plugins (e.g. settings)
+  // can protect their own routes without duplicating the token store logic.
+  fastify.decorate("checkAdminAuth", checkAuth);
 
   // Get specific client details
   fastify.get<{ Params: { clientName: string } }>(
@@ -254,53 +223,6 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     { preHandler: checkAuth },
     async (_req, res) => {
       return res.send({ logs: serverLogs });
-    },
-  );
-
-  // Get current settings – requires raw ADMIN_PASSWORD in Authorization header
-  fastify.get(
-    "/api/settings",
-    { preHandler: checkSettingsAuth },
-    async (_req, res) => {
-      return res.send(getSettings());
-    },
-  );
-
-  // Update settings – requires raw ADMIN_PASSWORD in Authorization header
-  fastify.put<{ Body: Partial<AppSettings> }>(
-    "/api/settings",
-    { preHandler: checkSettingsAuth },
-    async (req, res) => {
-      const patch = req.body;
-      const errors: string[] = [];
-
-      if (
-        patch.browserRenderer !== undefined &&
-        !VALID_RENDERERS.includes(patch.browserRenderer)
-      ) {
-        errors.push(
-          `browserRenderer must be one of: ${VALID_RENDERERS.join(", ")}`,
-        );
-      }
-
-      if (patch.maxImagesToKeep !== undefined) {
-        const n = Number(patch.maxImagesToKeep);
-        if (!Number.isFinite(n) || n < 1) {
-          errors.push("maxImagesToKeep must be a positive integer");
-        }
-      }
-
-      if (errors.length > 0) {
-        return res.code(400).send({ error: errors.join("; ") });
-      }
-
-      try {
-        const updated = await updateSettings(patch);
-        return res.send(updated);
-      } catch (err) {
-        fastify.log.error({ err }, "Failed to update settings");
-        return res.code(500).send({ error: "Failed to update settings" });
-      }
     },
   );
 

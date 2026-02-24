@@ -89,3 +89,28 @@ export async function fetchServerLogs() {
   }
   return response.json();
 }
+
+export async function fetchSettings(): Promise<Record<string, unknown>> {
+  const response = await fetch("/api/admin/settings", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch settings");
+  }
+  return response.json();
+}
+
+export async function saveSettings(
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const response = await fetch("/api/admin/settings", {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error || "Failed to save settings");
+  }
+  return response.json();
+}
