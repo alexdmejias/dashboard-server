@@ -39,6 +39,7 @@
     "googleapis": "^140.0.1",
     "jimp": "^1.6.0",
     "liquidjs": "^10.24.0",
+    "lowdb": "7.0.1",
     "neverthrow": "^8.2.0",
     "object-hash": "^3.0.0",
     "pino": "^8.21.0",

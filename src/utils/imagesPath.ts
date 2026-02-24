@@ -2,6 +2,7 @@ import { mkdtempSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import logger from "../logger";
+import { getSettings } from "../settings";
 
 let imagesPath = "";
 
@@ -66,14 +67,11 @@ export function clearImagesOnStartup(): number {
 
 /**
  * Removes oldest files from the images directory if count exceeds maxToKeep
- * @param maxToKeep - maximum number of images to keep (default from env or 1000)
+ * @param maxToKeep - maximum number of images to keep (default from settings or 1000)
  * @returns number of files removed
  */
 export function cleanupOldImages(
-  maxToKeep: number = Number.parseInt(
-    process.env.MAX_IMAGES_TO_KEEP || "1000",
-    10,
-  ),
+  maxToKeep: number = getSettings().maxImagesToKeep,
 ): number {
   if (!imagesPath) {
     return 0;

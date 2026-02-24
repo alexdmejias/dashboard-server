@@ -1,3 +1,4 @@
+import { _resetForTesting, initSettings, updateSettings } from "../../settings";
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -29,11 +30,14 @@ jest.mock("googleapis", () => ({
 describe("CallbackCalendar", () => {
   let callback: CallbackCalendar;
 
-  beforeEach(() => {
-    // Set up required environment variables
-    process.env.GOOGLE_CLIENT_ID = "test-client-id";
-    process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
-    process.env.GOOGLE_REFRESH_TOKEN = "test-refresh-token";
+  beforeEach(async () => {
+    _resetForTesting();
+    await initSettings();
+    await updateSettings({
+      googleClientId: "test-client-id",
+      googleClientSecret: "test-client-secret",
+      googleRefreshToken: "test-refresh-token",
+    });
 
     callback = new CallbackCalendar({
       calendarId: "primary",
@@ -43,18 +47,16 @@ describe("CallbackCalendar", () => {
   });
 
   afterEach(() => {
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    delete process.env.GOOGLE_REFRESH_TOKEN;
+    _resetForTesting();
   });
 
   describe("timezone handling", () => {
     it("should parse all-day events as calendar days", () => {
       // Access private method for testing via type assertion
       const parseDate = (callback as any).parseDate.bind(callback);
-      
+
       const date = parseDate("2026-01-20");
-      
+
       expect(date.getFullYear()).toBe(2026);
       expect(date.getMonth()).toBe(0); // January is 0
       expect(date.getDate()).toBe(20);
@@ -64,10 +66,12 @@ describe("CallbackCalendar", () => {
     });
 
     it("should get current date at midnight in the configured timezone", () => {
-      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
-      
-      const now = getNowInTimezone('America/New_York');
-      
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(
+        callback,
+      );
+
+      const now = getNowInTimezone("America/New_York");
+
       expect(now.getHours()).toBe(0);
       expect(now.getMinutes()).toBe(0);
       expect(now.getSeconds()).toBe(0);
@@ -79,7 +83,7 @@ describe("CallbackCalendar", () => {
 
       try {
         const parseDate = (callback as any).parseDate.bind(callback);
-        
+
         // Test with UTC timezone
         process.env.TZ = "UTC";
         const dateUTC = parseDate("2026-01-20");
@@ -103,18 +107,20 @@ describe("CallbackCalendar", () => {
     });
 
     it("should support configurable timezone", () => {
-      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
-      
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(
+        callback,
+      );
+
       // Get current date in different timezones
-      const nyNow = getNowInTimezone('America/New_York');
-      const tokyoNow = getNowInTimezone('Asia/Tokyo');
-      const londonNow = getNowInTimezone('Europe/London');
-      
+      const nyNow = getNowInTimezone("America/New_York");
+      const tokyoNow = getNowInTimezone("Asia/Tokyo");
+      const londonNow = getNowInTimezone("Europe/London");
+
       // All should be valid dates
       expect(nyNow).toBeInstanceOf(Date);
       expect(tokyoNow).toBeInstanceOf(Date);
       expect(londonNow).toBeInstanceOf(Date);
-      
+
       // All should have midnight times
       expect(nyNow.getHours()).toBe(0);
       expect(tokyoNow.getHours()).toBe(0);
@@ -126,9 +132,9 @@ describe("CallbackCalendar", () => {
 
       try {
         process.env.TZ = "UTC";
-        
+
         const getEventStart = (callback as any).getEventStart.bind(callback);
-        
+
         // All-day event for Tuesday, January 20, 2026
         const allDayEvent: GoogleCalendarEvent = {
           summary: "All Day Event",
@@ -137,7 +143,7 @@ describe("CallbackCalendar", () => {
         };
 
         const startDate = getEventStart(allDayEvent);
-        
+
         // Should be January 20, 2026 at midnight
         expect(startDate.getFullYear()).toBe(2026);
         expect(startDate.getMonth()).toBe(0); // January
@@ -154,7 +160,7 @@ describe("CallbackCalendar", () => {
 
     it("should handle timed events normally without timezone conversion", () => {
       const getEventStart = (callback as any).getEventStart.bind(callback);
-      
+
       // Timed event with dateTime
       const timedEvent: GoogleCalendarEvent = {
         summary: "Timed Event",
@@ -163,16 +169,20 @@ describe("CallbackCalendar", () => {
       };
 
       const startDate = getEventStart(timedEvent);
-      
+
       // Should parse the ISO string normally
-      expect(startDate.toISOString()).toBe(new Date("2026-01-20T14:00:00-05:00").toISOString());
+      expect(startDate.toISOString()).toBe(
+        new Date("2026-01-20T14:00:00-05:00").toISOString(),
+      );
     });
   });
 
   describe("event categorization", () => {
     it("should categorize all-day events correctly", () => {
       const isAllDayEvent = (callback as any).isAllDayEvent.bind(callback);
-      const categorizeEventByTime = (callback as any).categorizeEventByTime.bind(callback);
+      const categorizeEventByTime = (
+        callback as any
+      ).categorizeEventByTime.bind(callback);
 
       const allDayEvent: GoogleCalendarEvent = {
         summary: "All Day Event",
@@ -200,15 +210,17 @@ describe("CallbackCalendar", () => {
   describe("transformEvents", () => {
     it("should place all-day events on the correct day", () => {
       const transformEvents = (callback as any).transformEvents.bind(callback);
-      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
-      
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(
+        callback,
+      );
+
       // Get today's date in New York
-      const today = getNowInTimezone('America/New_York');
-      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const today = getNowInTimezone("America/New_York");
+      const todayStr = today.toISOString().split("T")[0]; // YYYY-MM-DD format
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
       // All-day event for today
       const events: GoogleCalendarEvent[] = [
         {
@@ -234,15 +246,17 @@ describe("CallbackCalendar", () => {
 
     it("should use configured timezone for day calculations", () => {
       const transformEvents = (callback as any).transformEvents.bind(callback);
-      const getNowInTimezone = (callback as any).getNowInTimezone.bind(callback);
-      
+      const getNowInTimezone = (callback as any).getNowInTimezone.bind(
+        callback,
+      );
+
       // Get today's date in Tokyo timezone
-      const today = getNowInTimezone('Asia/Tokyo');
-      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const today = getNowInTimezone("Asia/Tokyo");
+      const todayStr = today.toISOString().split("T")[0]; // YYYY-MM-DD format
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
       // All-day event for today
       const events: GoogleCalendarEvent[] = [
         {
@@ -270,10 +284,10 @@ describe("CallbackCalendar", () => {
   describe("date formatting", () => {
     it("should format dates correctly", () => {
       const formatDate = (callback as any).formatDate.bind(callback);
-      
+
       const date = new Date(2026, 0, 20); // January 20, 2026 (Tuesday)
       const formatted = formatDate(date);
-      
+
       expect(formatted).toContain("1/20");
       expect(formatted).toContain("Tue");
     });
@@ -313,8 +327,12 @@ describe("CallbackCalendar", () => {
       const { updateEnvValue } = require("../../utils/env");
 
       let capturedTokensHandler: ((tokens: any) => void) | null = null;
-      let mockCredentials: Record<string, any> = { refresh_token: "old-refresh-token" };
-      const mockSetCredentials = jest.fn((creds) => { mockCredentials = { ...mockCredentials, ...creds }; });
+      let mockCredentials: Record<string, any> = {
+        refresh_token: "old-refresh-token",
+      };
+      const mockSetCredentials = jest.fn((creds) => {
+        mockCredentials = { ...mockCredentials, ...creds };
+      });
 
       google.auth.OAuth2.mockImplementation(() => {
         const client = {
@@ -322,7 +340,9 @@ describe("CallbackCalendar", () => {
           on: (_event: string, handler: (tokens: any) => void) => {
             capturedTokensHandler = handler;
           },
-          get credentials() { return mockCredentials; },
+          get credentials() {
+            return mockCredentials;
+          },
         };
         return client;
       });
@@ -340,7 +360,10 @@ describe("CallbackCalendar", () => {
       expect(process.env.GOOGLE_REFRESH_TOKEN).toBe("new-refresh-token");
 
       // updateEnvValue should be called to persist the new token to .env
-      expect(updateEnvValue).toHaveBeenCalledWith("GOOGLE_REFRESH_TOKEN", "new-refresh-token");
+      expect(updateEnvValue).toHaveBeenCalledWith(
+        "GOOGLE_REFRESH_TOKEN",
+        "new-refresh-token",
+      );
 
       // The setImmediate callback re-applies the new refresh token
       await new Promise<void>((resolve) => setImmediate(resolve));

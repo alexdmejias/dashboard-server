@@ -1,17 +1,26 @@
 // Load environment variables from .env file first (before any other imports)
-import dotenv from "dotenv";
+
 import path from "node:path";
+import dotenv from "dotenv";
 
 // When running from dist/, look for .env in parent directory
 const envPath = path.resolve(__dirname, "../.env");
-dotenv.config({ path: envPath });
+const envResult = dotenv.config({ path: envPath });
+if (envResult.parsed) {
+  console.log(`[dotenv] Loaded ${envPath}:`, envResult.parsed);
+} else if (envResult.error) {
+  console.warn(`[dotenv] Failed to load ${envPath}:`, envResult.error.message);
+}
 
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import getApp from "./app";
+import { initSettings } from "./settings";
 import type { PossibleCallbacks } from "./types";
 
 const start = async () => {
+  // Initialise the settings store before any other module reads settings
+  await initSettings();
   const callbacks: { callbackName: string }[] = [
     { callbackName: "reddit" },
     { callbackName: "weather" },
@@ -36,6 +45,7 @@ const start = async () => {
   const app = await getApp(possibleCallbacks);
   try {
     const port = process.env.PORT || 3333;
+
     await app.listen({ port, host: "0.0.0.0" });
 
     if (existsSync("./init-payload.json")) {

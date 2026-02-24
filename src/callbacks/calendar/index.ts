@@ -1,9 +1,10 @@
+import type { OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import { z } from "zod/v4";
-import type { OAuth2Client } from "google-auth-library";
 import CallbackBase from "../../base-callbacks/base";
-import type { GoogleCalendarEvent } from "./types";
+import { getSettings } from "../../settings";
 import { updateEnvValue } from "../../utils/env";
+import type { GoogleCalendarEvent } from "./types";
 
 type CalendarEvent = {
   title: string;
@@ -62,10 +63,10 @@ class CallbackCalendar extends CallbackBase<
     super({
       name: "calendar",
       expectedConfig,
-      envVariablesNeeded: [
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "GOOGLE_REFRESH_TOKEN",
+      dbSettingsNeeded: [
+        "googleClientId",
+        "googleClientSecret",
+        "googleRefreshToken",
       ],
       receivedConfig: options,
     });
@@ -100,8 +101,8 @@ class CallbackCalendar extends CallbackBase<
    */
   private async createAuthClient() {
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
+      getSettings().googleClientId,
+      getSettings().googleClientSecret,
       "https://developers.google.com/oauthplayground",
     );
 
@@ -247,17 +248,18 @@ class CallbackCalendar extends CallbackBase<
    * This is used for date arithmetic to calculate day differences.
    */
   private getNowInTimezone(timezone: string): Date {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
     });
 
     const parts = formatter.formatToParts(new Date());
-    const year = parseInt(parts.find(p => p.type === 'year')!.value);
-    const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
-    const day = parseInt(parts.find(p => p.type === 'day')!.value);
+    const year = Number.parseInt(parts.find((p) => p.type === "year")!.value);
+    const month =
+      Number.parseInt(parts.find((p) => p.type === "month")!.value) - 1; // 0-indexed
+    const day = Number.parseInt(parts.find((p) => p.type === "day")!.value);
 
     // Create date at midnight for the calendar day in the specified timezone
     // Note: The Date object is in local timezone but represents the target timezone's calendar day
@@ -278,7 +280,7 @@ class CallbackCalendar extends CallbackBase<
    * consistent day-based comparisons.
    */
   private parseDate(dateStr: string): Date {
-    const [year, month, day] = dateStr.split('-').map(Number);
+    const [year, month, day] = dateStr.split("-").map(Number);
     // Create date at midnight for the calendar day, month is 0-indexed
     return new Date(year, month - 1, day, 0, 0, 0, 0);
   }
