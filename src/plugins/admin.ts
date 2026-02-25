@@ -29,6 +29,11 @@ declare module "fastify" {
       message: string,
       reqId?: string,
     ): void;
+    logServerActivity(
+      level: string,
+      message: string,
+      reqId?: string,
+    ): void;
     logClientRequest(
       clientName: string,
       method: string,
@@ -91,6 +96,22 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
       // Keep only last 100 logs per client
       if (logs.length > 100) {
         logs.shift();
+      }
+    },
+  );
+
+  fastify.decorate(
+    "logServerActivity",
+    (level: string, message: string, reqId?: string) => {
+      serverLogs.push({
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        reqId,
+      });
+      // Keep only last 500 logs
+      if (serverLogs.length > 500) {
+        serverLogs.shift();
       }
     },
   );
