@@ -154,12 +154,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           { error: clientRes.error },
           `error registering client: ${clientName}`,
         );
-        app.logClientActivity(
-          clientName,
-          "error",
-          `Error registering client: ${clientRes.error}`,
-          req.id,
-        );
+        const msg = `Error registering client: ${clientRes.error}`;
+        app.logClientActivity(clientName, "error", msg, req.id);
+        app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
@@ -179,10 +176,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     }
 
     app.log.info(`client already exists: ${clientName}`);
+    const dupMsg = serverMessages.duplicateClientName(clientName);
     app.logClientActivity(clientName, "warn", "Client already exists", req.id);
-    return res.internalServerError(
-      serverMessages.duplicateClientName(clientName),
-    );
+    app.logServerActivity("warn", `[${clientName}] ${dupMsg}`, req.id);
+    return res.internalServerError(dupMsg);
   });
 
   app.get<{
@@ -209,15 +206,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
-      app.logClientActivity(
-        clientName,
-        "error",
-        `Unsupported viewType: ${viewType}`,
-        req.id,
-      );
-      return res.internalServerError(
-        serverMessages.viewTypeNotSupported(viewType),
-      );
+      const msg = serverMessages.viewTypeNotSupported(viewType);
+      app.logClientActivity(clientName, "error", `Unsupported viewType: ${viewType}`, req.id);
+      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
+      return res.internalServerError(msg);
     }
 
     // INFO hack to accomodate inkplate limitations with response having to have a .png extension
@@ -227,8 +219,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error("client not found");
+      const msg = serverMessages.clientNotFound(clientName);
       app.logClientActivity(clientName, "error", "Client not found", req.id);
-      return res.notFound(serverMessages.clientNotFound(clientName));
+      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
+      return res.notFound(msg);
     }
 
     app.log.info(`retrieved existing client: ${clientName}`);
@@ -258,13 +252,15 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
           if (!callbackInstance) {
             app.log.error(`callback or playlist item not found: ${callback}`);
+            const msg = serverMessages.callbackNotFound(callback);
             app.logClientActivity(
               clientName,
               "error",
               `Callback or playlist item not found: ${callback}`,
               req.id,
             );
-            return res.notFound(serverMessages.callbackNotFound(callback));
+            app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
+            return res.notFound(msg);
           }
 
           // Find the playlist item that contains this callback
@@ -311,7 +307,10 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         { error, clientName, viewType: viewTypeToUse },
         "Error rendering callback",
       );
-      return res.internalServerError(`Failed to render: ${errorMessage}`);
+      const msg = `Failed to render: ${errorMessage}`;
+      app.logClientActivity(clientName, "error", msg, req.id);
+      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
+      return res.internalServerError(msg);
     }
 
     const rendererType =
@@ -319,13 +318,18 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     app.log.info({ viewType: viewTypeToUse, rendererType }, "rendering");
 
+    if (data.viewType === "error") {
+      app.logClientActivity(clientName, "error", data.error, req.id);
+      app.logServerActivity("error", `[${clientName}] ${data.error}`, req.id);
+    }
+
     const responseTime = Date.now() - startTime;
     app.logClientRequest(
       clientName,
       "GET",
       `/display/${clientName}/${viewType}/${callback}`,
       "outgoing",
-      200,
+      data.viewType === "error" ? 500 : 200,
       responseTime,
       req.id,
       req.headers as Record<string, string | string[]>,
@@ -497,7 +501,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const client = app.getClient(clientName);
     if (!client) {
       app.log.error(`client not found: ${clientName}`);
-      return res.notFound(serverMessages.clientNotFound(clientName));
+      const msg = serverMessages.clientNotFound(clientName);
+      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
+      return res.notFound(msg);
     }
 
     // Log the update request
@@ -519,12 +525,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
         { error: clientRes.error },
         `error updating playlist for client: ${clientName}`,
       );
-      app.logClientActivity(
-        clientName,
-        "error",
-        `Error updating playlist: ${clientRes.error}`,
-        req.id,
-      );
+      const msg = `Error updating playlist: ${clientRes.error}`;
+      app.logClientActivity(clientName, "error", msg, req.id);
+      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.code(400).send({
         error: "Bad Request",
         message: clientRes.error,
