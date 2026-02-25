@@ -247,7 +247,7 @@ class StateMachine {
           return data.instance.render(
             "html", // Always render as HTML for combining
             data.callbackConfig.options,
-            undefined, // Don't pass layout - prevents callbacks from handling it
+            playlistItem.layout, // Pass layout so callbacks can use layout-specific templates
           );
         }),
       );
