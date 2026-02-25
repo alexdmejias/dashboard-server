@@ -20,6 +20,14 @@ export function getImagesPath(imageName = "image.png") {
   return join(imagesPath, imageName);
 }
 
+export function getImagesDir(): string {
+  if (!imagesPath) {
+    imagesPath = makeDir();
+  }
+
+  return imagesPath;
+}
+
 /**
  * Clears all files from the images directory on server startup
  * @returns number of files removed

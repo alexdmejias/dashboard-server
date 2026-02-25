@@ -3,7 +3,7 @@
 
 import fs from "node:fs/promises";
 import os from "node:os";
-import { resolve } from "node:path";
+import path, { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fastify, { type FastifyReply } from "fastify";
@@ -333,6 +333,9 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       responseTime,
       req.id,
       req.headers as Record<string, string | string[]>,
+      isSupportedImageViewType(data.viewType) && "imagePath" in data
+        ? path.basename(data.imagePath)
+        : undefined,
     );
 
     return getResponseFromData(res, data);
