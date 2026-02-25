@@ -107,8 +107,17 @@ class CallbackCalendar extends CallbackBase<
     );
 
     oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      refresh_token: getSettings().googleRefreshToken,
     });
+
+    this.logger.info(
+      {
+        refreshToken: getSettings().googleRefreshToken,
+        clientId: getSettings().googleClientId,
+        clientSecret: getSettings().googleClientSecret,
+      },
+      "OAuth2 client created with refresh token",
+    );
 
     oauth2Client.on("tokens", (tokens) => {
       if (tokens.refresh_token) {
@@ -122,7 +131,7 @@ class CallbackCalendar extends CallbackBase<
           });
         });
         // Update env so any future createAuthClient() call uses the new refresh token
-        process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
+        // process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
         // Persist to .env file and settings.json so the new token survives server restarts
         try {
           updateEnvValue("GOOGLE_REFRESH_TOKEN", newRefreshToken);
