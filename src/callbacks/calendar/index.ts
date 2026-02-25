@@ -2,7 +2,7 @@ import type { OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import { z } from "zod/v4";
 import CallbackBase from "../../base-callbacks/base";
-import { getSettings } from "../../settings";
+import { getSettings, updateSettings } from "../../settings";
 import { updateEnvValue } from "../../utils/env";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -123,14 +123,17 @@ class CallbackCalendar extends CallbackBase<
         });
         // Update env so any future createAuthClient() call uses the new refresh token
         process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
-        // Persist to .env file so the new token survives server restarts
+        // Persist to .env file and settings.json so the new token survives server restarts
         try {
           updateEnvValue("GOOGLE_REFRESH_TOKEN", newRefreshToken);
-          this.logger.info("Persisted new Google refresh token to .env");
+          updateSettings({ googleRefreshToken: newRefreshToken });
+          this.logger.info(
+            "Persisted new Google refresh token to .env and settings",
+          );
         } catch (error) {
           this.logger.error(
             { error },
-            "Google issued a new refresh token but failed to persist it to .env. Update GOOGLE_REFRESH_TOKEN manually.",
+            "Google issued a new refresh token but failed to persist it to .env/settings. Update GOOGLE_REFRESH_TOKEN manually.",
           );
         }
       } else {
