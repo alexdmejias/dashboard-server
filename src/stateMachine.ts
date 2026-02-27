@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { Liquid } from "liquidjs";
 import type CallbackBase from "./base-callbacks/base";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
@@ -7,8 +10,10 @@ import type {
   SupportedViewType,
   ValidCallback,
 } from "./types";
-import { getBrowserRendererType } from "./utils/getBrowserRendererType";
-import getScreenshot from "./utils/getScreenshot";
+import getRenderedTemplate, {
+  renderLiquidFile,
+} from "./utils/getRenderedTemplate";
+import { getScreenshotWithoutFetching } from "./utils/getScreenshot";
 import { cleanupOldImages, getImagesPath } from "./utils/imagesPath";
 import { isSupportedImageViewType } from "./utils/isSupportedViewTypes";
 import { PROJECT_ROOT } from "./utils/projectRoot";
@@ -69,7 +74,7 @@ class StateMachine {
 
   async addCallbacks(validCallbacks: ValidCallback[]) {
     for await (const cb of validCallbacks) {
-      this.callbacks[cb.id] = {
+      this.callbacks[cb.name] = {
         name: cb.name,
         instance: cb.instance,
       };
@@ -113,6 +118,27 @@ class StateMachine {
     return this.renderPlaylistItem(playlistItem, viewType);
   }
 
+  async formLayoutContents(
+    layoutName: string,
+    layoutContents: Record<string, string>,
+  ) {
+    const layoutPath = path.join(
+      PROJECT_ROOT,
+      `views/layouts/${layoutName}.liquid`,
+    );
+    return renderLiquidFile(layoutPath, layoutContents);
+  }
+
+  resolveLayoutForCallback(parentLayout: string, childSlotName: string) {
+    if (parentLayout === "full") {
+      if (childSlotName === "content") {
+        return undefined;
+      }
+    } else if (parentLayout === "2-col") {
+      return "2-col";
+    }
+  }
+
   /**
    * Internal method to render a playlist item with all its callbacks
    */
@@ -120,252 +146,71 @@ class StateMachine {
     playlistItem: PlaylistItem,
     viewType: SupportedViewType,
   ): Promise<RenderResponse> {
-    // For layouts, we need to render all callbacks and combine them
-    // callbacks is now an object with named slots
-    const callbackEntries = Object.entries(playlistItem.callbacks) as [
-      string,
-      { name: string; options?: any },
-    ][];
+    const layoutSlotsOutputs: Record<string, string> = {};
+    for (const [layoutSlotName, cb] of Object.entries(playlistItem.callbacks)) {
+      console.log("alexalex ++++++++", { layoutSlotName, cb });
 
-    const callbackData: Array<{
-      slotName: string;
-      callbackConfig: { name: string; options?: any };
-      instance: CallbackBase;
-      id: string;
-    }> = [];
+      if (this.hasCallback(cb.name)) {
+        const instance = this.getCallbackInstance(cb.name);
 
-    // Get all callback instances for this playlist item
-    for (const [slotName, callbackConfig] of callbackEntries) {
-      const callbackId = `${playlistItem.id}-${slotName}`;
-      const instance = this.getCallbackInstance(callbackId);
-
-      if (!instance) {
-        logger.error(
-          `callback not found: ${callbackConfig.name} in slot ${slotName} (ID: ${callbackId})`,
+        const childLayout = this.resolveLayoutForCallback(
+          playlistItem.layout,
+          layoutSlotName,
         );
-        return {
-          error: `callback not found: ${callbackConfig.name} in slot ${slotName}`,
-          viewType: "error",
-        };
-      }
+        const htmlForCallback = await instance?.render(
+          "html",
+          cb.options,
+          childLayout,
+        );
 
-      callbackData.push({
-        slotName,
-        callbackConfig,
-        instance,
-        id: callbackId,
-      });
+        if (htmlForCallback?.viewType === "html") {
+          layoutSlotsOutputs[layoutSlotName] = htmlForCallback.html;
+        }
+      }
     }
 
-    // For single callback, render it with layout context
-    if (callbackData.length === 1) {
-      const rendered = await callbackData[0].instance.render(
+    console.log("alexalex @@@@@@@@", { layoutSlotsOutputs });
+    const layoutPath = path.join(
+      PROJECT_ROOT,
+      `views/layouts/${playlistItem.layout}.liquid`,
+    );
+    const contents = await renderLiquidFile(layoutPath, layoutSlotsOutputs);
+
+    console.log("alexalex to be returned", { contents });
+
+    if (viewType === "html") {
+      return {
         viewType,
-        callbackData[0].callbackConfig.options,
-        playlistItem.layout,
-      );
-
-      if (rendered.viewType === "error") {
-        return rendered;
-      }
-
-      // For non-HTML viewTypes, return as-is (callback now includes layout)
-      if (viewType !== "html") {
-        return rendered;
-      }
-
-      // For HTML, wrap in the layout template
-      // TypeScript guard: at this point we know rendered should have html property
-      if (rendered.viewType !== "html") {
-        logger.error("Expected HTML render response but got different type");
-        return {
-          viewType: "error",
-          error: "Expected HTML render response",
-        };
-      }
-
-      try {
-        const { Liquid } = await import("liquidjs");
-        const fs = await import("node:fs/promises");
-        const path = await import("node:path");
-
-        const layoutPath = path.join(
-          PROJECT_ROOT,
-          `views/layouts/${playlistItem.layout}.liquid`,
-        );
-        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-        const engine = new Liquid({
-          root: path.join(PROJECT_ROOT, "views/layouts"),
-          partials: path.join(PROJECT_ROOT, "views/partials"),
-          extname: ".liquid",
-        });
-
-        // Use the slot name as the variable name
-        const blockData: Record<string, string> = {
-          [callbackData[0].slotName]: rendered.html,
-        };
-
-        const finalContent = await engine.parseAndRender(
-          layoutTemplate,
-          blockData,
-        );
-
-        return {
-          viewType: "html",
-          html: finalContent,
-        };
-      } catch (error) {
-        logger.error({ error }, "Error rendering layout for single callback");
-        return {
-          error: error instanceof Error ? error.message : String(error),
-          viewType: "error",
-        };
-      }
-    }
-
-    // Multiple callbacks only supported for HTML viewType
-    // if (viewType !== "html") {
-    //   logger.error("Non-HTML view types only support single callbacks");
-    //   return {
-    //     error: "Non-HTML view types only support single callbacks",
-    //     viewType: "error",
-    //   };
-    // }
-
-    // For multiple callbacks, render each and combine with layout
-    try {
-      const { Liquid } = await import("liquidjs");
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-
-      // Render each callback without layout parameter
-      // For multi-callback scenarios, always render as HTML first
-      // Then we combine and convert to final viewType if needed
-      const renderedCallbacks = await Promise.all(
-        callbackData.map((data) => {
-          return data.instance.render(
-            "html", // Always render as HTML for combining
-            data.callbackConfig.options,
-            undefined, // Don't pass layout - prevents callbacks from handling it
-          );
-        }),
-      );
-
-      // Check for errors
-      for (const rendered of renderedCallbacks) {
-        if (rendered.viewType === "error") {
-          return rendered;
-        }
-      }
-
-      // Extract HTML content from each callback
-      // Since we rendered without layout, callbacks return just their content
-      const callbackContents = renderedCallbacks.map((rendered) => {
-        if (rendered.viewType === "html") {
-          return rendered.html;
-        }
-        return "";
-      });
-
-      // Load and render the layout template with callback contents
-      const layoutPath = path.join(
-        PROJECT_ROOT,
-        `views/layouts/${playlistItem.layout}.liquid`,
-      );
-      const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-      const engine = new Liquid({
-        root: path.join(PROJECT_ROOT, "views/layouts"),
-        partials: path.join(PROJECT_ROOT, "views/partials"),
-        extname: ".liquid",
-      });
-
-      // Prepare data for blocks based on named slots
-      const blockData: Record<string, string> = {};
-      callbackData.forEach((callback, i) => {
-        blockData[callback.slotName] = callbackContents[i] || "";
-      });
-
-      const finalHtml = await engine.parseAndRender(layoutTemplate, blockData);
-
-      // For image viewTypes, we need to convert the final HTML to image
-      if (isSupportedImageViewType(viewType)) {
-        const DEFAULT_SCREENSHOT_WIDTH = 1200;
-        const DEFAULT_SCREENSHOT_HEIGHT = 825;
-
-        // Now convert the final HTML to image
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 8);
-        const fileName = `multi-callback-${viewType}-${timestamp}-${random}.${viewType}`;
-        const screenshotPath = getImagesPath(fileName);
-
-        // Write the HTML to a temp file to pass to getScreenshot
-        const os = await import("node:os");
-        const tmpHtmlPath = path.join(
-          os.tmpdir(),
-          `multi-callback-${timestamp}-${random}.html`,
-        );
-        await fs.writeFile(tmpHtmlPath, finalHtml, "utf-8");
-
-        try {
-          const screenshot = await getScreenshot({
-            template: tmpHtmlPath,
-            data: {}, // Data already rendered in HTML
-            runtimeConfig: {},
-            imagePath: screenshotPath,
-            viewType,
-            size: {
-              width: DEFAULT_SCREENSHOT_WIDTH,
-              height: DEFAULT_SCREENSHOT_HEIGHT,
-            },
-            includeWrapper: false, // HTML already complete
-          });
-
-          const rendererType = getBrowserRendererType();
-          const fileNameOnly = path.basename(screenshotPath);
-
-          logger.info(
-            {
-              imagePath: screenshotPath,
-              fileName: fileNameOnly,
-              rendererType,
-              width: DEFAULT_SCREENSHOT_WIDTH,
-              height: DEFAULT_SCREENSHOT_HEIGHT,
-              viewType,
-              layout: playlistItem.layout,
-            },
-            `Saved multi-callback image with layout: ${fileNameOnly}`,
-          );
-
-          cleanupOldImages();
-
-          return {
-            viewType,
-            imagePath: screenshot.path,
-          };
-        } finally {
-          // Clean up temp HTML file
-          try {
-            await fs.unlink(tmpHtmlPath);
-          } catch (e) {
-            logger.debug({ err: e }, "Failed to remove temp HTML file");
-          }
-        }
-      }
-
-      // For HTML viewType, return the rendered HTML
-      return {
-        viewType: "html" as const,
-        html: finalHtml,
-      };
-    } catch (error) {
-      logger.error({ error }, "Error rendering layout");
-      return {
-        error: error instanceof Error ? error.message : String(error),
-        viewType: "error",
+        html: contents,
       };
     }
+
+    if (isSupportedImageViewType(viewType)) {
+      // Now convert the final HTML to image
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      const fileName = `multi-callback-${viewType}-${timestamp}-${random}.${viewType}`;
+      const screenshotPath = getImagesPath(fileName);
+      const screenshot = await getScreenshotWithoutFetching({
+        htmlContent: contents,
+        imagePath: screenshotPath,
+        viewType,
+        size: {
+          // TODO get size from somewhere else
+          width: 1200,
+          height: 825,
+        },
+      });
+
+      cleanupOldImages();
+
+      return {
+        viewType,
+        imagePath: screenshot.path,
+      };
+    }
+
+    // todo return json
   }
 
   async tick(viewType: SupportedViewType): Promise<RenderResponse> {

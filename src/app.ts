@@ -207,7 +207,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     if (!isSupportedViewType(viewType)) {
       app.log.error(`viewType not supported: ${viewType}`);
       const msg = serverMessages.viewTypeNotSupported(viewType);
-      app.logClientActivity(clientName, "error", `Unsupported viewType: ${viewType}`, req.id);
+      app.logClientActivity(
+        clientName,
+        "error",
+        `Unsupported viewType: ${viewType}`,
+        req.id,
+      );
       app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.internalServerError(msg);
     }
@@ -246,58 +251,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
           app.log.info(`Rendering playlist item by ID: ${callback}`);
           data = await client.renderPlaylistItemById(callback, viewTypeToUse);
         } else {
-          // Fallback to callback ID lookup (for individual slot rendering)
-          // In the new system, callback ID has the format: playlistItemId-slotName
-          const callbackInstance = client.getCallbackInstance(callback);
-
-          if (!callbackInstance) {
-            app.log.error(`callback or playlist item not found: ${callback}`);
-            const msg = serverMessages.callbackNotFound(callback);
-            app.logClientActivity(
-              clientName,
-              "error",
-              `Callback or playlist item not found: ${callback}`,
-              req.id,
-            );
-            app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
-            return res.notFound(msg);
-          }
-
-          // Find the playlist item that contains this callback
-          // The callback ID format is: playlistItemId-slotName
-          // So we need to find which playlist item and slot this belongs to
-          let playlistItemForCallback: PlaylistItem | undefined;
-          let callbackOptions: Record<string, unknown> | undefined;
-
-          for (const item of client.getConfig().playlist) {
-            const callbackEntries = Object.entries(item.callbacks) as [
-              string,
-              { name: string; options?: any },
-            ][];
-            for (const [slotName, cb] of callbackEntries) {
-              const expectedCallbackId = `${item.id}-${slotName}`;
-              if (expectedCallbackId === callback) {
-                playlistItemForCallback = item;
-                callbackOptions = cb.options as
-                  | Record<string, unknown>
-                  | undefined;
-                break;
-              }
-            }
-            if (playlistItemForCallback) break;
-          }
-
-          // render may accept runtime options; use a typed cast to avoid `any`
-          type RenderWithOptions = (
-            viewType: SupportedViewType,
-            options?: Record<string, unknown>,
-          ) => Promise<RenderResponse>;
-
-          data = await (
-            callbackInstance as unknown as {
-              render: RenderWithOptions;
-            }
-          ).render(viewTypeToUse, callbackOptions);
+          throw new Error("playlist item not found");
         }
       }
     } catch (error) {
@@ -341,97 +295,97 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     return getResponseFromData(res, data);
   });
 
-  app.post<{
-    Body: {
-      template: string;
-      templateData?: Record<string, unknown>;
-      screenDetails: {
-        width: number;
-        height: number;
-        bits?: number;
-        output: "html" | "png" | "bmp";
-      };
-    };
-  }>("/test-template", async (req, res) => {
-    const { template, templateData = {}, screenDetails } = req.body;
+  // app.post<{
+  //   Body: {
+  //     template: string;
+  //     templateData?: Record<string, unknown>;
+  //     screenDetails: {
+  //       width: number;
+  //       height: number;
+  //       bits?: number;
+  //       output: "html" | "png" | "bmp";
+  //     };
+  //   };
+  // }>("/test-template", async (req, res) => {
+  //   const { template, templateData = {}, screenDetails } = req.body;
 
-    if (!template || !screenDetails) {
-      return res.code(400).send({ error: "invalid request body" });
-    }
+  //   if (!template || !screenDetails) {
+  //     return res.code(400).send({ error: "invalid request body" });
+  //   }
 
-    try {
-      // write the provided template body to a temporary template file.
-      // We write only the body; getRenderedTemplate will compose head/footer
-      // when given a template path.
-      const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
-        Math.random() * 1e9,
-      )}.liquid`;
-      const tmpPath = resolve(os.tmpdir(), tmpName);
-      await fs.writeFile(tmpPath, template, "utf-8");
+  //   try {
+  //     // write the provided template body to a temporary template file.
+  //     // We write only the body; getRenderedTemplate will compose head/footer
+  //     // when given a template path.
+  //     const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
+  //       Math.random() * 1e9,
+  //     )}.liquid`;
+  //     const tmpPath = resolve(os.tmpdir(), tmpName);
+  //     await fs.writeFile(tmpPath, template, "utf-8");
 
-      try {
-        if (screenDetails.output === "html") {
-          const renderedHtml = await getRenderedTemplate({
-            template: tmpPath,
-            data: templateData,
-            runtimeConfig: screenDetails,
-          });
+  //     try {
+  //       if (screenDetails.output === "html") {
+  //         const renderedHtml = await getRenderedTemplate({
+  //           template: tmpPath,
+  //           data: templateData,
+  //           runtimeConfig: screenDetails,
+  //         });
 
-          return res.type("text/html").send(renderedHtml);
-        }
+  //         return res.type("text/html").send(renderedHtml);
+  //       }
 
-        // image output (png or bmp) — use shared getScreenshot utility
-        const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
-        const rendererType = getBrowserRendererType();
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 8);
-        const fileName = `template-test-${template}-${timestamp}-${random}.${extOut}`;
-        const imagePath = getImagesPath(fileName);
+  //       // image output (png or bmp) — use shared getScreenshot utility
+  //       const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
+  //       const rendererType = getBrowserRendererType();
+  //       const timestamp = Date.now();
+  //       const random = Math.random().toString(36).substring(2, 8);
+  //       const fileName = `template-test-${template}-${timestamp}-${random}.${extOut}`;
+  //       const imagePath = getImagesPath(fileName);
 
-        const width = screenDetails.width ?? 1200;
-        const height = screenDetails.height ?? 825;
+  //       const width = screenDetails.width ?? 1200;
+  //       const height = screenDetails.height ?? 825;
 
-        const { buffer } = await getScreenshot({
-          template: tmpPath,
-          data: templateData,
-          runtimeConfig: screenDetails,
-          imagePath,
-          viewType: extOut,
-          size: { width, height },
-        });
+  //       const { buffer } = await getScreenshot({
+  //         template: tmpPath,
+  //         data: templateData,
+  //         runtimeConfig: screenDetails,
+  //         imagePath,
+  //         viewType: extOut,
+  //         size: { width, height },
+  //       });
 
-        // Log image save details
-        app.log.info(
-          {
-            imagePath,
-            fileName,
-            rendererType,
-            width,
-            height,
-            viewType: extOut,
-            template,
-          },
-          `Saved test template image: ${fileName}`,
-        );
+  //       // Log image save details
+  //       app.log.info(
+  //         {
+  //           imagePath,
+  //           fileName,
+  //           rendererType,
+  //           width,
+  //           height,
+  //           viewType: extOut,
+  //           template,
+  //         },
+  //         `Saved test template image: ${fileName}`,
+  //       );
 
-        // Cleanup old images if limit exceeded
-        cleanupOldImages();
+  //       // Cleanup old images if limit exceeded
+  //       cleanupOldImages();
 
-        const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
-        return res.type(contentType).send(buffer);
-      } finally {
-        // best-effort cleanup of the temp template
-        try {
-          await fs.unlink(tmpPath);
-        } catch (e) {
-          app.log.debug({ err: e }, "failed to remove temp template file");
-        }
-      }
-    } catch (err) {
-      app.log.error(err);
-      return res.internalServerError("Error rendering template");
-    }
-  });
+  //       const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
+  //       return res.type(contentType).send(buffer);
+  //     } finally {
+  //       // best-effort cleanup of the temp template
+  //       try {
+  //         await fs.unlink(tmpPath);
+  //       } catch (e) {
+  //         app.log.debug({ err: e }, "failed to remove temp template file");
+  //       }
+  //     }
+  //   } catch (err) {
+  //     app.log.error(err);
+  //     return res.internalServerError("Error rendering template");
+  //   }
+  // });
 
   // SSE endpoint for streaming client updates
   app.get("/api/clients/stream", async (req, res) => {

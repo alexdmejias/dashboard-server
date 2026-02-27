@@ -2,41 +2,21 @@ import { readFile } from "node:fs/promises";
 import { Jimp } from "jimp";
 import type { ScreenshotSizeOption } from "../types";
 import { createBrowserRenderer } from "./browserRendererFactory";
-import getRenderedTemplate from "./getRenderedTemplate";
 
-async function getScreenshot<
-  T extends object = object,
-  U extends object = object,
->({
-  template,
-  data,
-  runtimeConfig,
+export async function getScreenshotWithoutFetching({
+  htmlContent,
   imagePath,
+  size,
   viewType,
-  size = {
-    width: 1200,
-    height: 825,
-  },
-  includeWrapper = true,
 }: {
-  template: string;
-  data: T;
-  runtimeConfig?: U;
+  htmlContent: string;
   imagePath: string;
   viewType: string;
   size?: ScreenshotSizeOption;
-  includeWrapper?: boolean;
 }) {
-  const renderedTemplate = await getRenderedTemplate({
-    template,
-    data,
-    runtimeConfig,
-    includeWrapper,
-  });
-
   const renderer = createBrowserRenderer();
   const { buffer } = await renderer.renderPage({
-    htmlContent: renderedTemplate,
+    htmlContent,
     imagePath,
     size,
   });
@@ -51,5 +31,3 @@ async function getScreenshot<
 
   return { path: imagePath, buffer };
 }
-
-export default getScreenshot;

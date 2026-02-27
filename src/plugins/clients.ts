@@ -3,8 +3,8 @@ import fp from "fastify-plugin";
 import { ZodError, z } from "zod/v4";
 import type CallbackBase from "../base-callbacks/base";
 import StateMachine from "../stateMachine";
-import { supportedLayouts } from "../types";
 import type { Playlist, PossibleCallbacks, ValidCallback } from "../types";
+import { supportedLayouts } from "../types";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -198,11 +198,11 @@ async function createClientFromPlaylist(
 
         // Create unique ID: playlistItemId-slotName
         // Use slot name instead of index for clarity
-        const uniqueId = `${playlistItem.id}-${slotName}`;
+        // const uniqueId = `${playlistItem.id}-${slotName}`;
 
         validCallbacks.push({
           instance: ins,
-          id: uniqueId,
+          // id: uniqueId,
           name: callbackDef.name,
           expectedConfig: callbackDef.expectedConfig,
         });
