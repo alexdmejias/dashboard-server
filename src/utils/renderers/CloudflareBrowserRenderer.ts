@@ -1,20 +1,25 @@
 import { writeFile } from "node:fs/promises";
-import type { ScreenshotSizeOption } from "../types";
+import type { ScreenshotSizeOption } from "../../types";
 import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
-} from "../types/browser-renderer";
+} from "../../types/browser-renderer";
 
-export interface BrowserlessIOConfig {
-  token: string;
+export interface CloudflareConfig {
+  accountId: string;
+  apiToken: string;
 }
 
-class BrowserlessIOBrowserRenderer implements BrowserRenderer {
-  private token: string;
+class CloudflareBrowserRenderer implements BrowserRenderer {
+  private accountId: string;
+  private apiToken: string;
+  private baseUrl: string;
 
-  constructor(config: BrowserlessIOConfig) {
-    this.token = config.token;
+  constructor(config: CloudflareConfig) {
+    this.accountId = config.accountId;
+    this.apiToken = config.apiToken;
+    this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/browser-rendering/screenshot`;
   }
 
   async renderPage(options: RenderOptions): Promise<RenderResult> {
@@ -39,23 +44,23 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
     htmlContent: string,
     size: ScreenshotSizeOption,
   ): Promise<Buffer> {
-    const url = `https://production-sfo.browserless.io/screenshot?token=${this.token}`;
-
-    const response = await fetch(url, {
+    const response = await fetch(this.baseUrl, {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${this.apiToken}`,
         "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
         html: htmlContent,
-        options: {
-          fullPage: false,
-          type: "png",
+        gotoOptions: {
+          waitUntil: "load",
         },
         viewport: {
           width: size.width,
           height: size.height,
+        },
+        screenshotOptions: {
+          type: "png",
         },
       }),
     });
@@ -63,7 +68,7 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Browserless.io rendering failed: ${response.status} ${response.statusText} - ${errorText}`,
+        `Cloudflare Browser Rendering failed: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
@@ -72,4 +77,4 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
   }
 }
 
-export default BrowserlessIOBrowserRenderer;
+export default CloudflareBrowserRenderer;

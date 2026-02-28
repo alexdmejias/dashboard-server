@@ -20,6 +20,6 @@ export async function renderLiquidFile(
     partials: path.join(PROJECT_ROOT, "views/partials"),
     extname: ".liquid",
   });
-  logger.debug({ data, templatePath }, "Rendering liquid template with data");
+  logger.debug({ templatePath }, "Rendering liquid template with data");
   return engine.parseAndRender(templateStr, data);
 }

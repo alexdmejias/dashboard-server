@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Jimp } from "jimp";
 import type { ScreenshotSizeOption } from "../types";
-import { createBrowserRenderer } from "./browserRendererFactory";
+import { createBrowserRenderer } from "./renderers/browserRendererFactory";
 
 export async function getScreenshotWithoutFetching({
   htmlContent,
