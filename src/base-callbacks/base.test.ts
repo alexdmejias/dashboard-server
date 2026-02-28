@@ -1,93 +1,71 @@
+import { _resetForTesting, initSettings, updateSettings } from "../settings";
+import { renderLiquidFile } from "../utils/getRenderedTemplate";
 import CallbackBase from "./base";
-import getScreenshot from "../utils/getScreenshot";
-import { initSettings, updateSettings, _resetForTesting } from "../settings";
 
-jest.mock("../utils/getScreenshot");
+jest.mock("../utils/getRenderedTemplate", () => ({
+  renderLiquidFile: jest.fn().mockResolvedValue("<div>rendered</div>"),
+}));
+
+/**
+ * TestCallback uses the "weather" name so its template resolves to the
+ * existing src/callbacks/weather/template.liquid file.
+ */
+class TestCallback extends CallbackBase {
+  getData() {
+    return Promise.resolve({ message: "test data" });
+  }
+}
 
 describe("CallbackBase", () => {
-  describe("render() - browser rendering error handling", () => {
-    class TestCallback extends CallbackBase {
-      getData() {
-        return Promise.resolve({ message: "test data" });
-      }
-    }
-
+  describe("render()", () => {
     beforeEach(() => {
       jest.clearAllMocks();
     });
 
-    it("should return error response when browser renderer fails", async () => {
-      const errorMessage =
-        "Cloudflare Browser Rendering failed: 401 Unauthorized - Invalid credentials";
-      (getScreenshot as jest.Mock).mockRejectedValue(new Error(errorMessage));
-
-      const callback = new TestCallback({
-        name: "test-callback",
-        template: "generic",
-      });
-
-      const result = await callback.render("png");
+    it("should return JSON response for json viewType", async () => {
+      const callback = new TestCallback({ name: "weather" });
+      const result = await callback.render("json");
 
       expect(result).toEqual({
-        viewType: "error",
-        error: errorMessage,
+        viewType: "json",
+        json: { message: "test data" },
       });
     });
 
-    it("should return error response when Puppeteer renderer fails", async () => {
-      const errorMessage =
-        "Puppeteer is not installed. Install it with 'npm install puppeteer' or use a different renderer like 'cloudflare'.";
-      (getScreenshot as jest.Mock).mockRejectedValue(new Error(errorMessage));
-
-      const callback = new TestCallback({
-        name: "test-callback",
-        template: "generic",
-      });
-
-      const result = await callback.render("png");
+    it("should return HTML response for html viewType", async () => {
+      const callback = new TestCallback({ name: "weather" });
+      const result = await callback.render("html");
 
       expect(result).toEqual({
-        viewType: "error",
-        error: errorMessage,
+        viewType: "html",
+        html: "<div>rendered</div>",
       });
+      expect(renderLiquidFile).toHaveBeenCalled();
     });
 
-    it("should successfully render when browser renderer succeeds", async () => {
-      (getScreenshot as jest.Mock).mockResolvedValue({
-        path: "/path/to/image.png",
-        buffer: Buffer.from("test"),
-      });
-
-      const callback = new TestCallback({
-        name: "test-callback",
-        template: "generic",
-      });
-
-      const result = await callback.render("png");
-
-      expect(result).toEqual({
-        viewType: "png",
-        imagePath: expect.stringContaining("image.png"),
-      });
-    });
-
-    it("should return error response for data errors", async () => {
+    it("should return error response when getData returns an error", async () => {
       class ErrorCallback extends CallbackBase {
         getData() {
           return Promise.resolve({ error: "Failed to fetch data" });
         }
       }
 
-      const callback = new ErrorCallback({
-        name: "error-callback",
-        template: "generic",
-      });
-
-      const result = await callback.render("png");
+      const callback = new ErrorCallback({ name: "weather" });
+      const result = await callback.render("json");
 
       expect(result).toEqual({
         viewType: "error",
         error: "Failed to fetch data",
+      });
+    });
+
+    it("should return JSON for image viewTypes (image rendering is handled at StateMachine level)", async () => {
+      const callback = new TestCallback({ name: "weather" });
+      const result = await callback.render("png");
+
+      expect(result).toEqual({
+        viewType: "json",
+        json: { message: "test data" },
       });
     });
   });
@@ -159,4 +137,3 @@ describe("CallbackBase", () => {
     });
   });
 });
-

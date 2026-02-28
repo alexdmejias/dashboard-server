@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
 
 import logger from "../logger";
+import { getSettings } from "../settings";
 import type {
   PossibleTemplateData,
   ScreenshotSizeOption,
@@ -13,13 +13,8 @@ import type {
   SupportedViewType,
   TemplateDataError,
 } from "../types";
-import { getBrowserRendererType } from "../utils/getBrowserRendererType";
-import getRenderedTemplate from "../utils/getRenderedTemplate";
-import getScreenshot from "../utils/getScreenshot";
-import { cleanupOldImages, getImagesPath } from "../utils/imagesPath";
-import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
+import { renderLiquidFile } from "../utils/getRenderedTemplate";
 import { PROJECT_ROOT } from "../utils/projectRoot";
-import { getSettings } from "../settings";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -209,10 +204,6 @@ class CallbackBase<
     expectedConfig?: z.ZodTypeAny,
     receivedConfig?: unknown,
   ) {
-    // this.logger.debug(
-    //   { receivedConfig: this.receivedConfig },
-    //   `checking runtime config for callback: ${this.name}`
-    // );
     if (expectedConfig) {
       const result = expectedConfig.safeParse(receivedConfig, {
         reportInput: true,
@@ -223,10 +214,6 @@ class CallbackBase<
     }
     return true;
   }
-
-  // getRuntimeConfig() {
-  //   return this.receivedConfig as z.infer<ExpectedConfig>;
-  // }
 
   /**
    * Utility to merge default config with provided options, using zod for type safety.
@@ -243,23 +230,6 @@ class CallbackBase<
     }
     return result.data as ConfigType;
   }
-
-  // async getDBData<DBTableShape>(
-  //   tableName: string,
-  //   transformer?: (tableRow: DBTableShape) => TemplateData,
-  // ): PossibleTemplateData<TemplateData> {
-  //   try {
-  //     const data = await DB.getRecord<DBTableShape>(tableName);
-
-  //     if (!data) {
-  //       throw new Error(`${this.name}: no data received`);
-  //     }
-
-  //     return transformer ? transformer(data) : (data as TemplateData);
-  //   } catch (e) {
-  //     return { error: e instanceof Error ? e.message : (e as string) };
-  //   }
-  // }
 
   async render(
     viewType: SupportedViewType,
@@ -298,187 +268,6 @@ class CallbackBase<
       ? this.resolveLayoutTemplate(layout)
       : this.template;
 
-    // Always include head/footer wrapper (layout is no longer passed from stateMachine)
-    const includeWrapper = true;
-
-    // For image viewTypes with a layout, render callback as HTML first,
-    // wrap in layout template, then convert to image
-    if (isSupportedImageViewType(viewType) && layout) {
-      try {
-        // First render the callback content as HTML
-        const callbackHtml = await this.#renderAsHTML({
-          data,
-          runtimeConfig: runtimeConfig as ExpectedConfig,
-          templateToUse,
-          includeWrapper: false, // Don't include wrapper for callback content
-        });
-
-        // Then wrap in the layout template
-        const { Liquid } = await import("liquidjs");
-        const fs = await import("node:fs/promises");
-        const path = await import("node:path");
-
-        const layoutPath = path.join(
-          PROJECT_ROOT,
-          `views/layouts/${layout}.liquid`,
-        );
-        const layoutTemplate = await fs.readFile(layoutPath, "utf-8");
-
-        const engine = new Liquid({
-          root: path.join(PROJECT_ROOT, "views/layouts"),
-          partials: path.join(PROJECT_ROOT, "views/partials"),
-          extname: ".liquid",
-        });
-
-        const finalHtml = await engine.parseAndRender(layoutTemplate, {
-          content: callbackHtml,
-        });
-
-        // Now render the final HTML to image
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 8);
-        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
-        const screenshotPath = getImagesPath(fileName);
-
-        // Write the HTML to a temp file to pass to getScreenshot
-        const os = await import("node:os");
-        const tmpHtmlPath = path.join(
-          os.tmpdir(),
-          `callback-${timestamp}-${random}.html`,
-        );
-        await fs.writeFile(tmpHtmlPath, finalHtml, "utf-8");
-
-        try {
-          const screenshot = await getScreenshot({
-            template: tmpHtmlPath,
-            data: {}, // Data already rendered in HTML
-            runtimeConfig: runtimeConfig as ExpectedConfig,
-            imagePath: screenshotPath,
-            viewType,
-            size: this.screenshotSize,
-            includeWrapper: false, // HTML already complete
-          });
-
-          const rendererType = getBrowserRendererType();
-          const fileNameOnly = path.basename(screenshotPath);
-
-          this.logger.info(
-            {
-              imagePath: screenshotPath,
-              fileName: fileNameOnly,
-              rendererType,
-              width: this.screenshotSize.width,
-              height: this.screenshotSize.height,
-              viewType,
-              clientName: this.name,
-              layout,
-            },
-            `Saved callback image with layout: ${fileNameOnly}`,
-          );
-
-          cleanupOldImages();
-
-          return {
-            viewType,
-            imagePath: screenshot.path,
-          };
-        } finally {
-          // Clean up temp HTML file
-          try {
-            await fs.unlink(tmpHtmlPath);
-          } catch (e) {
-            this.logger.debug({ err: e }, "Failed to remove temp HTML file");
-          }
-        }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.error(
-          { error, callback: this.name, layout },
-          "Failed to render callback with layout as image",
-        );
-        return {
-          viewType: "error",
-          error: errorMessage,
-        };
-      }
-    }
-
-    if (isSupportedImageViewType(viewType)) {
-      try {
-        if (this.cacheable && templateOverride !== "error") {
-          const newDataCache = objectHash(data);
-          const screenshotPath = getImagesPath(
-            `${this.name}-${newDataCache}.${viewType}`,
-          );
-          if (newDataCache === this.oldDataCache) {
-            return {
-              viewType,
-              imagePath: screenshotPath,
-            };
-          }
-
-          this.oldDataCache = newDataCache;
-          return {
-            viewType,
-            imagePath: await this.#renderAsImage({
-              viewType,
-              data,
-              runtimeConfig: runtimeConfig as ExpectedConfig,
-              imagePath: screenshotPath,
-              templateOverride,
-              templateToUse,
-              includeWrapper,
-              clientName: this.name,
-            }),
-          };
-        }
-
-        // const screenshotPath = getImagesPath(`image.${viewType}`);
-
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 8);
-        const fileName = `${this.name}-${viewType}-${timestamp}-${random}.${viewType}`;
-        const screenshotPath = getImagesPath(fileName);
-        return {
-          viewType,
-          imagePath: await this.#renderAsImage({
-            viewType,
-            data,
-            runtimeConfig: runtimeConfig as ExpectedConfig,
-            imagePath: screenshotPath,
-            templateOverride,
-            templateToUse,
-            includeWrapper,
-            clientName: this.name,
-          }),
-        };
-
-        // return {
-        //   viewType,
-        //   imagePath: await this.#renderAsImage({
-        //     viewType,
-        //     data,
-        //     runtimeConfig: runtimeConfig as ExpectedConfig,
-        //     imagePath: screenshotPath,
-        //     templateOverride,
-        //     clientName: this.name,
-        //   }),
-        // };
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.error(
-          { error, callback: this.name },
-          "Browser rendering failed",
-        );
-        return {
-          viewType: "error",
-          error: errorMessage,
-        };
-      }
-    }
-
     if (viewType === "html") {
       // TODO should also implement a caching strategy?
       return {
@@ -488,66 +277,11 @@ class CallbackBase<
           template: templateOverride,
           runtimeConfig: runtimeConfig as ExpectedConfig,
           templateToUse,
-          includeWrapper,
         }),
       };
     }
 
-    return { viewType, json: data };
-  }
-
-  async #renderAsImage<T extends TemplateData>({
-    viewType,
-    data,
-    runtimeConfig,
-    imagePath,
-    templateOverride,
-    templateToUse,
-    includeWrapper = true,
-    clientName,
-  }: {
-    viewType: SupportedImageViewType;
-    data: T;
-    runtimeConfig: ExpectedConfig;
-    imagePath: string;
-    templateOverride?: string;
-    templateToUse?: string;
-    includeWrapper?: boolean;
-    clientName: string;
-  }): Promise<string> {
-    const screenshot = await getScreenshot<T>({
-      data,
-      runtimeConfig,
-      template: templateOverride
-        ? templateOverride
-        : templateToUse || this.template,
-      size: this.screenshotSize,
-      imagePath,
-      viewType,
-      includeWrapper,
-    });
-
-    const rendererType = getBrowserRendererType();
-    const fileName = path.basename(imagePath);
-
-    // Log image save details
-    this.logger.info(
-      {
-        imagePath,
-        fileName,
-        rendererType,
-        width: this.screenshotSize.width,
-        height: this.screenshotSize.height,
-        viewType,
-        clientName,
-      },
-      `Saved callback image: ${fileName}`,
-    );
-
-    // Cleanup old images if limit exceeded
-    cleanupOldImages();
-
-    return screenshot.path;
+    return { viewType: "json", json: data as object };
   }
 
   async #renderAsHTML({
@@ -555,7 +289,6 @@ class CallbackBase<
     template,
     runtimeConfig,
     templateToUse,
-    includeWrapper = true,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
@@ -563,12 +296,10 @@ class CallbackBase<
     templateToUse?: string;
     includeWrapper?: boolean;
   }) {
-    return getRenderedTemplate({
-      template: template ? template : templateToUse || this.template,
-      data,
-      runtimeConfig,
-      includeWrapper,
-    });
+    return renderLiquidFile(
+      template ? template : templateToUse || this.template,
+      { data, runtimeConfig },
+    );
   }
 
   #buildRuntimeConfig(options?: unknown) {
