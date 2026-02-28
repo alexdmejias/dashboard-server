@@ -196,13 +196,8 @@ async function createClientFromPlaylist(
           callback.options,
         );
 
-        // Create unique ID: playlistItemId-slotName
-        // Use slot name instead of index for clarity
-        // const uniqueId = `${playlistItem.id}-${slotName}`;
-
         validCallbacks.push({
           instance: ins,
-          // id: uniqueId,
           name: callbackDef.name,
           expectedConfig: callbackDef.expectedConfig,
         });

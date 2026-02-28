@@ -67,7 +67,6 @@ export type Playlist = PlaylistItem[];
 
 export type ValidCallback = {
   instance: CallbackBase;
-  id: string;
   name: string;
   expectedConfig?: z.ZodObject<any>;
 };

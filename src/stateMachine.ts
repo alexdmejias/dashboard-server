@@ -1,6 +1,4 @@
-import fs from "node:fs";
 import path from "node:path";
-import { Liquid } from "liquidjs";
 import type CallbackBase from "./base-callbacks/base";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
@@ -10,9 +8,7 @@ import type {
   SupportedViewType,
   ValidCallback,
 } from "./types";
-import getRenderedTemplate, {
-  renderLiquidFile,
-} from "./utils/getRenderedTemplate";
+import { renderLiquidFile } from "./utils/getRenderedTemplate";
 import { getScreenshotWithoutFetching } from "./utils/getScreenshot";
 import { cleanupOldImages, getImagesPath } from "./utils/imagesPath";
 import { isSupportedImageViewType } from "./utils/isSupportedViewTypes";
@@ -78,7 +74,7 @@ class StateMachine {
         name: cb.name,
         instance: cb.instance,
       };
-      logger.info(`added callback ${cb.name} with key: ${cb.id}`);
+      logger.info(`added callback ${cb.name}`);
     }
   }
 
@@ -118,17 +114,6 @@ class StateMachine {
     return this.renderPlaylistItem(playlistItem, viewType);
   }
 
-  async formLayoutContents(
-    layoutName: string,
-    layoutContents: Record<string, string>,
-  ) {
-    const layoutPath = path.join(
-      PROJECT_ROOT,
-      `views/layouts/${layoutName}.liquid`,
-    );
-    return renderLiquidFile(layoutPath, layoutContents);
-  }
-
   resolveLayoutForCallback(parentLayout: string, childSlotName: string) {
     if (parentLayout === "full") {
       if (childSlotName === "content") {
@@ -148,8 +133,6 @@ class StateMachine {
   ): Promise<RenderResponse> {
     const layoutSlotsOutputs: Record<string, string> = {};
     for (const [layoutSlotName, cb] of Object.entries(playlistItem.callbacks)) {
-      console.log("alexalex ++++++++", { layoutSlotName, cb });
-
       if (this.hasCallback(cb.name)) {
         const instance = this.getCallbackInstance(cb.name);
 
@@ -169,14 +152,11 @@ class StateMachine {
       }
     }
 
-    console.log("alexalex @@@@@@@@", { layoutSlotsOutputs });
     const layoutPath = path.join(
       PROJECT_ROOT,
       `views/layouts/${playlistItem.layout}.liquid`,
     );
     const contents = await renderLiquidFile(layoutPath, layoutSlotsOutputs);
-
-    console.log("alexalex to be returned", { contents });
 
     if (viewType === "html") {
       return {
@@ -210,7 +190,7 @@ class StateMachine {
       };
     }
 
-    // todo return json
+    throw new Error(`Unsupported viewType: ${viewType}`);
   }
 
   async tick(viewType: SupportedViewType): Promise<RenderResponse> {

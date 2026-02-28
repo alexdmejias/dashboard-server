@@ -1,8 +1,4 @@
-// import * as Sentry from "@sentry/node";
-// import "./instrument";
-
 import fs from "node:fs/promises";
-import os from "node:os";
 import path, { resolve } from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
@@ -16,13 +12,7 @@ import type {
   SupportedViewType,
 } from "./types";
 import { getBrowserRendererType } from "./utils/getBrowserRendererType";
-import getRenderedTemplate from "./utils/getRenderedTemplate";
-import getScreenshot from "./utils/getScreenshot";
-import {
-  cleanupOldImages,
-  clearImagesOnStartup,
-  getImagesPath,
-} from "./utils/imagesPath";
+import { clearImagesOnStartup } from "./utils/imagesPath";
 import {
   isSupportedImageViewType,
   isSupportedViewType,
@@ -50,12 +40,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   const app = fastify({
     loggerInstance: logger,
   });
-
-  if (process.env.SENTRY_DSN && process.env.NODE_ENV === "production") {
-    // Sentry.setupFastifyErrorHandler(app);
-  }
-
-  // const messageHandler = new CallbackMessage();
 
   app.register(clientsPlugin, { possibleCallbacks });
 
@@ -295,98 +279,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     return getResponseFromData(res, data);
   });
 
-  // app.post<{
-  //   Body: {
-  //     template: string;
-  //     templateData?: Record<string, unknown>;
-  //     screenDetails: {
-  //       width: number;
-  //       height: number;
-  //       bits?: number;
-  //       output: "html" | "png" | "bmp";
-  //     };
-  //   };
-  // }>("/test-template", async (req, res) => {
-  //   const { template, templateData = {}, screenDetails } = req.body;
-
-  //   if (!template || !screenDetails) {
-  //     return res.code(400).send({ error: "invalid request body" });
-  //   }
-
-  //   try {
-  //     // write the provided template body to a temporary template file.
-  //     // We write only the body; getRenderedTemplate will compose head/footer
-  //     // when given a template path.
-  //     const tmpName = `dashboard-template-${Date.now()}-${Math.floor(
-  //       Math.random() * 1e9,
-  //     )}.liquid`;
-  //     const tmpPath = resolve(os.tmpdir(), tmpName);
-  //     await fs.writeFile(tmpPath, template, "utf-8");
-
-  //     try {
-  //       if (screenDetails.output === "html") {
-  //         const renderedHtml = await getRenderedTemplate({
-  //           template: tmpPath,
-  //           data: templateData,
-  //           runtimeConfig: screenDetails,
-  //         });
-
-  //         return res.type("text/html").send(renderedHtml);
-  //       }
-
-  //       // image output (png or bmp) — use shared getScreenshot utility
-  //       const extOut = screenDetails.output === "bmp" ? "bmp" : "png";
-  //       const rendererType = getBrowserRendererType();
-  //       const timestamp = Date.now();
-  //       const random = Math.random().toString(36).substring(2, 8);
-  //       const fileName = `template-test-${template}-${timestamp}-${random}.${extOut}`;
-  //       const imagePath = getImagesPath(fileName);
-
-  //       const width = screenDetails.width ?? 1200;
-  //       const height = screenDetails.height ?? 825;
-
-  //       const { buffer } = await getScreenshot({
-  //         template: tmpPath,
-  //         data: templateData,
-  //         runtimeConfig: screenDetails,
-  //         imagePath,
-  //         viewType: extOut,
-  //         size: { width, height },
-  //       });
-
-  //       // Log image save details
-  //       app.log.info(
-  //         {
-  //           imagePath,
-  //           fileName,
-  //           rendererType,
-  //           width,
-  //           height,
-  //           viewType: extOut,
-  //           template,
-  //         },
-  //         `Saved test template image: ${fileName}`,
-  //       );
-
-  //       // Cleanup old images if limit exceeded
-  //       cleanupOldImages();
-
-  //       const contentType = extOut === "bmp" ? "image/bmp" : "image/png";
-  //       return res.type(contentType).send(buffer);
-  //     } finally {
-  //       // best-effort cleanup of the temp template
-  //       try {
-  //         await fs.unlink(tmpPath);
-  //       } catch (e) {
-  //         app.log.debug({ err: e }, "failed to remove temp template file");
-  //       }
-  //     }
-  //   } catch (err) {
-  //     app.log.error(err);
-  //     return res.internalServerError("Error rendering template");
-  //   }
-  // });
-
   // SSE endpoint for streaming client updates
   app.get("/api/clients/stream", async (req, res) => {
     res.raw.writeHead(200, {
@@ -507,123 +399,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     });
   });
 
-  // type TestParams = {
-  //   name: string;
-  //   viewType: SupportedViewTypes;
-  // };
-
-  // app.get<{
-  //   Params: TestParams;
-  //   Querystring: Record<string, string | undefined>;
-  // }>("/test/:name/:viewType?", async (req, res) => {
-  //   const { name, viewType = "json" } = req.params;
-  //   const { message = "" } = req.query;
-
-  //   let callback: CallbackBase | undefined;
-
-  //   if (app.stateMachine.hasCallback(name)) {
-  //     callback = app.stateMachine.getCallbackInstance(name);
-  //   } else if (name === "message") {
-  //     messageHandler.setMessage(
-  //       message ||
-  //         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor. Mauris pellentesque pulvinar pellentesque habitant morbi tristique senectus et."
-  //     );
-
-  //     callback = messageHandler;
-  //   }
-
-  //   if (!callback) {
-  //     const errorMessage = `"${name}" callback has not been added to the test route, available callbacks are ${Object.keys(
-  //       app.stateMachine.callbacks
-  //     )}`;
-
-  //     const output = await app.stateMachine.renderError(errorMessage, viewType);
-  //     if (viewType === "html") {
-  //       return fs.readFile(output as string);
-  //     } else if (viewType === "png") {
-  //       return res.type("image/png").send(await fs.readFile(output as string));
-  //     } else {
-  //       return res.send(errorMessage);
-  //     }
-  //   }
-
-  //   const renderResult = await callback.render(viewType);
-
-  //   if (viewType === "png" && typeof renderResult === "string") {
-  //     return res.type("image/png").send(await fs.readFile(renderResult));
-  //   } else if (viewType === "html") {
-  //     return res.type("text/html").send(renderResult);
-  //   } else {
-  //     return res.send(renderResult);
-  //   }
-  // });
-
-  // app.get("/api/clients", (req, res) => {
-  //   res.send({
-  //     data: {
-  //       clients: Object.keys(app.clients),
-  //     },
-  //   });
-  // });
-
-  // // app.post<{ Body: Config["rotation"] }>("/set-rotation", (req, res) => {
-  // //   try {
-  // //     app.stateMachine.setRotation(req.body);
-
-  // //     return res.send({
-  // //       status: "ok",
-  // //       body: req.body,
-  // //       machineState: app.stateMachine.getConfig(),
-  // //     });
-  // //   } catch (e) {
-  // //     return res.code(500).send(e);
-  // //   }
-  // // });
-
-  // // type ConfigBody = Config;
-
-  // // app.post<{ Body: ConfigBody }>("/config", (req, res) => {
-  // //   const { status } = req.body;
-
-  // //   if (!status) {
-  // //     return res.send(req.body);
-  // //   }
-
-  // //   if (status === "message") {
-  // //     if (!req.body.message) {
-  // //       return res.code(400).send({
-  // //         status: "error",
-  // //         message: "invalid message body param",
-  // //         machineState: app.stateMachine.getConfig(),
-  // //       });
-  // //     }
-  // //     app.stateMachine.setMessage(req.body.message);
-  // //     messageHandler.setMessage(req.body.message);
-  // //   } else if (status === "play") {
-  // //     app.stateMachine.setState("play");
-  // //   } else {
-  // //     return res.send({
-  // //       status: "error",
-  // //       message: "unknown command",
-  // //       machineState: app.stateMachine.getConfig(),
-  // //     });
-  // //   }
-
-  // //   return res.send({ status: "ok", machineState: app.stateMachine.getConfig() });
-  // // });
-
-  // // type RemoveItemBody = {
-  // //   type: SupportedDBCallbacks;
-  // //   id: string;
-  // // };
-
-  // // app.post<{ Body: RemoveItemBody }>("/remove", async (req, res) => {
-  // //   const { type, id } = req.body;
-  // //   await app.db.deleteItem(type, id);
-
-  // //   return res.status(200).send("ok");
-  // // });
-
   app.setNotFoundHandler(async (req, res) => {
     // Check if this is an API route that doesn't exist
     if (req.url.startsWith("/api/")) {
@@ -679,21 +454,6 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
   });
 
   app.setErrorHandler((error, _request, reply) => {
-    // TODO temp disabling because errorCodes is undefined in raspberry
-    // if (error instanceof errorCodes.FST_ERR_NOT_FOUND) {
-    //   // Log error
-    //   this.log.error(error);
-    //   // Send error response
-    //   reply.status(404).send({ ok: false });
-    // } else {
-    //   // fastify will use parent error handler to handle this
-    //   Sentry.captureException(error);
-    //   reply.send(error);
-    // }
-    if (process.env.NODE_ENV === "production") {
-      // Sentry.captureException(error);
-    }
-
     app.log.error(error);
 
     reply.send({

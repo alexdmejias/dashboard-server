@@ -2,11 +2,9 @@ import { readFile } from "node:fs/promises";
 import { Jimp } from "jimp";
 import type { BrowserRenderer } from "../types/browser-renderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
-import getRenderedTemplate from "./getRenderedTemplate";
-import getScreenshot from "./getScreenshot";
+import { getScreenshotWithoutFetching } from "./getScreenshot";
 
 jest.mock("jimp");
-jest.mock("./getRenderedTemplate");
 jest.mock("node:fs/promises");
 jest.mock("./browserRendererFactory");
 
@@ -19,8 +17,6 @@ describe("utils:getScreenshot", () => {
     (createBrowserRenderer as jest.Mock).mockReturnValue({
       renderPage: mockRenderPage,
     } as BrowserRenderer);
-
-    (getRenderedTemplate as jest.Mock).mockReturnValue("<html></html>");
   });
 
   it("should generate a screenshot and return the path and buffer", async () => {
@@ -31,20 +27,15 @@ describe("utils:getScreenshot", () => {
     });
 
     const options = {
-      template: "testTemplate",
-      data: { key: "value" },
+      htmlContent: "<html></html>",
       imagePath: "/path/to/image.png",
       viewType: "png",
       size: { width: 800, height: 600 },
     };
-    const result = await getScreenshot(options);
+    const result = await getScreenshotWithoutFetching(options);
 
-    expect(getRenderedTemplate).toHaveBeenCalledWith({
-      template: options.template,
-      data: options.data,
-    });
     expect(mockRenderPage).toHaveBeenCalledWith({
-      htmlContent: "<html></html>",
+      htmlContent: options.htmlContent,
       imagePath: options.imagePath,
       size: options.size,
     });
@@ -77,13 +68,12 @@ describe("utils:getScreenshot", () => {
     });
 
     const options = {
-      template: "testTemplate",
-      data: { key: "value" },
+      htmlContent: "<html></html>",
       imagePath: "/path/to/image.bmp",
       viewType: "bmp",
       size: { width: 800, height: 600 },
     };
-    const result = await getScreenshot(options);
+    const result = await getScreenshotWithoutFetching(options);
 
     expect(readFile).toHaveBeenCalledWith(options.imagePath);
     expect(Jimp.read).toHaveBeenCalledWith(
@@ -102,9 +92,8 @@ describe("utils:getScreenshot", () => {
       buffer: Buffer.from("mocked screenshot buffer"),
     });
 
-    await getScreenshot({
-      template: "testTemplate",
-      data: { key: "value" },
+    await getScreenshotWithoutFetching({
+      htmlContent: "<html></html>",
       imagePath: "/path/to/image.png",
       viewType: "png",
     });
@@ -112,7 +101,7 @@ describe("utils:getScreenshot", () => {
     expect(mockRenderPage).toHaveBeenCalledWith({
       htmlContent: "<html></html>",
       imagePath: "/path/to/image.png",
-      size: { width: 1200, height: 825 },
+      size: undefined,
     });
   });
 
@@ -122,12 +111,13 @@ describe("utils:getScreenshot", () => {
     mockRenderPage.mockRejectedValue(new Error(errorMessage));
 
     const options = {
-      template: "testTemplate",
-      data: { key: "value" },
+      htmlContent: "<html></html>",
       imagePath: "/path/to/image.png",
       viewType: "png",
     };
 
-    await expect(getScreenshot(options)).rejects.toThrow(errorMessage);
+    await expect(getScreenshotWithoutFetching(options)).rejects.toThrow(
+      errorMessage,
+    );
   });
 });
