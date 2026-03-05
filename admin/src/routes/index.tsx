@@ -1,6 +1,6 @@
+import { A } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import { Show } from "solid-js";
-import { A } from "@solidjs/router";
 import { ClientsList } from "../components/ClientsList";
 import { fetchClients } from "../lib/api";
 import { createSSEConnection } from "../lib/sse";
@@ -28,8 +28,8 @@ export default function Home() {
           <a class="btn btn-ghost text-xl">Dashboard Server Admin</a>
         </div>
         <div class="flex-none gap-2">
-          <A href="/logs" class="btn btn-outline btn-sm">
-            View Server Logs
+          <A href="/raw-logs" class="btn btn-outline btn-sm">
+            Raw Logs
           </A>
           <div class="badge badge-lg">
             <Show
@@ -54,7 +54,7 @@ export default function Home() {
         </Show>
         <Show when={clientsQuery.isLoading}>
           <div class="flex justify-center items-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
+            <span class="loading loading-spinner loading-lg" />
           </div>
         </Show>
         <ClientsList data={data()} />

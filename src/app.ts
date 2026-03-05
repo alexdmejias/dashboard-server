@@ -118,16 +118,15 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
 
-    // Log the request
-    app.logClientRequest(
-      clientName,
-      "POST",
-      `/register/${clientName}`,
-      "incoming",
-      undefined,
-      undefined,
-      req.id,
-      req.headers as Record<string, string | string[]>,
+    app.log.info(
+      {
+        clientName,
+        method: "POST",
+        url: `/register/${clientName}`,
+        direction: "incoming",
+        headers: req.headers,
+      },
+      "incoming request",
     );
 
     if (!client) {
@@ -135,23 +134,14 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
       if ("error" in clientRes) {
         app.log.error(
-          { error: clientRes.error },
+          { clientName, error: clientRes.error },
           `error registering client: ${clientName}`,
         );
-        const msg = `Error registering client: ${clientRes.error}`;
-        app.logClientActivity(clientName, "error", msg, req.id);
-        app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
         return res.internalServerError(
           `Error registering client "${clientName}": ${clientRes.error}`,
         );
       }
-      app.log.info(`created new client: ${clientName}`, clientRes);
-      app.logClientActivity(
-        clientName,
-        "info",
-        "Client registered successfully",
-        req.id,
-      );
+      app.log.info({ clientName }, `created new client: ${clientName}`);
       return {
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
@@ -159,10 +149,8 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       };
     }
 
-    app.log.info(`client already exists: ${clientName}`);
+    app.log.warn({ clientName }, `client already exists: ${clientName}`);
     const dupMsg = serverMessages.duplicateClientName(clientName);
-    app.logClientActivity(clientName, "warn", "Client already exists", req.id);
-    app.logServerActivity("warn", `[${clientName}] ${dupMsg}`, req.id);
     return res.internalServerError(dupMsg);
   });
 
@@ -176,28 +164,20 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     const startTime = Date.now();
     const { clientName, viewType, callback = "next" } = req.params;
 
-    // Log the incoming request
-    app.logClientRequest(
-      clientName,
-      "GET",
-      `/display/${clientName}/${viewType}/${callback}`,
-      "incoming",
-      undefined,
-      undefined,
-      req.id,
-      req.headers as Record<string, string | string[]>,
+    app.log.info(
+      {
+        clientName,
+        method: "GET",
+        url: `/display/${clientName}/${viewType}/${callback}`,
+        direction: "incoming",
+        headers: req.headers,
+      },
+      "incoming request",
     );
 
     if (!isSupportedViewType(viewType)) {
-      app.log.error(`viewType not supported: ${viewType}`);
+      app.log.error({ clientName }, `viewType not supported: ${viewType}`);
       const msg = serverMessages.viewTypeNotSupported(viewType);
-      app.logClientActivity(
-        clientName,
-        "error",
-        `Unsupported viewType: ${viewType}`,
-        req.id,
-      );
-      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.internalServerError(msg);
     }
 
@@ -207,20 +187,12 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
     if (!client) {
-      app.log.error("client not found");
+      app.log.error({ clientName }, "client not found");
       const msg = serverMessages.clientNotFound(clientName);
-      app.logClientActivity(clientName, "error", "Client not found", req.id);
-      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.notFound(msg);
     }
 
-    app.log.info(`retrieved existing client: ${clientName}`);
-    app.logClientActivity(
-      clientName,
-      "info",
-      `Displaying ${callback} as ${viewTypeToUse}`,
-      req.id,
-    );
+    app.log.info({ clientName }, `retrieved existing client: ${clientName}`);
 
     let data: RenderResponse;
     try {
@@ -242,38 +214,40 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       app.log.error(
-        { error, clientName, viewType: viewTypeToUse },
+        { clientName, error, viewType: viewTypeToUse },
         "Error rendering callback",
       );
-      const msg = `Failed to render: ${errorMessage}`;
-      app.logClientActivity(clientName, "error", msg, req.id);
-      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
-      return res.internalServerError(msg);
+      return res.internalServerError(`Failed to render: ${errorMessage}`);
     }
 
     const rendererType =
       viewTypeToUse === "html" ? undefined : getBrowserRendererType();
 
-    app.log.info({ viewType: viewTypeToUse, rendererType }, "rendering");
+    app.log.info(
+      { clientName, viewType: viewTypeToUse, rendererType },
+      "rendering",
+    );
 
     if (data.viewType === "error") {
-      app.logClientActivity(clientName, "error", data.error, req.id);
-      app.logServerActivity("error", `[${clientName}] ${data.error}`, req.id);
+      app.log.error({ clientName }, data.error);
     }
 
     const responseTime = Date.now() - startTime;
-    app.logClientRequest(
-      clientName,
-      "GET",
-      `/display/${clientName}/${viewType}/${callback}`,
-      "outgoing",
-      data.viewType === "error" ? 500 : 200,
-      responseTime,
-      req.id,
-      req.headers as Record<string, string | string[]>,
+    const imageFileName =
       isSupportedImageViewType(data.viewType) && "imagePath" in data
         ? path.basename(data.imagePath)
-        : undefined,
+        : undefined;
+    app.log.info(
+      {
+        clientName,
+        method: "GET",
+        url: `/display/${clientName}/${viewType}/${callback}`,
+        direction: "outgoing",
+        statusCode: data.viewType === "error" ? 500 : 200,
+        responseTime,
+        imageFileName,
+      },
+      "outgoing response",
     );
 
     return getResponseFromData(res, data);
@@ -349,34 +323,28 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
 
     const client = app.getClient(clientName);
     if (!client) {
-      app.log.error(`client not found: ${clientName}`);
+      app.log.error({ clientName }, `client not found: ${clientName}`);
       const msg = serverMessages.clientNotFound(clientName);
-      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.notFound(msg);
     }
 
-    // Log the update request
-    app.logClientRequest(
-      clientName,
-      "PUT",
-      `/api/clients/${clientName}/playlist`,
-      "incoming",
-      undefined,
-      undefined,
-      req.id,
-      req.headers as Record<string, string | string[]>,
+    app.log.info(
+      {
+        clientName,
+        method: "PUT",
+        url: `/api/clients/${clientName}/playlist`,
+        direction: "incoming",
+      },
+      "incoming request",
     );
 
     const clientRes = await app.updateClientPlaylist(clientName, playlist);
 
     if ("error" in clientRes) {
       app.log.error(
-        { error: clientRes.error },
+        { clientName, error: clientRes.error },
         `error updating playlist for client: ${clientName}`,
       );
-      const msg = `Error updating playlist: ${clientRes.error}`;
-      app.logClientActivity(clientName, "error", msg, req.id);
-      app.logServerActivity("error", `[${clientName}] ${msg}`, req.id);
       return res.code(400).send({
         error: "Bad Request",
         message: clientRes.error,
@@ -384,13 +352,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       });
     }
 
-    app.log.info(`updated playlist for client: ${clientName}`);
-    app.logClientActivity(
-      clientName,
-      "info",
-      "Playlist updated successfully",
-      req.id,
-    );
+    app.log.info({ clientName }, `updated playlist for client: ${clientName}`);
 
     return res.send({
       statusCode: 200,
