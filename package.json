@@ -9,7 +9,7 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:admin\"",
     "dev:server": "tsx --watch src --ignore 'src/**/*.test.ts, admin/' src/index.ts",
-    "dev:admin": "cd admin && npm install --silent && npm run dev",
+    "dev:admin": "cd admin && npm install --silent && npm run dev:watch",
     "build": "npm run build:clean && npm run build:compile && npm run build:copy",
     "build:clean": "rm -rf dist",
     "build:compile": "tsc",

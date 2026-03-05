@@ -6,11 +6,11 @@ function getAuthHeaders(): HeadersInit {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
-  
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  
+
   return headers;
 }
 
@@ -34,26 +34,6 @@ export async function fetchClientDetail(clientName: string) {
   return response.json();
 }
 
-export async function fetchClientLogs(clientName: string) {
-  const response = await fetch(`/api/clients/${clientName}/logs`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    return { logs: [] };
-  }
-  return response.json();
-}
-
-export async function fetchClientRequests(clientName: string) {
-  const response = await fetch(`/api/clients/${clientName}/requests`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    return { requests: [] };
-  }
-  return response.json();
-}
-
 export async function fetchAvailableCallbacks() {
   const response = await fetch("/api/callbacks", {
     headers: getAuthHeaders(),
@@ -66,7 +46,7 @@ export async function fetchAvailableCallbacks() {
 
 export async function updateClientPlaylist(
   clientName: string,
-  playlist: PlaylistItem[]
+  playlist: PlaylistItem[],
 ) {
   const response = await fetch(`/api/clients/${clientName}/playlist`, {
     method: "PUT",
@@ -80,12 +60,12 @@ export async function updateClientPlaylist(
   return response.json();
 }
 
-export async function fetchServerLogs() {
-  const response = await fetch("/api/admin/logs", {
+export async function fetchRawLogs(): Promise<{ lines: string[] }> {
+  const response = await fetch("/api/admin/raw-logs", {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
-    return { logs: [] };
+    return { lines: [] };
   }
   return response.json();
 }
