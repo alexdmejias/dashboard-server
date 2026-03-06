@@ -101,7 +101,7 @@ describe("ServiceRotator", () => {
 
   it("should fallback to next service when one fails", async () => {
     const failingRenderer: BrowserRenderer = {
-      renderPage: jest
+      renderPage: vi
         .fn()
         .mockRejectedValue(new Error("Service unavailable")),
     };
