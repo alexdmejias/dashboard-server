@@ -3,14 +3,17 @@ import {
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { fetchAvailableCallbacks, updateClientPlaylist } from "../lib/api";
 import type { PlaylistItem, SupportedLayout } from "../types";
+import { MonacoEditor } from "./MonacoEditor";
+import playlistSchema from "../../../init-payload.schema.json";
 
 interface AvailableCallback {
   id: string;
   name: string;
   expectedConfig?: any;
+  defaultOptions?: object;
 }
 
 // Shared utility function for parsing JSON options
@@ -45,6 +48,9 @@ export function PlaylistEditor(props: {
   });
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal(false);
+  const [rawMode, setRawMode] = createSignal(false);
+  const [rawJson, setRawJson] = createSignal("");
+  const [rawError, setRawError] = createSignal<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -73,6 +79,28 @@ export function PlaylistEditor(props: {
   const handleSave = () => {
     setError(null);
     updateMutation.mutate(playlist());
+  };
+
+  const handleEnterRawMode = () => {
+    setRawJson(JSON.stringify(playlist(), null, 2));
+    setRawError(null);
+    setRawMode(true);
+  };
+
+  const handleApplyRaw = () => {
+    try {
+      const parsed = JSON.parse(rawJson());
+      setPlaylist(parsed);
+      setRawMode(false);
+      setRawError(null);
+    } catch (e) {
+      setRawError(e instanceof Error ? e.message : "Invalid JSON");
+    }
+  };
+
+  const handleDiscardRaw = () => {
+    setRawMode(false);
+    setRawError(null);
   };
 
   const handleAddCallback = () => {
@@ -160,7 +188,15 @@ export function PlaylistEditor(props: {
   return (
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h2 class="card-title">Playlist Editor</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="card-title">Playlist Editor</h2>
+          <button
+            onClick={() => (rawMode() ? handleDiscardRaw() : handleEnterRawMode())}
+            class={`btn btn-sm ${rawMode() ? "btn-ghost" : "btn-outline"}`}
+          >
+            {rawMode() ? "← Structured View" : "{ } Raw JSON"}
+          </button>
+        </div>
 
         <Show when={error()}>
           <div class="alert alert-error">
@@ -200,101 +236,143 @@ export function PlaylistEditor(props: {
           </div>
         </Show>
 
-        {/* Playlist Items */}
-        <div class="space-y-4">
-          <For each={playlist()}>
-            {(item, index) => (
-              <Show
-                when={editingIndex() === index()}
-                fallback={
-                  <div class="flex items-center gap-2 p-4 border border-base-300 rounded-lg">
-                    <div class="flex-1">
-                      <div class="font-bold">{item.id}</div>
-                      <div class="text-sm text-gray-500">
-                        Layout: {item.layout}
-                      </div>
-                      <div class="text-xs font-mono mt-1">
-                        Callbacks: {Object.values(item.callbacks).map((cb) => cb.name).join(", ")}
-                      </div>
-                    </div>
-                    <div class="flex gap-1">
-                      <button
-                        onClick={() => handleMoveUp(index())}
-                        class="btn btn-sm btn-ghost"
-                        disabled={index() === 0}
-                        title="Move up"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        onClick={() => handleMoveDown(index())}
-                        class="btn btn-sm btn-ghost"
-                        disabled={index() === playlist().length - 1}
-                        title="Move down"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() => handleEdit(index())}
-                        class="btn btn-sm btn-primary"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleRemove(index())}
-                        class="btn btn-sm btn-error"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                }
-              >
-                <EditablePlaylistItem
-                  item={item}
-                  availableCallbacks={callbacksQuery.data?.callbacks || []}
-                  onSave={(updatedItem) => handleSaveEdit(index(), updatedItem)}
-                  onCancel={handleCancelEdit}
-                />
-              </Show>
-            )}
-          </For>
-        </div>
+        {/* Raw JSON editor mode */}
+        <Show when={rawMode()}>
+          <div class="space-y-3">
+            <p class="text-sm text-base-content/60">
+              Edit the full playlist config as JSON. Monaco provides schema-based validation and autocomplete.
+            </p>
+            <MonacoEditor
+              value={rawJson()}
+              onChange={setRawJson}
+              schema={playlistSchema}
+              height="500px"
+            />
+            <Show when={rawError()}>
+              <div class="alert alert-error">
+                <span class="font-mono text-sm">{rawError()}</span>
+              </div>
+            </Show>
+            <div class="flex gap-2">
+              <button onClick={handleApplyRaw} class="btn btn-primary">
+                Apply Changes
+              </button>
+              <button onClick={handleDiscardRaw} class="btn btn-ghost">
+                Discard
+              </button>
+            </div>
+          </div>
+        </Show>
 
-        {/* Add New Item */}
-        <Show when={!isAddingNew()}>
+        {/* Structured editor mode */}
+        <Show when={!rawMode()}>
+          {/* Playlist Items */}
+          <div class="space-y-4">
+            <For each={playlist()}>
+              {(item, index) => (
+                <Show
+                  when={editingIndex() === index()}
+                  fallback={
+                    <div class="flex items-center gap-2 p-4 border border-base-300 rounded-lg">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold">{item.id}</span>
+                          <a
+                            href={`/display/${props.clientName}/html/${item.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-xs btn-ghost"
+                            title="Preview in new tab"
+                          >
+                            ↗
+                          </a>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                          Layout: {item.layout}
+                        </div>
+                        <div class="text-xs font-mono mt-1">
+                          Callbacks: {Object.values(item.callbacks).map((cb) => cb.name).join(", ")}
+                        </div>
+                      </div>
+                      <div class="flex gap-1">
+                        <button
+                          onClick={() => handleMoveUp(index())}
+                          class="btn btn-sm btn-ghost"
+                          disabled={index() === 0}
+                          title="Move up"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={() => handleMoveDown(index())}
+                          class="btn btn-sm btn-ghost"
+                          disabled={index() === playlist().length - 1}
+                          title="Move down"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          onClick={() => handleEdit(index())}
+                          class="btn btn-sm btn-primary"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleRemove(index())}
+                          class="btn btn-sm btn-error"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  }
+                >
+                  <EditablePlaylistItem
+                    item={item}
+                    availableCallbacks={callbacksQuery.data?.callbacks || []}
+                    onSave={(updatedItem) => handleSaveEdit(index(), updatedItem)}
+                    onCancel={handleCancelEdit}
+                  />
+                </Show>
+              )}
+            </For>
+          </div>
+
+          {/* Add New Item */}
+          <Show when={!isAddingNew()}>
+            <button
+              onClick={() => setIsAddingNew(true)}
+              class="btn btn-primary btn-outline"
+            >
+              + Add Playlist Item
+            </button>
+          </Show>
+
+          <Show when={isAddingNew()}>
+            <AddNewPlaylistItem
+              availableCallbacks={callbacksQuery.data?.callbacks || []}
+              onAdd={(item) => {
+                handleAddCallback();
+              }}
+              onCancel={() => setIsAddingNew(false)}
+              newItem={newItem}
+              setNewItem={setNewItem}
+            />
+          </Show>
+
+          {/* Save Button */}
+          <div class="divider" />
           <button
-            onClick={() => setIsAddingNew(true)}
-            class="btn btn-primary btn-outline"
+            onClick={handleSave}
+            class="btn btn-success"
+            disabled={updateMutation.isPending}
           >
-            + Add Playlist Item
+            <Show when={updateMutation.isPending}>
+              <span class="loading loading-spinner" />
+            </Show>
+            Save Playlist
           </button>
         </Show>
-
-        <Show when={isAddingNew()}>
-          <AddNewPlaylistItem
-            availableCallbacks={callbacksQuery.data?.callbacks || []}
-            onAdd={(item) => {
-              handleAddCallback();
-            }}
-            onCancel={() => setIsAddingNew(false)}
-            newItem={newItem}
-            setNewItem={setNewItem}
-          />
-        </Show>
-
-        {/* Save Button */}
-        <div class="divider" />
-        <button
-          onClick={handleSave}
-          class="btn btn-success"
-          disabled={updateMutation.isPending}
-        >
-          <Show when={updateMutation.isPending}>
-            <span class="loading loading-spinner" />
-          </Show>
-          Save Playlist
-        </button>
       </div>
     </div>
   );
@@ -310,8 +388,18 @@ function AddNewPlaylistItem(props: {
   const [jsonErrors, setJsonErrors] = createSignal<
     Record<string, string | null>
   >({});
+  const [optionsRaw, setOptionsRaw] = createSignal<Record<string, string>>(
+    Object.fromEntries(
+      Object.entries(props.newItem().callbacks).map(([k, cb]) => [
+        k,
+        JSON.stringify(cb.options || {}, null, 2),
+      ]),
+    ),
+  );
 
   const item = props.newItem;
+
+  const slotNames = createMemo(() => Object.keys(item().callbacks));
 
   const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = item();
@@ -325,26 +413,42 @@ function AddNewPlaylistItem(props: {
         layout: "full",
         callbacks: { content: firstCallback },
       });
+      setOptionsRaw({
+        content: JSON.stringify(firstCallback.options || {}, null, 2),
+      });
     } else {
       const callbackValues = Object.values(currentItem.callbacks);
+      const leftCallback = callbackValues[0] || { name: "", options: {} };
+      const rightCallback = callbackValues[1] || { name: "", options: {} };
       props.setNewItem({
         ...currentItem,
         layout: "2-col",
         callbacks: {
-          content_left: callbackValues[0] || { name: "", options: {} },
-          content_right: callbackValues[1] || { name: "", options: {} },
+          content_left: leftCallback,
+          content_right: rightCallback,
         },
+      });
+      setOptionsRaw({
+        content_left: JSON.stringify(leftCallback.options || {}, null, 2),
+        content_right: JSON.stringify(rightCallback.options || {}, null, 2),
       });
     }
   };
 
   const handleCallbackNameChange = (slotName: string, name: string) => {
     const currentItem = item();
+    const selected = props.availableCallbacks.find((cb) => cb.id === name);
+    const defaults = selected?.defaultOptions ?? {};
+    const defaultsStr = JSON.stringify(defaults, null, 2);
+
+    setOptionsRaw({ ...optionsRaw(), [slotName]: defaultsStr });
+    setJsonErrors({ ...jsonErrors(), [slotName]: null });
+
     props.setNewItem({
       ...currentItem,
       callbacks: {
         ...currentItem.callbacks,
-        [slotName]: { ...currentItem.callbacks[slotName], name },
+        [slotName]: { name, options: defaults },
       },
     });
   };
@@ -353,6 +457,7 @@ function AddNewPlaylistItem(props: {
     slotName: string,
     optionsStr: string,
   ) => {
+    setOptionsRaw({ ...optionsRaw(), [slotName]: optionsStr });
     const { result, error } = parseOptions(optionsStr);
     setJsonErrors({ ...jsonErrors(), [slotName]: error || null });
 
@@ -404,62 +509,63 @@ function AddNewPlaylistItem(props: {
       </div>
 
       <div class="space-y-4">
-        <For each={Object.entries(item().callbacks)}>
-          {([slotName, callback]) => (
-            <div class="p-3 border border-base-300 rounded">
-              <h4 class="font-semibold mb-2">
-                {slotName === "content"
-                  ? "Content"
-                  : slotName === "content_left"
-                    ? "Left Column"
-                    : "Right Column"}
-              </h4>
-              <div class="form-control mb-2">
-                <label class="label">
-                  <span class="label-text">Callback Name</span>
-                </label>
-                <select
-                  class="select select-bordered"
-                  value={callback.name}
-                  onChange={(e) =>
-                    handleCallbackNameChange(slotName, e.currentTarget.value)
-                  }
-                >
-                  <option value="">Select callback...</option>
-                  <For each={props.availableCallbacks}>
-                    {(availableCallback) => (
-                      <option value={availableCallback.id}>
-                        {availableCallback.name}
-                      </option>
-                    )}
-                  </For>
-                </select>
-              </div>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Options (JSON)</span>
-                </label>
-                <textarea
-                  class={`textarea textarea-bordered font-mono text-sm ${
-                    jsonErrors()[slotName] ? "textarea-error" : ""
-                  }`}
-                  placeholder='{"key": "value"}'
-                  value={JSON.stringify(callback.options || {}, null, 2)}
-                  onInput={(e) =>
-                    handleCallbackOptionsChange(slotName, e.currentTarget.value)
-                  }
-                  rows={3}
-                />
-                <Show when={jsonErrors()[slotName]}>
+        <For each={slotNames()}>
+          {(slotName) => {
+            const callback = () =>
+              (item().callbacks as Record<string, { name: string; options?: object }>)[slotName];
+            return (
+              <div class="p-3 border border-base-300 rounded">
+                <h4 class="font-semibold mb-2">
+                  {slotName === "content"
+                    ? "Content"
+                    : slotName === "content_left"
+                      ? "Left Column"
+                      : "Right Column"}
+                </h4>
+                <div class="form-control mb-2">
                   <label class="label">
-                    <span class="label-text-alt text-error">
-                      {jsonErrors()[slotName]}
-                    </span>
+                    <span class="label-text">Callback Name</span>
                   </label>
-                </Show>
+                  <select
+                    class="select select-bordered"
+                    value={callback().name}
+                    onChange={(e) =>
+                      handleCallbackNameChange(slotName, e.currentTarget.value)
+                    }
+                  >
+                    <option value="">Select callback...</option>
+                    <For each={props.availableCallbacks}>
+                      {(availableCallback) => (
+                        <option value={availableCallback.id}>
+                          {availableCallback.name}
+                        </option>
+                      )}
+                    </For>
+                  </select>
+                </div>
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">Options (JSON)</span>
+                  </label>
+                  <MonacoEditor
+                    value={
+                      optionsRaw()[slotName] ??
+                      JSON.stringify(callback().options || {}, null, 2)
+                    }
+                    onChange={(v) => handleCallbackOptionsChange(slotName, v)}
+                    height="120px"
+                  />
+                  <Show when={jsonErrors()[slotName]}>
+                    <label class="label">
+                      <span class="label-text-alt text-error">
+                        {jsonErrors()[slotName]}
+                      </span>
+                    </label>
+                  </Show>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          }}
         </For>
       </div>
 
@@ -491,6 +597,16 @@ function EditablePlaylistItem(props: {
   const [jsonErrors, setJsonErrors] = createSignal<
     Record<string, string | null>
   >(Object.fromEntries(Object.keys(props.item.callbacks).map((key) => [key, null])));
+  const [optionsRaw, setOptionsRaw] = createSignal<Record<string, string>>(
+    Object.fromEntries(
+      Object.entries(props.item.callbacks).map(([k, cb]) => [
+        k,
+        JSON.stringify(cb.options || {}, null, 2),
+      ]),
+    ),
+  );
+
+  const slotNames = createMemo(() => Object.keys(editedItem().callbacks));
 
   const handleLayoutChange = (layout: SupportedLayout) => {
     const currentItem = editedItem();
@@ -504,26 +620,42 @@ function EditablePlaylistItem(props: {
         layout: "full",
         callbacks: { content: firstCallback },
       });
+      setOptionsRaw({
+        content: JSON.stringify(firstCallback.options || {}, null, 2),
+      });
     } else {
       const callbackValues = Object.values(currentItem.callbacks);
+      const leftCallback = callbackValues[0] || { name: "", options: {} };
+      const rightCallback = callbackValues[1] || { name: "", options: {} };
       setEditedItem({
         ...currentItem,
         layout: "2-col",
         callbacks: {
-          content_left: callbackValues[0] || { name: "", options: {} },
-          content_right: callbackValues[1] || { name: "", options: {} },
+          content_left: leftCallback,
+          content_right: rightCallback,
         },
+      });
+      setOptionsRaw({
+        content_left: JSON.stringify(leftCallback.options || {}, null, 2),
+        content_right: JSON.stringify(rightCallback.options || {}, null, 2),
       });
     }
   };
 
   const handleCallbackNameChange = (slotName: string, name: string) => {
     const currentItem = editedItem();
+    const selected = props.availableCallbacks.find((cb) => cb.id === name);
+    const defaults = selected?.defaultOptions ?? {};
+    const defaultsStr = JSON.stringify(defaults, null, 2);
+
+    setOptionsRaw({ ...optionsRaw(), [slotName]: defaultsStr });
+    setJsonErrors({ ...jsonErrors(), [slotName]: null });
+
     setEditedItem({
       ...currentItem,
       callbacks: {
         ...currentItem.callbacks,
-        [slotName]: { ...currentItem.callbacks[slotName], name },
+        [slotName]: { name, options: defaults },
       },
     });
   };
@@ -532,6 +664,7 @@ function EditablePlaylistItem(props: {
     slotName: string,
     optionsStr: string,
   ) => {
+    setOptionsRaw({ ...optionsRaw(), [slotName]: optionsStr });
     const { result, error } = parseOptions(optionsStr);
     setJsonErrors({ ...jsonErrors(), [slotName]: error || null });
 
@@ -589,60 +722,62 @@ function EditablePlaylistItem(props: {
       </div>
 
       <div class="space-y-4">
-        <For each={Object.entries(editedItem().callbacks)}>
-          {([slotName, callback]) => (
-            <div class="p-3 border border-base-300 rounded">
-              <h4 class="font-semibold mb-2">
-                {slotName === "content"
-                  ? "Content"
-                  : slotName === "content_left"
-                    ? "Left Column"
-                    : "Right Column"}
-              </h4>
-              <div class="form-control mb-2">
-                <label class="label">
-                  <span class="label-text">Callback Name</span>
-                </label>
-                <select
-                  class="select select-bordered"
-                  value={callback.name}
-                  onChange={(e) =>
-                    handleCallbackNameChange(slotName, e.currentTarget.value)
-                  }
-                >
-                  <For each={props.availableCallbacks}>
-                    {(availableCallback) => (
-                      <option value={availableCallback.id}>
-                        {availableCallback.name}
-                      </option>
-                    )}
-                  </For>
-                </select>
-              </div>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Options (JSON)</span>
-                </label>
-                <textarea
-                  class={`textarea textarea-bordered font-mono text-sm ${
-                    jsonErrors()[slotName] ? "textarea-error" : ""
-                  }`}
-                  value={JSON.stringify(callback.options || {}, null, 2)}
-                  onInput={(e) =>
-                    handleCallbackOptionsChange(slotName, e.currentTarget.value)
-                  }
-                  rows={3}
-                />
-                <Show when={jsonErrors()[slotName]}>
+        <For each={slotNames()}>
+          {(slotName) => {
+            const callback = () =>
+              (editedItem().callbacks as Record<string, { name: string; options?: object }>)[slotName];
+            return (
+              <div class="p-3 border border-base-300 rounded">
+                <h4 class="font-semibold mb-2">
+                  {slotName === "content"
+                    ? "Content"
+                    : slotName === "content_left"
+                      ? "Left Column"
+                      : "Right Column"}
+                </h4>
+                <div class="form-control mb-2">
                   <label class="label">
-                    <span class="label-text-alt text-error">
-                      {jsonErrors()[slotName]}
-                    </span>
+                    <span class="label-text">Callback Name</span>
                   </label>
-                </Show>
+                  <select
+                    class="select select-bordered"
+                    value={callback().name}
+                    onChange={(e) =>
+                      handleCallbackNameChange(slotName, e.currentTarget.value)
+                    }
+                  >
+                    <For each={props.availableCallbacks}>
+                      {(availableCallback) => (
+                        <option value={availableCallback.id}>
+                          {availableCallback.name}
+                        </option>
+                      )}
+                    </For>
+                  </select>
+                </div>
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">Options (JSON)</span>
+                  </label>
+                  <MonacoEditor
+                    value={
+                      optionsRaw()[slotName] ??
+                      JSON.stringify(callback().options || {}, null, 2)
+                    }
+                    onChange={(v) => handleCallbackOptionsChange(slotName, v)}
+                    height="120px"
+                  />
+                  <Show when={jsonErrors()[slotName]}>
+                    <label class="label">
+                      <span class="label-text-alt text-error">
+                        {jsonErrors()[slotName]}
+                      </span>
+                    </label>
+                  </Show>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          }}
         </For>
       </div>
 

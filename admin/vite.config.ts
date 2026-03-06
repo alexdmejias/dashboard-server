@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
+import monacoEditorPlugin from "vite-plugin-monaco-editor";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
-  plugins: [solid({ ssr: false })],
+  plugins: [solid({ ssr: false }), (monacoEditorPlugin as any).default({})],
   build: {
     outDir: "../public/admin",
     emptyOutDir: true,
