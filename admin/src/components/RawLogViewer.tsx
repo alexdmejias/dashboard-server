@@ -37,6 +37,7 @@ interface ParsedLine {
   msg: string;
   clientName: string | null;
   imageFileName: string | null;
+  url: string | null;
   key: string;
 }
 
@@ -46,6 +47,16 @@ function parseLine(raw: string): ParsedLine {
   const key = String(_keyCounter++);
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const req =
+      parsed.req !== null && typeof parsed.req === "object"
+        ? (parsed.req as Record<string, unknown>)
+        : null;
+    const url =
+      typeof parsed.url === "string"
+        ? parsed.url
+        : req && typeof req.url === "string"
+          ? req.url
+          : null;
     return {
       raw,
       parsed,
@@ -56,6 +67,7 @@ function parseLine(raw: string): ParsedLine {
         typeof parsed.clientName === "string" ? parsed.clientName : null,
       imageFileName:
         typeof parsed.imageFileName === "string" ? parsed.imageFileName : null,
+      url,
       key,
     };
   } catch {
@@ -67,6 +79,7 @@ function parseLine(raw: string): ParsedLine {
       msg: raw,
       clientName: null,
       imageFileName: null,
+      url: null,
       key,
     };
   }
@@ -108,6 +121,7 @@ export function RawLogViewer(props: RawLogViewerProps) {
     props.initialClientName ?? "all",
   );
   const [search, setSearch] = createSignal("");
+  const [hideAdminRequests, setHideAdminRequests] = createSignal(false);
   const [expanded, setExpanded] = createSignal<Set<string>>(new Set());
   const [lines, setLines] = createSignal<ParsedLine[]>([]);
   const [connected, setConnected] = createSignal(false);
@@ -166,11 +180,19 @@ export function RawLogViewer(props: RawLogViewerProps) {
     const level = levelFilter();
     const client = clientFilter();
     const term = search().toLowerCase().trim();
+    const filterAdmin = hideAdminRequests();
 
     return lines().filter((entry) => {
       if (level !== "all" && entry.level !== Number(level)) return false;
       if (client !== "all" && entry.clientName !== client) return false;
       if (term && !entry.raw.toLowerCase().includes(term)) return false;
+      if (filterAdmin && entry.url !== null) {
+        if (
+          entry.url.startsWith("/api/admin/") ||
+          entry.url.startsWith("/assets/")
+        )
+          return false;
+      }
       return true;
     });
   });
@@ -260,6 +282,22 @@ export function RawLogViewer(props: RawLogViewerProps) {
                 <option value="60">Fatal</option>
               </select>
             </div>
+          </div>
+
+          <div class="flex items-center gap-2 mt-2">
+            <input
+              id="hide-admin-requests"
+              type="checkbox"
+              class="checkbox checkbox-sm"
+              checked={hideAdminRequests()}
+              onChange={(e) => setHideAdminRequests(e.currentTarget.checked)}
+            />
+            <label
+              for="hide-admin-requests"
+              class="label-text text-xs cursor-pointer select-none"
+            >
+              Hide admin dashboard requests
+            </label>
           </div>
         </div>
       </div>
