@@ -1,0 +1,38 @@
+meta {
+  name: test-template
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{host}}/test-template
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "templateType": "liquid",
+    "template": "<div class=\"layout layout--row\"><h1 class=\"title\">{{ data.title | default: runtimeConfig.title }}</h1><p>{{ data.body }}</p><p>Size: {{ runtimeConfig.width }}x{{ runtimeConfig.height }}</p></div>",
+    "templateData": {
+      "title": "Test Template",
+      "body": "This is a quick test payload coming from bruno-collection/test-template.bru"
+    },
+    "screenDetails": {
+      "width": 800,
+      "height": 600,
+      "output": "html"
+    }
+  }
+}
+
+tests {
+  test("returns image/png status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("content-type is image/png", function() {
+    let headers = res.getHeader('content-type');
+    expect(headers).to.equal('image/png');
+  });
+}

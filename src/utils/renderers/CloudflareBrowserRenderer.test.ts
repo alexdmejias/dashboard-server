@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 import { writeFile } from "node:fs/promises";
 
@@ -114,7 +114,25 @@ describe("CloudflareBrowserRenderer", () => {
     };
 
     await expect(renderer.renderPage(options)).rejects.toThrow(
-      "Cloudflare Browser Rendering failed"
+      "Cloudflare Browser Rendering failed: 401 Unauthorized - Invalid credentials"
+    );
+  });
+
+  it("should throw error with detailed message for different error codes", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: vi.fn().mockResolvedValue("Rate limit exceeded"),
+    });
+
+    const options = {
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    };
+
+    await expect(renderer.renderPage(options)).rejects.toThrow(
+      "Cloudflare Browser Rendering failed: 403 Forbidden - Rate limit exceeded"
     );
   });
 });

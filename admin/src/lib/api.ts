@@ -1,0 +1,96 @@
+import type { ClientsData, PlaylistItem } from "../types";
+
+// Helper function to create headers with authorization token
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem("adminToken");
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+export async function fetchClients(): Promise<ClientsData> {
+  const response = await fetch("/api/clients", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch clients");
+  }
+  return response.json();
+}
+
+export async function fetchClientDetail(clientName: string) {
+  const response = await fetch(`/api/clients/${clientName}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch client details");
+  }
+  return response.json();
+}
+
+export async function fetchAvailableCallbacks() {
+  const response = await fetch("/api/callbacks", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch available callbacks");
+  }
+  return response.json();
+}
+
+export async function updateClientPlaylist(
+  clientName: string,
+  playlist: PlaylistItem[],
+) {
+  const response = await fetch(`/api/clients/${clientName}/playlist`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ playlist }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update playlist");
+  }
+  return response.json();
+}
+
+export async function fetchRawLogs(): Promise<{ lines: string[] }> {
+  const response = await fetch("/api/admin/raw-logs", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    return { lines: [] };
+  }
+  return response.json();
+}
+
+export async function fetchSettings(): Promise<Record<string, unknown>> {
+  const response = await fetch("/api/admin/settings", {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch settings");
+  }
+  return response.json();
+}
+
+export async function saveSettings(
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const response = await fetch("/api/admin/settings", {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error || "Failed to save settings");
+  }
+  return response.json();
+}

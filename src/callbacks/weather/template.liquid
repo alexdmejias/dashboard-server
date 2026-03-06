@@ -1,0 +1,25 @@
+<div class="layout layout--col">
+  <div class="flex flex--col w-50">
+    <h1 class="title">{{ runtimeConfig.title | default: "Weather" }}</h1>
+    <div class="flex flex--row w-100" style="align-items: stretch;">
+      {% for day in data.forecast %}
+        <div class="outline flex flex--col w-100 flex-1 p-2">
+          <h3 class="title">
+            {% if forloop.first == true -%}
+              Today
+            {%- else -%}
+              {{ day.date }}
+            {%- endif %}
+          </h3>
+          <img
+            src="{{day.condition.image}}"
+            alt=""
+            class="image-stroke--black image-stroke image-stroke--xlarge">
+          <p class="title">{{ day.condition.text }}</p>
+          <p class="title">{{ day.low }}&#176;/{{ day.max }}&#176;</p>
+        </div>
+      {% endfor %}
+    </div>
+    <h1 class="title">Now: {{ data.current.temp_f }}&#176;</h1>
+  </div>
+</div>

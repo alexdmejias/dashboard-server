@@ -1,21 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import objectHash from "object-hash";
 import type { Logger } from "pino";
 import { z } from "zod/v4";
-import DB from "../db";
+
 import logger from "../logger";
+import { getSettings } from "../settings";
 import type {
   PossibleTemplateData,
   ScreenshotSizeOption,
   SupportedImageViewType,
+  SupportedLayout,
   SupportedViewType,
   TemplateDataError,
 } from "../types";
-import getRenderedTemplate from "../utils/getRenderedTemplate";
-import getScreenshot from "../utils/getScreenshot";
-import { getImagesPath } from "../utils/imagesPath";
-import { isSupportedImageViewType } from "../utils/isSupportedViewTypes";
+import { renderLiquidFile } from "../utils/getRenderedTemplate";
+import { PROJECT_ROOT } from "../utils/projectRoot";
 
 export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   name: string;
@@ -24,6 +23,7 @@ export type CallbackConstructor<ExpectedConfig extends z.ZodTypeAny> = {
   screenshotSize?: ScreenshotSizeOption;
   cacheable?: boolean;
   envVariablesNeeded?: string[];
+  dbSettingsNeeded?: string[];
   receivedConfig?: unknown;
   expectedConfig?: ExpectedConfig;
 };
@@ -61,6 +61,7 @@ class CallbackBase<
   cacheable = false;
   oldDataCache = "";
   envVariablesNeeded: string[] = [];
+  dbSettingsNeeded: string[] = [];
   receivedConfig?: unknown;
   expectedConfig?: ExpectedConfig;
 
@@ -71,6 +72,7 @@ class CallbackBase<
     screenshotSize,
     cacheable = false,
     envVariablesNeeded = [],
+    dbSettingsNeeded = [],
     receivedConfig,
     expectedConfig,
   }: CallbackConstructor<ExpectedConfig>) {
@@ -84,6 +86,7 @@ class CallbackBase<
     };
     this.cacheable = cacheable;
     this.envVariablesNeeded = envVariablesNeeded;
+    this.dbSettingsNeeded = dbSettingsNeeded;
     this.expectedConfig = expectedConfig;
 
     // Merge defaults from the child's static defaultOptions with receivedConfig.
@@ -119,6 +122,10 @@ class CallbackBase<
     if (this.envVariablesNeeded.length) {
       this.checkEnvVariables();
     }
+
+    if (this.dbSettingsNeeded.length) {
+      this.checkDBSettings();
+    }
   }
 
   toString() {
@@ -126,11 +133,15 @@ class CallbackBase<
       cacheable: this.cacheable,
       screenshotSize: this.screenshotSize,
       envVariablesNeeded: this.envVariablesNeeded,
+      dbSettingsNeeded: this.dbSettingsNeeded,
       template: this.template,
       receivedConfig: this.receivedConfig,
     };
 
-    if (this.expectedConfig) {
+    if (
+      this.expectedConfig &&
+      typeof this.expectedConfig.transform !== "function"
+    ) {
       data.expectedConfig = z.toJSONSchema(this.expectedConfig);
     }
     return data;
@@ -167,14 +178,32 @@ class CallbackBase<
     return true;
   }
 
+  checkDBSettings() {
+    const missingKeys: string[] = [];
+    const settings = getSettings();
+    for (const key of this.dbSettingsNeeded) {
+      if (!settings[key as keyof typeof settings]) {
+        missingKeys.push(key);
+      }
+    }
+
+    if (missingKeys.length) {
+      const message = `${
+        this.name
+      } callback requires the following settings to be configured: ${missingKeys.join(
+        ", ",
+      )}`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
+
+    return true;
+  }
+
   static checkRuntimeConfig(
     expectedConfig?: z.ZodTypeAny,
     receivedConfig?: unknown,
   ) {
-    // this.logger.debug(
-    //   { receivedConfig: this.receivedConfig },
-    //   `checking runtime config for callback: ${this.name}`
-    // );
     if (expectedConfig) {
       const result = expectedConfig.safeParse(receivedConfig, {
         reportInput: true,
@@ -185,10 +214,6 @@ class CallbackBase<
     }
     return true;
   }
-
-  // getRuntimeConfig() {
-  //   return this.receivedConfig as z.infer<ExpectedConfig>;
-  // }
 
   /**
    * Utility to merge default config with provided options, using zod for type safety.
@@ -206,35 +231,22 @@ class CallbackBase<
     return result.data as ConfigType;
   }
 
-  async getDBData<DBTableShape>(
-    tableName: string,
-    transformer?: (tableRow: DBTableShape) => TemplateData,
-  ): PossibleTemplateData<TemplateData> {
-    try {
-      const data = await DB.getRecord<DBTableShape>(tableName);
-
-      if (!data) {
-        throw new Error(`${this.name}: no data received`);
-      }
-
-      return transformer ? transformer(data) : (data as TemplateData);
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : (e as string) };
-    }
-  }
-
   async render(
     viewType: SupportedViewType,
     options?: unknown,
+    layout?: SupportedLayout,
   ): Promise<RenderResponse> {
     // TODO validate viewType
     this.logger.info(`rendering: ${this.name} as viewType: ${viewType}`);
 
     // allow callers to supply runtime options (e.g. from a playlist item).
-    const runtimeOptions =
-      typeof options !== "undefined" ? options : this.receivedConfig;
+    const runtimeConfig = this.#buildRuntimeConfig(options);
+    this.logger.debug(
+      { runtimeConfig, options },
+      `Built runtimeConfig for ${this.name}`,
+    );
     const data = await this.getData(
-      runtimeOptions as unknown as Record<string, unknown>,
+      runtimeConfig as unknown as Record<string, unknown>,
     );
 
     let templateOverride: string | undefined;
@@ -247,44 +259,14 @@ class CallbackBase<
       };
     }
 
-    if (isSupportedImageViewType(viewType)) {
-      if (this.cacheable && templateOverride !== "error") {
-        const newDataCache = objectHash(data);
-        const screenshotPath = getImagesPath(
-          `${this.name}-${newDataCache}.${viewType}`,
-        );
-        if (newDataCache === this.oldDataCache) {
-          return {
-            viewType,
-            imagePath: screenshotPath,
-          };
-        }
-
-        this.oldDataCache = newDataCache;
-        return {
-          viewType,
-          imagePath: await this.#renderAsImage({
-            viewType,
-            data,
-            runtimeConfig: runtimeOptions as ExpectedConfig,
-            imagePath: screenshotPath,
-            templateOverride,
-          }),
-        };
-      }
-
-      const screenshotPath = getImagesPath(`image.${viewType}`);
-      return {
-        viewType,
-        imagePath: await this.#renderAsImage({
-          viewType,
-          data,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
-          imagePath: screenshotPath,
-          templateOverride,
-        }),
-      };
-    }
+    // Resolve layout-specific template if layout is provided
+    this.logger.debug(
+      { layout, hasLayout: !!layout },
+      `Resolving template for ${this.name}`,
+    );
+    const templateToUse = layout
+      ? this.resolveLayoutTemplate(layout)
+      : this.template;
 
     if (viewType === "html") {
       // TODO should also implement a caching strategy?
@@ -293,92 +275,117 @@ class CallbackBase<
         html: await this.#renderAsHTML({
           data,
           template: templateOverride,
-          runtimeConfig: runtimeOptions as ExpectedConfig,
+          runtimeConfig: runtimeConfig as ExpectedConfig,
+          templateToUse,
         }),
       };
     }
 
-    return { viewType, json: data };
-  }
-
-  async #renderAsImage<T extends TemplateData>({
-    viewType,
-    data,
-    runtimeConfig,
-    imagePath,
-    templateOverride,
-  }: {
-    viewType: SupportedImageViewType;
-    data: T;
-    runtimeConfig: ExpectedConfig;
-    imagePath: string;
-    templateOverride?: string;
-  }): Promise<string> {
-    const screenshot = await getScreenshot<T>({
-      data,
-      runtimeConfig,
-      template: templateOverride ? templateOverride : this.template,
-      size: this.screenshotSize,
-      imagePath,
-      viewType,
-    });
-
-    return screenshot.path;
+    return { viewType: "json", json: data as object };
   }
 
   async #renderAsHTML({
     data,
     template,
     runtimeConfig,
+    templateToUse,
   }: {
     data: TemplateDataError | TemplateData;
     template?: string;
     runtimeConfig?: ExpectedConfig;
+    templateToUse?: string;
+    includeWrapper?: boolean;
   }) {
-    return getRenderedTemplate({
-      template: template ? template : this.template,
-      data,
-      runtimeConfig,
-    });
+    return renderLiquidFile(
+      template ? template : templateToUse || this.template,
+      { data, runtimeConfig },
+    );
+  }
+
+  #buildRuntimeConfig(options?: unknown) {
+    const merged =
+      typeof options === "undefined"
+        ? this.receivedConfig
+        : this.#mergeWithReceivedConfig(options);
+
+    if (!this.expectedConfig) {
+      return merged;
+    }
+
+    return this.expectedConfig.loose().parse(merged);
+  }
+
+  #mergeWithReceivedConfig(options: unknown) {
+    if (
+      typeof options === "object" &&
+      options !== null &&
+      typeof this.receivedConfig === "object" &&
+      this.receivedConfig !== null
+    ) {
+      return {
+        ...(this.receivedConfig as Record<string, unknown>),
+        ...(options as Record<string, unknown>),
+      };
+    }
+
+    return options;
+  }
+
+  /**
+   * Resolve a layout-specific template for this callback
+   * For 2-col layout, tries to load template.2col.{ext} first
+   * Falls back to the default template if layout-specific template doesn't exist
+   */
+  resolveLayoutTemplate(layout: SupportedLayout): string {
+    // Try to find layout-specific template: template.{layout}.liquid
+    const layoutFileName = layout; // "2-col" or "full"
+    const layoutSpecific = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${this.name}/template.${layoutFileName}.liquid`,
+    );
+
+    if (fs.existsSync(layoutSpecific)) {
+      this.logger.info(
+        `Using layout-specific template for ${this.name}: ${layoutSpecific}`,
+      );
+      return layoutSpecific;
+    }
+
+    this.logger.debug(
+      `No layout-specific template found for ${this.name} at: ${layoutSpecific}, using default`,
+    );
+
+    // Fallback to default template
+    return this.template;
   }
 
   #resolveTemplate(name: string, template?: string): string {
-    const extPreference = ["liquid", "ejs"];
-
     // 1) If a specific template was requested, prefer resolving that first
     if (template) {
       // try exact resolution in callbacks folder if the template includes an ext or matches a preference
-      for (const ext of extPreference) {
-        if (template.endsWith(`.${ext}`) || template.endsWith(ext)) {
-          const candidate = path.resolve(`./src/callbacks/${name}/${template}`);
-          if (fs.existsSync(candidate)) return candidate;
-          const viewsCandidate = path.resolve(`./views/${template}`);
-          if (fs.existsSync(viewsCandidate)) return viewsCandidate;
-        }
-      }
+      const candidate = path.join(
+        PROJECT_ROOT,
+        `src/callbacks/${name}/${template}`,
+      );
+      if (fs.existsSync(candidate)) return candidate;
+      const viewsCandidate = path.join(PROJECT_ROOT, `views/${template}`);
+      if (fs.existsSync(viewsCandidate)) return viewsCandidate;
 
       // try templates folder (views) with preferred extensions
-      for (const ext of extPreference) {
-        const viewsPath = path.resolve(`./views/${template}.${ext}`);
-        if (fs.existsSync(viewsPath)) return viewsPath;
-      }
-    }
-
-    // 2) Look for callback-local templates (template.liquid/template.ejs)
-    for (const ext of extPreference) {
-      const local = path.resolve(`./src/callbacks/${name}/template.${ext}`);
-      if (fs.existsSync(local)) return local;
-    }
-
-    // 3) Fallback to views/{name}.{ext}
-    for (const ext of extPreference) {
-      const viewsPath = path.resolve(`./views/${name}.${ext}`);
+      const viewsPath = path.join(PROJECT_ROOT, `views/${template}.liquid`);
       if (fs.existsSync(viewsPath)) return viewsPath;
     }
 
-    // 4) Fallback to generic template
-    const genericTemplatePath = path.resolve("./views/generic.ejs");
-    if (fs.existsSync(genericTemplatePath)) return genericTemplatePath;
+    // 2) Look for callback-local templates (template.liquid)
+    const local = path.join(
+      PROJECT_ROOT,
+      `src/callbacks/${name}/template.liquid`,
+    );
+    if (fs.existsSync(local)) return local;
+
+    // 3) Fallback to views/{name}.{ext}
+    const viewsPath = path.join(PROJECT_ROOT, `views/${name}.liquid`);
+    if (fs.existsSync(viewsPath)) return viewsPath;
 
     throw new Error(`No valid template found for callback: ${name}`);
   }

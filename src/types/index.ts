@@ -36,20 +36,38 @@ export type PossibleCallback = {
   name: string;
   callback: any; // import from a callback file
   expectedConfig?: z.ZodObject<any>;
+  defaultOptions?: object;
 };
 export type PossibleCallbacks = Record<string, PossibleCallback>;
 
 export * from "./browser-renderer";
+
+export const supportedLayouts = ["full", "2-col"] as const;
+export type SupportedLayout = (typeof supportedLayouts)[number];
+
+export type CallbackConfig = {
+  name: string;
+  options?: object;
+};
+
+export type TwoColCallbacks = {
+  content_left: CallbackConfig;
+  content_right: CallbackConfig;
+};
+
+export type FullCallbacks = {
+  content: CallbackConfig;
+};
+
 export type PlaylistItem = {
   id: string;
-  callbackName: string; // name of the callback to be used
-  options?: object; // runtime options for the callback
+  layout: SupportedLayout;
+  callbacks: TwoColCallbacks | FullCallbacks;
 };
 export type Playlist = PlaylistItem[];
 
 export type ValidCallback = {
   instance: CallbackBase;
-  id: string;
   name: string;
   expectedConfig?: z.ZodObject<any>;
 };
