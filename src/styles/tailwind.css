@@ -3,3 +3,13 @@
 /* Scan all Liquid templates for Tailwind utility classes */
 @source "../../views/**/*.liquid";
 @source "../callbacks/**/*.liquid";
+
+/* Scan Storybook and story TypeScript files for Tailwind utility classes */
+@source "../../.storybook/**/*.ts";
+@source "../**/*.stories.ts";
+
+/*
+ * Safelist: force-include utility families that may be used in runtime data,
+ * Storybook args, or any context the scanner cannot see at build time.
+ */
+@source inline("rounded-{none,sm,md,lg,xl,2xl,3xl,full}");
