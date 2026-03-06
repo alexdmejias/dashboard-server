@@ -12,7 +12,9 @@
     "@modular-forms/solid": "^0.25.1",
     "@solidjs/router": "^0.15.2",
     "@tanstack/solid-query": "^5.90.15",
+    "monaco-editor": "^0.55.1",
     "solid-js": "^1.9.3",
+    "vite-plugin-monaco-editor": "^1.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

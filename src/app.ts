@@ -301,6 +301,7 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       id: key,
       name: value.name,
       expectedConfig: value.expectedConfig,
+      defaultOptions: value.defaultOptions ?? {},
     }));
     return res.send({ callbacks });
   });

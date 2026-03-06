@@ -36,6 +36,7 @@ export type PossibleCallback = {
   name: string;
   callback: any; // import from a callback file
   expectedConfig?: z.ZodObject<any>;
+  defaultOptions?: object;
 };
 export type PossibleCallbacks = Record<string, PossibleCallback>;
 

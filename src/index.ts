@@ -40,6 +40,7 @@ const start = async () => {
       name: callback.callbackName,
       expectedConfig: asyncResult.expectedConfig,
       callback: asyncResult.default,
+      defaultOptions: asyncResult.default.defaultOptions,
     };
   }
 
