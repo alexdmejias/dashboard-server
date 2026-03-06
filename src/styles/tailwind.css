@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* Scan all Liquid templates for Tailwind utility classes */
+@source "../../views/**/*.liquid";
+@source "../callbacks/**/*.liquid";

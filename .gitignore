@@ -2,6 +2,7 @@ node_modules
 .env
 public/images
 public/admin
+public/tailwind.css
 dist
 .DS_Store
 keys/*.json
