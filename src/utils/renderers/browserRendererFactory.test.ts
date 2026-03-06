@@ -1,8 +1,8 @@
-import { _resetForTesting, initSettings, updateSettings } from "../settings";
+import { _resetForTesting, initSettings, updateSettings } from "../../settings";
+import ServiceRotator from "../ServiceRotator";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
-import ServiceRotator from "./ServiceRotator";
 
 jest.mock("./CloudflareBrowserRenderer");
 jest.mock("./BrowserlessIOBrowserRenderer");

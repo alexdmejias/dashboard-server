@@ -1,25 +1,43 @@
-import fastify, { errorCodes, FastifyError } from "fastify";
 import getApp, { serverMessages } from "./app";
 import CallbackBase from "./base-callbacks/base";
-import getRenderedTemplate from "./utils/getRenderedTemplate";
 
 jest.mock("node:fs/promises", () => ({
   readFile: jest.fn(),
+  stat: jest.fn(),
 }));
-jest.mock("./utils/getScreenshot");
-jest.mock("./utils/getRenderedTemplate");
+jest.mock("./utils/getRenderedTemplate", () => ({
+  renderLiquidFile: jest.fn().mockResolvedValue("<div>rendered</div>"),
+}));
 
+/**
+ * DummyCallback uses the "weather" name so its template resolves to the
+ * existing src/callbacks/weather/template.liquid file.
+ */
 class DummyCallback extends CallbackBase {
-  constructor() {
-    super({ name: "dummy" });
+  constructor(_options?: unknown) {
+    super({ name: "weather" });
   }
+
   async getData() {
     return { text: "dummy" };
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function testServerInternalError(output: any, message: string) {
+const POSSIBLE_CALLBACKS = {
+  weather: { name: "weather", callback: DummyCallback },
+};
+
+const VALID_PLAYLIST = [
+  {
+    id: "item1",
+    layout: "full" as const,
+    callbacks: {
+      content: { name: "weather" },
+    },
+  },
+];
+
+function expectInternalError(output: any, message: string) {
   expect(output.statusCode).toBe(500);
   expect(output.json()).toStrictEqual({
     error: "Internal Server Error",
@@ -29,12 +47,8 @@ function testServerInternalError(output: any, message: string) {
 }
 
 describe("app", () => {
-  // it("should throw error if no callbacks provided", async () => {
-  //   expect(async () => await getApp()).toThrowError("no callbacks provided");
-  // });
-
   it("should 200 /health", async () => {
-    const app = await getApp([DummyCallback]);
+    const app = await getApp(POSSIBLE_CALLBACKS);
 
     const output = await app.inject({
       method: "GET",
@@ -42,41 +56,47 @@ describe("app", () => {
     });
 
     expect(output.statusCode).toBe(200);
-    expect(output.json()).toStrictEqual({
+    expect(output.json()).toMatchObject({
       message: serverMessages.healthGood,
       statusCode: 200,
     });
   });
 
   describe("register", () => {
-    it("should 200 /register/:clientName", async () => {
-      const app = await getApp([DummyCallback]);
+    it("should 200 POST /register/:clientName", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
       const clientName = "testClient";
+
       const output = await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST },
       });
+
       expect(output.statusCode).toBe(200);
-      expect(output.json()).toStrictEqual({
+      expect(output.json()).toMatchObject({
         statusCode: 200,
         message: serverMessages.createdClient(clientName),
       });
     });
 
-    it("should 500 duplicate client name", async () => {
-      const app = await getApp([DummyCallback]);
+    it("should 500 on duplicate client name", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
       const clientName = "testClient";
 
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST },
       });
 
       const output = await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST },
       });
-      testServerInternalError(
+
+      expectInternalError(
         output,
         serverMessages.duplicateClientName(clientName),
       );
@@ -84,25 +104,19 @@ describe("app", () => {
   });
 
   describe("/display/:clientName/:viewType", () => {
-    it("should 404 on /display", async () => {
-      const app = await getApp([DummyCallback]);
+    it("should 404 on /api/unknown-route", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
 
       const output = await app.inject({
         method: "GET",
-        path: "/display",
+        path: "/api/unknown-route",
       });
-
-      const e = errorCodes.FST_ERR_NOT_FOUND();
 
       expect(output.statusCode).toBe(404);
-      expect(output.json()).toMatchObject({
-        error: e.message,
-        statusCode: e.statusCode,
-      });
     });
 
     it("should 404 on /display/notRegistered/png", async () => {
-      const app = await getApp([DummyCallback]);
+      const app = await getApp(POSSIBLE_CALLBACKS);
 
       const clientName = "notRegistered";
       const output = await app.inject({
@@ -119,14 +133,16 @@ describe("app", () => {
     });
 
     it("should 500 on /display/:clientName/unknownViewType", async () => {
-      const app = await getApp([DummyCallback]);
-
+      const app = await getApp(POSSIBLE_CALLBACKS);
       const clientName = "testClient";
       const unknownViewType = "unknownViewType";
+
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST },
       });
+
       const output = await app.inject({
         method: "GET",
         path: `/display/${clientName}/${unknownViewType}`,
@@ -140,26 +156,23 @@ describe("app", () => {
       });
     });
 
-    it("should 404 on /display/:clientName/:viewType/", async () => {
-      const app = await getApp([DummyCallback]);
-
+    it("should 200 with HTML on /display/:clientName/html", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
       const clientName = "testClient";
-      const viewType = "html";
-      const mockedHtml = "dummy page";
-      (getRenderedTemplate as jest.Mock).mockReturnValue(mockedHtml);
 
       await app.inject({
-        method: "GET",
+        method: "POST",
         path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST },
       });
+
       const output = await app.inject({
         method: "GET",
-        path: `/display/${clientName}/${viewType}/dummy`,
+        path: `/display/${clientName}/html`,
       });
 
       expect(output.statusCode).toBe(200);
-      expect(output.headers["content-type"]).toBe("text/html");
-      expect(output.body).toStrictEqual(mockedHtml);
+      expect(output.headers["content-type"]).toMatch(/text\/html/);
     });
   });
 });

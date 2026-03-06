@@ -1,10 +1,10 @@
+import { Route, Router, useNavigate } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { Router, Route, useNavigate } from "@solidjs/router";
-import { createSignal, onMount, Show, createEffect } from "solid-js";
-import Home from "./routes/index";
+import { createEffect, createSignal, onMount, Show } from "solid-js";
 import ClientDetail from "./routes/[clientName]";
+import Home from "./routes/index";
 import Login from "./routes/login";
-import Logs from "./routes/logs";
+import RawLogs from "./routes/raw-logs";
 import Settings from "./routes/settings";
 
 const queryClient = new QueryClient({
@@ -78,13 +78,11 @@ function ProtectedRoute(props: { children: any }) {
       when={!checking()}
       fallback={
         <div class="min-h-screen bg-base-200 flex items-center justify-center">
-          <span class="loading loading-spinner loading-lg"></span>
+          <span class="loading loading-spinner loading-lg" />
         </div>
       }
     >
-      <Show when={!authRequired() || isAuthenticated()}>
-        {props.children}
-      </Show>
+      <Show when={!authRequired() || isAuthenticated()}>{props.children}</Show>
     </Show>
   );
 }
@@ -106,7 +104,7 @@ export default function App() {
           path="/logs"
           component={() => (
             <ProtectedRoute>
-              <Logs />
+              <RawLogs />
             </ProtectedRoute>
           )}
         />
@@ -130,4 +128,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-

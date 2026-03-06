@@ -1,11 +1,11 @@
-import logger from "../logger";
-import { getSettings } from "../settings";
-import type { BrowserRenderer } from "../types/browser-renderer";
+import logger from "../../logger";
+import { getSettings } from "../../settings";
+import type { BrowserRenderer } from "../../types/browser-renderer";
+import { getBrowserRendererType } from "../getBrowserRendererType";
+import ServiceRotator, { type ServiceConfig } from "../ServiceRotator";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
-import { getBrowserRendererType } from "./getBrowserRendererType";
 import PuppeteerBrowserRenderer from "./PuppeteerBrowserRenderer";
-import ServiceRotator, { type ServiceConfig } from "./ServiceRotator";
 
 export function createBrowserRenderer(): BrowserRenderer {
   const rendererType = getBrowserRendererType();

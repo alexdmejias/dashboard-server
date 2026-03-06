@@ -1,4 +1,6 @@
-import pino, { type LoggerOptions } from "pino";
+import pino from "pino";
+import pretty from "pino-pretty";
+import { logBufferStream } from "./logBuffer";
 import { getSettings } from "./settings";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -7,48 +9,25 @@ const settings = getSettings();
 const logtailSourceToken = settings.logtailSourceToken;
 const hasLogtailToken = !!logtailSourceToken;
 
-// Define each transport as a variable
-const prettyTransport = {
-  target: "pino-pretty",
-  level: logLevel,
-  options: {
-    colorize: true,
-  },
-};
-
-// const logtailTransport = {
-//   target: "@logtail/pino",
-//   options: {
-//     sourceToken: logtailSourceToken,
-//     endpoint: settings.logtailEndpoint || undefined,
-//   },
-// };
-
-// Build the transport config as a variable
-// In production with PM2, don't use pino-pretty or logtail as they can cause issues
-// Logs go to stdout directly which PM2 captures
-let loggerTransport: LoggerOptions["transport"];
-if (isProduction) {
-  // No transport in production - logs go to stdout directly for PM2
-  loggerTransport = undefined;
-} else {
-  loggerTransport = {
-    targets: [prettyTransport],
-  };
-}
-
-export const loggingOptions: LoggerOptions = {
-  level: logLevel,
-  transport: loggerTransport,
-};
-
 console.log("logger options", {
-  transport: JSON.stringify(loggingOptions.transport, null, 2),
   hasLogtailToken,
   isProduction,
   logLevel,
 });
 
-const logger = pino(loggingOptions);
+// Build a multistream destination so we can:
+//  1. Display human-readable output at the terminal (dev) or raw NDJSON (prod/PM2)
+//  2. Always buffer the last 1000 raw NDJSON lines in-process for the admin UI
+const destinations = pino.multistream([
+  // Human-readable terminal output in development; raw NDJSON to stdout in production
+  isProduction
+    ? { stream: process.stdout, level: logLevel }
+    : { stream: pretty({ colorize: true }), level: logLevel },
+
+  // In-memory ring buffer – always active, used by the admin /api/admin/raw-logs endpoint
+  { stream: logBufferStream, level: logLevel },
+]);
+
+const logger = pino({ level: logLevel }, destinations);
 
 export default logger;

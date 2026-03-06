@@ -1,1 +1,2 @@
 When creating a PR, do not end the PR description with anything that resembles an ad for copilot or any other service. The PR description should only include things like: background, description of the changes, changes that require migration etc. 
+Do not include "START COPILOT CODING AGENT TIPS" or "<!-- START COPILOT CODING AGENT TIPS -->" in the PR description or anything that links to a github.com service

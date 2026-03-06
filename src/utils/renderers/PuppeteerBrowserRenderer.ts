@@ -2,7 +2,7 @@ import type {
   BrowserRenderer,
   RenderOptions,
   RenderResult,
-} from "../types/browser-renderer";
+} from "../../types/browser-renderer";
 
 class PuppeteerBrowserRenderer implements BrowserRenderer {
   async renderPage(options: RenderOptions): Promise<RenderResult> {

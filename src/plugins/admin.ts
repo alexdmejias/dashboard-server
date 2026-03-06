@@ -1,13 +1,10 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-
-// Store for client-specific logs and requests
-const clientLogs: Map<string, Array<any>> = new Map();
-const clientRequests: Map<string, Array<any>> = new Map();
-
-// Store for server-wide logs
-const serverLogs: Array<any> = [];
+import { getRawLogLines, subscribeToNewLines } from "../logBuffer";
+import { getImagesDir } from "../utils/imagesPath";
 
 // Session tokens (for admin UI login flow)
 const validTokens = new Set<string>();
@@ -15,109 +12,11 @@ const validTokens = new Set<string>();
 declare module "fastify" {
   interface FastifyInstance {
     checkAdminAuth(req: FastifyRequest, res: FastifyReply): Promise<void>;
-    logClientActivity(
-      clientName: string,
-      level: string,
-      message: string,
-      reqId?: string,
-    ): void;
-    logClientRequest(
-      clientName: string,
-      method: string,
-      url: string,
-      direction: "incoming" | "outgoing",
-      statusCode?: number,
-      responseTime?: number,
-      reqId?: string,
-      headers?: Record<string, string | string[]>,
-    ): void;
   }
 }
 
 function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
   const adminPassword = process.env.ADMIN_PASSWORD;
-
-  // Hook into Fastify logs through onResponse hook
-  fastify.addHook("onResponse", async (request, reply) => {
-    try {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        level:
-          reply.statusCode >= 500
-            ? "error"
-            : reply.statusCode >= 400
-              ? "warn"
-              : "info",
-        message: `${request.method} ${request.url} - ${reply.statusCode}`,
-        reqId: request.id,
-        method: request.method,
-        url: request.url,
-        statusCode: reply.statusCode,
-      };
-
-      serverLogs.push(logEntry);
-      // Keep only last 500 logs
-      if (serverLogs.length > 500) {
-        serverLogs.shift();
-      }
-    } catch (_e) {
-      // Silently fail to avoid breaking the app
-    }
-  });
-
-  // Add methods to log client activity
-  fastify.decorate(
-    "logClientActivity",
-    (clientName: string, level: string, message: string, reqId?: string) => {
-      if (!clientLogs.has(clientName)) {
-        clientLogs.set(clientName, []);
-      }
-      const logs = clientLogs.get(clientName)!;
-      logs.push({
-        timestamp: new Date().toISOString(),
-        level,
-        message,
-        reqId,
-      });
-      // Keep only last 100 logs per client
-      if (logs.length > 100) {
-        logs.shift();
-      }
-    },
-  );
-
-  fastify.decorate(
-    "logClientRequest",
-    (
-      clientName: string,
-      method: string,
-      url: string,
-      direction: "incoming" | "outgoing",
-      statusCode?: number,
-      responseTime?: number,
-      reqId?: string,
-      headers?: Record<string, string | string[]>,
-    ) => {
-      if (!clientRequests.has(clientName)) {
-        clientRequests.set(clientName, []);
-      }
-      const requests = clientRequests.get(clientName)!;
-      requests.push({
-        timestamp: new Date().toISOString(),
-        method,
-        url,
-        direction,
-        statusCode,
-        responseTime,
-        reqId,
-        headers,
-      });
-      // Keep only last 50 requests per client
-      if (requests.length > 50) {
-        requests.shift();
-      }
-    },
-  );
 
   // Auth is always required for the admin UI
   fastify.get("/api/admin/auth-required", async (_req, res) => {
@@ -195,34 +94,97 @@ function adminPlugin(fastify: FastifyInstance, _opts: any, done: () => void) {
     },
   );
 
-  // Get client logs
-  fastify.get<{ Params: { clientName: string } }>(
-    "/api/clients/:clientName/logs",
-    { preHandler: checkAuth },
+  // Serve a previously rendered image by filename (no auth – filenames are unique)
+  fastify.get<{ Params: { filename: string } }>(
+    "/api/images/:filename",
     async (req, res) => {
-      const { clientName } = req.params;
-      const logs = clientLogs.get(clientName) || [];
-      return res.send({ logs });
+      const { filename } = req.params;
+
+      // Only allow simple filenames – no path separators
+      if (
+        filename.includes("/") ||
+        filename.includes("\\") ||
+        filename.includes("..")
+      ) {
+        return res.code(400).send({ error: "Invalid filename" });
+      }
+
+      const imagesDir = getImagesDir();
+      const filePath = path.join(imagesDir, filename);
+
+      // Ensure resolved path stays inside the images directory
+      if (!filePath.startsWith(imagesDir + path.sep)) {
+        return res.code(400).send({ error: "Invalid filename" });
+      }
+
+      try {
+        const fileBuffer = await fs.readFile(filePath);
+        const ext = path.extname(filename).slice(1).toLowerCase();
+        const contentType =
+          ext === "bmp"
+            ? "image/bmp"
+            : ext === "png"
+              ? "image/png"
+              : "application/octet-stream";
+        return res.type(contentType).send(fileBuffer);
+      } catch {
+        return res.code(404).send({ error: "Image not found" });
+      }
     },
   );
 
-  // Get client requests
-  fastify.get<{ Params: { clientName: string } }>(
-    "/api/clients/:clientName/requests",
-    { preHandler: checkAuth },
-    async (req, res) => {
-      const { clientName } = req.params;
-      const requests = clientRequests.get(clientName) || [];
-      return res.send({ requests });
-    },
-  );
-
-  // Get server logs
+  // Get raw NDJSON log lines (newest-first, up to 1000 lines)
   fastify.get(
-    "/api/admin/logs",
+    "/api/admin/raw-logs",
     { preHandler: checkAuth },
     async (_req, res) => {
-      return res.send({ logs: serverLogs });
+      return res.send({ lines: getRawLogLines() });
+    },
+  );
+
+  // SSE stream for raw NDJSON log lines.
+  // Auth via ?token= query param because EventSource cannot send custom headers.
+  fastify.get<{ Querystring: { token?: string } }>(
+    "/api/admin/logs/stream",
+    async (req, res) => {
+      const { token } = req.query;
+      if (!token || !validTokens.has(token)) {
+        return res.code(401).send({ error: "Unauthorized" });
+      }
+
+      res.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+
+      // Send the full backlog as the first event so the client can seed the list
+      res.raw.write(
+        `data: ${JSON.stringify({ type: "snapshot", lines: getRawLogLines() })}\n\n`,
+      );
+
+      // Push each new line as it arrives
+      const unsubscribe = subscribeToNewLines((line) => {
+        try {
+          res.raw.write(`data: ${JSON.stringify({ type: "line", line })}\n\n`);
+        } catch {
+          unsubscribe();
+        }
+      });
+
+      // Heartbeat to keep the connection alive through proxies
+      const heartbeat = setInterval(() => {
+        try {
+          res.raw.write(":heartbeat\n\n");
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, 30000);
+
+      req.raw.on("close", () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+      });
     },
   );
 

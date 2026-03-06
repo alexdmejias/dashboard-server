@@ -2,7 +2,7 @@ import type { OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import { z } from "zod/v4";
 import CallbackBase from "../../base-callbacks/base";
-import { getSettings } from "../../settings";
+import { getSettings, updateSettings } from "../../settings";
 import { updateEnvValue } from "../../utils/env";
 import type { GoogleCalendarEvent } from "./types";
 
@@ -107,8 +107,17 @@ class CallbackCalendar extends CallbackBase<
     );
 
     oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      refresh_token: getSettings().googleRefreshToken,
     });
+
+    this.logger.info(
+      {
+        refreshToken: getSettings().googleRefreshToken,
+        clientId: getSettings().googleClientId,
+        clientSecret: getSettings().googleClientSecret,
+      },
+      "OAuth2 client created with refresh token",
+    );
 
     oauth2Client.on("tokens", (tokens) => {
       if (tokens.refresh_token) {
@@ -122,15 +131,18 @@ class CallbackCalendar extends CallbackBase<
           });
         });
         // Update env so any future createAuthClient() call uses the new refresh token
-        process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
-        // Persist to .env file so the new token survives server restarts
+        // process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
+        // Persist to .env file and settings.json so the new token survives server restarts
         try {
           updateEnvValue("GOOGLE_REFRESH_TOKEN", newRefreshToken);
-          this.logger.info("Persisted new Google refresh token to .env");
+          updateSettings({ googleRefreshToken: newRefreshToken });
+          this.logger.info(
+            "Persisted new Google refresh token to .env and settings",
+          );
         } catch (error) {
           this.logger.error(
             { error },
-            "Google issued a new refresh token but failed to persist it to .env. Update GOOGLE_REFRESH_TOKEN manually.",
+            "Google issued a new refresh token but failed to persist it to .env/settings. Update GOOGLE_REFRESH_TOKEN manually.",
           );
         }
       } else {
