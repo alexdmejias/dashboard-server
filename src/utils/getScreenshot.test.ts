@@ -1,20 +1,21 @@
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { readFile } from "node:fs/promises";
 import { Jimp } from "jimp";
 import type { BrowserRenderer } from "../types/browser-renderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
 import { getScreenshotWithoutFetching } from "./getScreenshot";
 
-jest.mock("jimp");
-jest.mock("node:fs/promises");
-jest.mock("./browserRendererFactory");
+vi.mock("jimp");
+vi.mock("node:fs/promises");
+vi.mock("./browserRendererFactory");
 
 describe("utils:getScreenshot", () => {
-  const mockRenderPage = jest.fn();
+  const mockRenderPage = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    (createBrowserRenderer as jest.Mock).mockReturnValue({
+    (createBrowserRenderer as Mock).mockReturnValue({
       renderPage: mockRenderPage,
     } as BrowserRenderer);
   });
@@ -53,17 +54,17 @@ describe("utils:getScreenshot", () => {
       buffer: Buffer.from(mockBufferContentConverted),
     });
 
-    const mockWrite = jest.fn();
-    (Jimp.read as jest.Mock).mockImplementation(() => {
+    const mockWrite = vi.fn();
+    (Jimp.read as Mock).mockImplementation(() => {
       return Promise.resolve({
         write: mockWrite,
-        getBuffer: jest.fn(() => {
+        getBuffer: vi.fn(() => {
           return Buffer.from(mockBufferContentConverted);
         }),
       });
     });
 
-    (readFile as jest.Mock).mockImplementation(() => {
+    (readFile as Mock).mockImplementation(() => {
       return Promise.resolve(Buffer.from(mockBufferContentSource));
     });
 

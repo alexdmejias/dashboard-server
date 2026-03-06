@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import {
   initSettings,
   getSettings,

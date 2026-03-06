@@ -1,9 +1,10 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { _resetForTesting, initSettings, updateSettings } from "../settings";
 import { renderLiquidFile } from "../utils/getRenderedTemplate";
 import CallbackBase from "./base";
 
-jest.mock("../utils/getRenderedTemplate", () => ({
-  renderLiquidFile: jest.fn().mockResolvedValue("<div>rendered</div>"),
+vi.mock("../utils/getRenderedTemplate", () => ({
+  renderLiquidFile: vi.fn().mockResolvedValue("<div>rendered</div>"),
 }));
 
 /**
@@ -19,7 +20,7 @@ class TestCallback extends CallbackBase {
 describe("CallbackBase", () => {
   describe("render()", () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it("should return JSON response for json viewType", async () => {

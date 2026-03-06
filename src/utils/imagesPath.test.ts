@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {

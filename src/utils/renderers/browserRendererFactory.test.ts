@@ -1,17 +1,18 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { _resetForTesting, initSettings, updateSettings } from "../../settings";
 import ServiceRotator from "../ServiceRotator";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 import { createBrowserRenderer } from "./browserRendererFactory";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
 
-jest.mock("./CloudflareBrowserRenderer");
-jest.mock("./BrowserlessIOBrowserRenderer");
-jest.mock("./ServiceRotator");
+vi.mock("./CloudflareBrowserRenderer");
+vi.mock("./BrowserlessIOBrowserRenderer");
+vi.mock("./ServiceRotator");
 
 // Mock PuppeteerBrowserRenderer to avoid puppeteer import issues
-jest.mock("./PuppeteerBrowserRenderer", () => {
-  return jest.fn().mockImplementation(() => ({
-    renderPage: jest.fn(),
+vi.mock("./PuppeteerBrowserRenderer", () => {
+  return vi.fn().mockImplementation(() => ({
+    renderPage: vi.fn(),
   }));
 });
 
@@ -19,7 +20,7 @@ const PuppeteerBrowserRenderer = require("./PuppeteerBrowserRenderer");
 
 describe("browserRendererFactory", () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     _resetForTesting();
     await initSettings();
   });

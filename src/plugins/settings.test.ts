@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import fastify from "fastify";
 import { initSettings, _resetForTesting } from "../settings";
 import adminPlugin from "./admin";
