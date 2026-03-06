@@ -20,8 +20,8 @@
     "start:prod": "node dist/index.js",
     "test": "ENV=test jest --maxWorkers=2",
     "test:watch": "ENV=test jest --watch",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "storybook": "npm run build:css && concurrently \"npm run dev:css\" \"storybook dev -p 6006\"",
+    "build-storybook": "npm run build:css && storybook build"
   },
   "keywords": [],
   "author": "",
