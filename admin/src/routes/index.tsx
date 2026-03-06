@@ -28,7 +28,10 @@ export default function Home() {
           <a class="btn btn-ghost text-xl">Dashboard Server Admin</a>
         </div>
         <div class="flex-none gap-2">
-          <A href="/raw-logs" class="btn btn-outline btn-sm">
+          <A href="/settings" class="btn btn-outline btn-sm">
+            Settings
+          </A>
+          <A href="/logs" class="btn btn-outline btn-sm">
             Raw Logs
           </A>
           <div class="badge badge-lg">

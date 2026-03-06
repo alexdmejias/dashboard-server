@@ -17,6 +17,6 @@
     "resolveJsonModule": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../src/plugins/settingsSchema.ts"],
   "exclude": ["node_modules", "dist", ".solid", ".output"]
 }

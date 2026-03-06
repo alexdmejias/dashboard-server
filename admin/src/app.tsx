@@ -5,6 +5,7 @@ import ClientDetail from "./routes/[clientName]";
 import Home from "./routes/index";
 import Login from "./routes/login";
 import RawLogs from "./routes/raw-logs";
+import Settings from "./routes/settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,10 +101,18 @@ export default function App() {
           )}
         />
         <Route
-          path="/raw-logs"
+          path="/logs"
           component={() => (
             <ProtectedRoute>
               <RawLogs />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/settings"
+          component={() => (
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           )}
         />
