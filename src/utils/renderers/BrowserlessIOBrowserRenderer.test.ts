@@ -1,7 +1,8 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { writeFile } from "node:fs/promises";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
 
-jest.mock("node:fs/promises");
+vi.mock("node:fs/promises");
 
 describe("BrowserlessIOBrowserRenderer", () => {
   const mockToken = "test-token";
@@ -11,12 +12,12 @@ describe("BrowserlessIOBrowserRenderer", () => {
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     renderer = new BrowserlessIOBrowserRenderer({
       token: mockToken,
     });
     originalFetch = global.fetch;
-    (writeFile as jest.Mock).mockResolvedValue(undefined);
+    (writeFile as Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -34,9 +35,9 @@ describe("BrowserlessIOBrowserRenderer", () => {
       mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
     });
 
     const options = {
@@ -77,9 +78,9 @@ describe("BrowserlessIOBrowserRenderer", () => {
       mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
     });
 
     const options = {
@@ -89,7 +90,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
 
     await renderer.renderPage(options);
 
-    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
     expect(body.options.viewport).toEqual({
@@ -105,9 +106,9 @@ describe("BrowserlessIOBrowserRenderer", () => {
       mockBuffer.byteOffset + mockBuffer.byteLength,
     );
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
     });
 
     const options = {
@@ -117,7 +118,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
 
     await renderer.renderPage(options);
 
-    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
     expect(body.options.fullPage).toBe(false);
@@ -125,11 +126,11 @@ describe("BrowserlessIOBrowserRenderer", () => {
   });
 
   it("should throw error when API request fails", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       statusText: "Unauthorized",
-      text: jest.fn().mockResolvedValue("Invalid token"),
+      text: vi.fn().mockResolvedValue("Invalid token"),
     });
 
     const options = {

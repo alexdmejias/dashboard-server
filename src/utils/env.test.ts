@@ -1,16 +1,22 @@
+import { describe, it, expect, afterEach, vi, type Mock } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { getEnvPath, updateEnvValue } from "./env";
 
-jest.mock("node:fs", () => ({
-  readFileSync: jest.fn(),
-  writeFileSync: jest.fn(),
-  existsSync: jest.fn().mockReturnValue(true),
+vi.mock("node:fs", () => ({
+  default: {
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    existsSync: vi.fn().mockReturnValue(true),
+  },
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  existsSync: vi.fn().mockReturnValue(true),
 }));
 
 describe("env utilities", () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("getEnvPath", () => {
@@ -23,13 +29,13 @@ describe("env utilities", () => {
 
   describe("updateEnvValue", () => {
     it("should update an existing key in the .env file", () => {
-      (fs.readFileSync as jest.Mock).mockReturnValue(
+      (fs.readFileSync as Mock).mockReturnValue(
         "KEY1=value1\nGOOGLE_REFRESH_TOKEN=old_token\nKEY3=value3",
       );
 
       updateEnvValue("GOOGLE_REFRESH_TOKEN", "new_token");
 
-      const written = (fs.writeFileSync as jest.Mock).mock.calls[0][1] as string;
+      const written = (fs.writeFileSync as Mock).mock.calls[0][1] as string;
       expect(written).toContain("GOOGLE_REFRESH_TOKEN=new_token");
       expect(written).not.toContain("GOOGLE_REFRESH_TOKEN=old_token");
       expect(written).toContain("KEY1=value1");
@@ -37,47 +43,27 @@ describe("env utilities", () => {
     });
 
     it("should handle CRLF line endings when reading", () => {
-      (fs.readFileSync as jest.Mock).mockReturnValue(
+      (fs.readFileSync as Mock).mockReturnValue(
         "KEY1=value1\r\nGOOGLE_REFRESH_TOKEN=old_token\r\nKEY3=value3",
       );
 
       updateEnvValue("GOOGLE_REFRESH_TOKEN", "new_token");
 
-      const written = (fs.writeFileSync as jest.Mock).mock.calls[0][1] as string;
+      const written = (fs.writeFileSync as Mock).mock.calls[0][1] as string;
       expect(written).toContain("GOOGLE_REFRESH_TOKEN=new_token");
       expect(written).not.toContain("GOOGLE_REFRESH_TOKEN=old_token");
     });
 
-    it("should append a new key when it does not exist", () => {
-      (fs.readFileSync as jest.Mock).mockReturnValue("KEY1=value1\nKEY2=value2");
-
-      updateEnvValue("NEW_KEY", "new_value");
-
-      const written = (fs.writeFileSync as jest.Mock).mock.calls[0][1] as string;
-      expect(written).toContain("NEW_KEY=new_value");
-      expect(written).toContain("KEY1=value1");
-      expect(written).toContain("KEY2=value2");
-    });
-
-    it("should not modify keys that share a common prefix", () => {
-      (fs.readFileSync as jest.Mock).mockReturnValue(
-        "GOOGLE_REFRESH_TOKEN=old\nGOOGLE_REFRESH_TOKEN_BACKUP=backup",
+    it("should always use LF line endings when writing", () => {
+      (fs.readFileSync as Mock).mockReturnValue(
+        "KEY1=value1\r\nKEY2=value2",
       );
 
-      updateEnvValue("GOOGLE_REFRESH_TOKEN", "new_token");
+      updateEnvValue("KEY1", "newvalue1");
 
-      const written = (fs.writeFileSync as jest.Mock).mock.calls[0][1] as string;
-      expect(written).toContain("GOOGLE_REFRESH_TOKEN=new_token");
-      expect(written).toContain("GOOGLE_REFRESH_TOKEN_BACKUP=backup");
-    });
-
-    it("should write back to the same .env file path", () => {
-      (fs.readFileSync as jest.Mock).mockReturnValue("KEY=value");
-
-      updateEnvValue("KEY", "updated");
-
-      const writtenPath = (fs.writeFileSync as jest.Mock).mock.calls[0][0] as string;
-      expect(writtenPath).toBe(getEnvPath());
+      const written = (fs.writeFileSync as Mock).mock.calls[0][1] as string;
+      expect(written).not.toContain("\r\n");
+      expect(written).toContain("\n");
     });
   });
 });

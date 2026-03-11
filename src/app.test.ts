@@ -1,12 +1,13 @@
+import { describe, it, expect, vi, type Mock } from "vitest";
 import getApp, { serverMessages } from "./app";
 import CallbackBase from "./base-callbacks/base";
 
-jest.mock("node:fs/promises", () => ({
-  readFile: jest.fn(),
-  stat: jest.fn(),
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn(),
+  stat: vi.fn(),
 }));
-jest.mock("./utils/getRenderedTemplate", () => ({
-  renderLiquidFile: jest.fn().mockResolvedValue("<div>rendered</div>"),
+vi.mock("./utils/getRenderedTemplate", () => ({
+  renderLiquidFile: vi.fn().mockResolvedValue("<div>rendered</div>"),
 }));
 
 /**

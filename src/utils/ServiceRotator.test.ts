@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import ServiceRotator, { ServiceConfig } from "./ServiceRotator";
 import {
   BrowserRenderer,
@@ -6,10 +7,12 @@ import {
 } from "../types/browser-renderer";
 
 // Mock logger
-jest.mock("../logger", () => ({
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+vi.mock("../logger", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 describe("ServiceRotator", () => {
@@ -18,24 +21,24 @@ describe("ServiceRotator", () => {
   let mockRenderer3: BrowserRenderer;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockRenderer1 = {
-      renderPage: jest.fn().mockResolvedValue({
+      renderPage: vi.fn().mockResolvedValue({
         path: "/path/to/image1.png",
         buffer: Buffer.from("test1"),
       }),
     };
 
     mockRenderer2 = {
-      renderPage: jest.fn().mockResolvedValue({
+      renderPage: vi.fn().mockResolvedValue({
         path: "/path/to/image2.png",
         buffer: Buffer.from("test2"),
       }),
     };
 
     mockRenderer3 = {
-      renderPage: jest.fn().mockResolvedValue({
+      renderPage: vi.fn().mockResolvedValue({
         path: "/path/to/image3.png",
         buffer: Buffer.from("test3"),
       }),
@@ -98,7 +101,7 @@ describe("ServiceRotator", () => {
 
   it("should fallback to next service when one fails", async () => {
     const failingRenderer: BrowserRenderer = {
-      renderPage: jest
+      renderPage: vi
         .fn()
         .mockRejectedValue(new Error("Service unavailable")),
     };
@@ -128,11 +131,11 @@ describe("ServiceRotator", () => {
 
   it("should throw error when all services fail", async () => {
     const failingRenderer1: BrowserRenderer = {
-      renderPage: jest.fn().mockRejectedValue(new Error("Service 1 failed")),
+      renderPage: vi.fn().mockRejectedValue(new Error("Service 1 failed")),
     };
 
     const failingRenderer2: BrowserRenderer = {
-      renderPage: jest.fn().mockRejectedValue(new Error("Service 2 failed")),
+      renderPage: vi.fn().mockRejectedValue(new Error("Service 2 failed")),
     };
 
     const services: ServiceConfig[] = [

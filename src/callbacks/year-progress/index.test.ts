@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock, vitest } from "vitest";
 import CallbackYearProgress from "./index";
 
 describe("CallbackYearProgress", () => {
@@ -21,7 +22,7 @@ describe("CallbackYearProgress", () => {
     // Mock Date to simulate a time when UTC and EST dates differ
     // Jan 13, 2026 at 4:00 AM UTC = Jan 12, 2026 at 11:00 PM EST
     const mockDate = new Date("2026-01-13T04:00:00.000Z");
-    jest.spyOn(global, "Date").mockImplementation(() => mockDate as any);
+    vi.spyOn(global, "Date").mockImplementation(() => mockDate as any);
 
     const result = await callback.getData();
 
@@ -35,7 +36,7 @@ describe("CallbackYearProgress", () => {
     expect(result.days[0][0]).toBe(12); // 12 days completed
     expect(result.days[0][1]).toBe(19); // 19 days remaining (31 - 12)
 
-    jest.restoreAllMocks();
+    vitest.restoreAllMocks();
   });
 
   it("should format date with weekday, month, day, and year", async () => {
@@ -55,7 +56,7 @@ describe("CallbackYearProgress", () => {
       expect(month).toHaveLength(2);
       expect(typeof month[0]).toBe("number");
       expect(typeof month[1]).toBe("number");
-      
+
       // Sum of completed and remaining should equal days in that month
       const totalDays = month[0] + month[1];
       expect(totalDays).toBeGreaterThan(27); // All months have at least 28 days
@@ -66,7 +67,7 @@ describe("CallbackYearProgress", () => {
   it("should work regardless of server timezone", async () => {
     // This test verifies that the callback produces consistent results
     // even when the server is in a different timezone
-    
+
     // Save original timezone
     const originalTZ = process.env.TZ;
 

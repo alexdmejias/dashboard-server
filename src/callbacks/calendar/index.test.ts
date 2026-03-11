@@ -1,25 +1,26 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { _resetForTesting, initSettings, updateSettings } from "../../settings";
 import CallbackCalendar from "./index";
 import type { GoogleCalendarEvent } from "./types";
 
 // Mock the env utility to avoid touching the real .env file in tests
-jest.mock("../../utils/env", () => ({
-  updateEnvValue: jest.fn(),
+vi.mock("../../utils/env", () => ({
+  updateEnvValue: vi.fn(),
 }));
 
 // Mock the Google APIs
-jest.mock("googleapis", () => ({
+vi.mock("googleapis", () => ({
   google: {
     auth: {
-      OAuth2: jest.fn().mockImplementation(() => ({
-        setCredentials: jest.fn(),
-        on: jest.fn(),
+      OAuth2: vi.fn().mockImplementation(() => ({
+        setCredentials: vi.fn(),
+        on: vi.fn(),
         credentials: {},
       })),
     },
-    calendar: jest.fn().mockReturnValue({
+    calendar: vi.fn().mockReturnValue({
       events: {
-        list: jest.fn().mockResolvedValue({
+        list: vi.fn().mockResolvedValue({
           data: { items: [] },
         }),
       },
@@ -298,7 +299,7 @@ describe("CallbackCalendar", () => {
 
     beforeEach(() => {
       originalRefreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     afterEach(() => {
@@ -307,9 +308,9 @@ describe("CallbackCalendar", () => {
 
     it("should register a tokens event listener for observing token refreshes", async () => {
       const { google } = require("googleapis");
-      const mockOn = jest.fn();
+      const mockOn = vi.fn();
       google.auth.OAuth2.mockImplementation(() => ({
-        setCredentials: jest.fn(),
+        setCredentials: vi.fn(),
         on: mockOn,
         credentials: {},
       }));
@@ -330,7 +331,7 @@ describe("CallbackCalendar", () => {
       let mockCredentials: Record<string, any> = {
         refresh_token: "old-refresh-token",
       };
-      const mockSetCredentials = jest.fn((creds) => {
+      const mockSetCredentials = vi.fn((creds) => {
         mockCredentials = { ...mockCredentials, ...creds };
       });
 
@@ -378,7 +379,7 @@ describe("CallbackCalendar", () => {
 
       let capturedTokensHandler: ((tokens: any) => void) | null = null;
       google.auth.OAuth2.mockImplementation(() => ({
-        setCredentials: jest.fn(),
+        setCredentials: vi.fn(),
         on: (_event: string, handler: (tokens: any) => void) => {
           capturedTokensHandler = handler;
         },
