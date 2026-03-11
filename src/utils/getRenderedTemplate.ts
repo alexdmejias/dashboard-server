@@ -9,7 +9,7 @@ import { PROJECT_ROOT } from "./projectRoot";
 let cachedTailwindCss: string | null = null;
 
 async function getTailwindCss(): Promise<string> {
-  if (cachedTailwindCss !== null) {
+  if (cachedTailwindCss !== null && process.env.NODE_ENV === "production") {
     return cachedTailwindCss;
   }
   const cssPath = path.join(PROJECT_ROOT, "public/tailwind.css");
