@@ -1,4 +1,5 @@
-import * as monaco from "monaco-editor";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import { createEffect, onCleanup, onMount } from "solid-js";
 
 // Global registry so multiple editors can have schemas without overwriting each other

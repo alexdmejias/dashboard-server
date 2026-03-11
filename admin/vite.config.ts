@@ -3,7 +3,12 @@ import monacoEditorPlugin from "vite-plugin-monaco-editor";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
-  plugins: [solid({ ssr: false }), (monacoEditorPlugin as any).default({})],
+  plugins: [
+    solid({ ssr: false }),
+    (monacoEditorPlugin as any).default({
+      languageWorkers: ["editorWorkerService", "json"],
+    }),
+  ],
   build: {
     outDir: "../public/admin",
     emptyOutDir: true,
