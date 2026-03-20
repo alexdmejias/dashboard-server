@@ -57,7 +57,8 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
     // Get waitUntil strategy from environment variable or use networkidle2 as default
     // networkidle2 waits until there are no more than 2 network connections for at least 500ms
     // This ensures dynamic content and resources loaded by JavaScript are fully loaded
-    const waitUntil = (process.env.BROWSER_WAIT_UNTIL || "networkidle2") as any;
+    type WaitUntilOption = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+    const waitUntil = (process.env.BROWSER_WAIT_UNTIL || "networkidle2") as WaitUntilOption;
     
     logger.debug(
       { waitUntil, size },

@@ -19,6 +19,8 @@ describe("CloudflareBrowserRenderer", () => {
     });
     originalFetch = global.fetch;
     (writeFile as Mock).mockResolvedValue(undefined);
+    // Clean up environment variables at the start of each test
+    delete process.env.BROWSER_WAIT_UNTIL;
   });
 
   afterEach(() => {
@@ -142,7 +144,6 @@ describe("CloudflareBrowserRenderer", () => {
   });
 
   it("should respect BROWSER_WAIT_UNTIL environment variable", async () => {
-    const originalEnv = process.env.BROWSER_WAIT_UNTIL;
     process.env.BROWSER_WAIT_UNTIL = "load";
 
     const mockBuffer = Buffer.from("test screenshot");
@@ -166,12 +167,5 @@ describe("CloudflareBrowserRenderer", () => {
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.gotoOptions.waitUntil).toBe("load");
-
-    // Restore original environment variable
-    if (originalEnv === undefined) {
-      delete process.env.BROWSER_WAIT_UNTIL;
-    } else {
-      process.env.BROWSER_WAIT_UNTIL = originalEnv;
-    }
   });
 });
