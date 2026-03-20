@@ -19,6 +19,8 @@ describe("CloudflareBrowserRenderer", () => {
     });
     originalFetch = global.fetch;
     (writeFile as Mock).mockResolvedValue(undefined);
+    // Clean up environment variables at the start of each test
+    delete process.env.BROWSER_WAIT_UNTIL;
   });
 
   afterEach(() => {
@@ -60,6 +62,11 @@ describe("CloudflareBrowserRenderer", () => {
         body: expect.stringContaining("viewport"),
       })
     );
+
+    // Verify that networkidle2 is used by default for proper resource loading
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall[1].body);
+    expect(body.gotoOptions.waitUntil).toBe("networkidle2");
 
     expect(writeFile).toHaveBeenCalledWith(
       options.imagePath,
@@ -134,5 +141,31 @@ describe("CloudflareBrowserRenderer", () => {
     await expect(renderer.renderPage(options)).rejects.toThrow(
       "Cloudflare Browser Rendering failed: 403 Forbidden - Rate limit exceeded"
     );
+  });
+
+  it("should respect BROWSER_WAIT_UNTIL environment variable", async () => {
+    process.env.BROWSER_WAIT_UNTIL = "load";
+
+    const mockBuffer = Buffer.from("test screenshot");
+    const mockArrayBuffer = mockBuffer.buffer.slice(
+      mockBuffer.byteOffset,
+      mockBuffer.byteOffset + mockBuffer.byteLength
+    );
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+    });
+
+    const options = {
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    };
+
+    await renderer.renderPage(options);
+
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall[1].body);
+    expect(body.gotoOptions.waitUntil).toBe("load");
   });
 });

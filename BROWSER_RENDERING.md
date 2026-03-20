@@ -231,3 +231,67 @@ Make sure you've set both required environment variables in your `.env` file.
 - Check that your API token is valid
 - Check your usage limits and quota
 - Verify network connectivity to the endpoint
+
+### Resources Not Loading in Screenshots
+
+If you notice that images, fonts, or other resources are not appearing in screenshots, this is likely due to the page timing strategy. By default, all renderers now use `networkidle2` which waits until there are no more than 2 active network connections for at least 500ms. This ensures that dynamically loaded content and resources are fully loaded before the screenshot is taken.
+
+**To customize the wait strategy**, you can set the `BROWSER_WAIT_UNTIL` environment variable:
+
+```env
+BROWSER_WAIT_UNTIL=networkidle2  # Default - recommended for most cases
+# or
+BROWSER_WAIT_UNTIL=networkidle0  # Stricter - waits for all network connections to close
+# or
+BROWSER_WAIT_UNTIL=load  # Faster but may miss dynamic content
+# or
+BROWSER_WAIT_UNTIL=domcontentloaded  # Fastest but only waits for HTML to parse
+```
+
+**Wait strategies explained:**
+
+- `networkidle2` (default): Waits until there are no more than 2 network connections for at least 500ms. Best for most pages with dynamic content.
+- `networkidle0`: Waits until there are no network connections for at least 500ms. Strictest option, may timeout on pages with persistent connections (e.g., analytics, websockets).
+- `load`: Waits for the `load` event (all static resources loaded). May miss JavaScript-loaded content.
+- `domcontentloaded`: Waits for the `DOMContentLoaded` event (HTML parsed). Fastest but may miss images, styles, and dynamic content.
+
+### Debugging Screenshot Issues
+
+The renderers now include detailed logging to help diagnose issues:
+
+**Enable debug logging:**
+
+```env
+LOG_LEVEL=debug
+```
+
+**What gets logged:**
+
+- Screenshot start time with page dimensions and HTML length
+- Wait strategy being used (e.g., `networkidle2`, `load`)
+- Screenshot completion time with duration and buffer size
+- Any errors from the rendering service
+
+**Example debug output:**
+
+```
+[DEBUG] CloudflareBrowserRenderer: Starting screenshot capture
+    size: { width: 1200, height: 825 }
+    htmlLength: 45231
+[DEBUG] CloudflareBrowserRenderer: Sending screenshot request to Cloudflare API
+    waitUntil: "networkidle2"
+    size: { width: 1200, height: 825 }
+[INFO] CloudflareBrowserRenderer: Screenshot captured successfully
+    imagePath: "/app/public/images/dashboard-123.png"
+    size: { width: 1200, height: 825 }
+    duration: 2341
+    bufferSize: 156743
+```
+
+**Troubleshooting tips:**
+
+1. **Check the duration**: If screenshots are consistently timing out, try using a less strict wait strategy like `load` instead of `networkidle0`
+2. **Check the buffer size**: Very small buffer sizes (< 1KB) usually indicate an error occurred
+3. **Review HTML content**: Enable debug logging to see the HTML length - if it's 0 or very small, the issue is in template rendering, not screenshot capture
+4. **Test wait strategies**: Try different `BROWSER_WAIT_UNTIL` values to find the best balance between completeness and speed for your content
+5. **Check the logs**: Look for error messages from the rendering service in the application logs
