@@ -3,6 +3,7 @@ import type {
   RenderOptions,
   RenderResult,
 } from "../../types/browser-renderer";
+import logger from "../../logger";
 
 class PuppeteerBrowserRenderer implements BrowserRenderer {
   async renderPage(options: RenderOptions): Promise<RenderResult> {
@@ -11,6 +12,12 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
       imagePath,
       size = { width: 1200, height: 825 },
     } = options;
+
+    const startTime = Date.now();
+    logger.debug(
+      { size, htmlLength: htmlContent.length },
+      "PuppeteerBrowserRenderer: Starting screenshot capture",
+    );
 
     let puppeteer: any;
     try {
@@ -47,11 +54,27 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
 
     await page.setViewport(size);
 
-    await page.setContent(htmlContent);
+    // Get waitUntil strategy from environment variable or use networkidle2 as default
+    // networkidle2 waits until there are no more than 2 network connections for at least 500ms
+    // This ensures dynamic content and resources loaded by JavaScript are fully loaded
+    const waitUntil = (process.env.BROWSER_WAIT_UNTIL || "networkidle2") as any;
+    
+    logger.debug(
+      { waitUntil, size },
+      "PuppeteerBrowserRenderer: Setting page content and waiting for resources",
+    );
+    
+    await page.setContent(htmlContent, { waitUntil });
 
     const buffer = (await page.screenshot({ path: imagePath })) as Buffer;
 
     await browser.close();
+
+    const duration = Date.now() - startTime;
+    logger.info(
+      { imagePath, size, duration, bufferSize: buffer.length },
+      "PuppeteerBrowserRenderer: Screenshot captured successfully",
+    );
 
     return {
       path: imagePath,

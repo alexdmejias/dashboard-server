@@ -99,8 +99,11 @@ Create a `.env` file at the project root or export env vars. Example keys used b
 
 - `WEATHER_APIKEY` — API key for the weather callback (if enabled)
 - `PORT` — server port
+- `BROWSER_WAIT_UNTIL` — Wait strategy for screenshot rendering (default: `networkidle2`). See [BROWSER_RENDERING.md](./BROWSER_RENDERING.md) for details.
 
 Other per-callback env variables are declared in each callback under `envVariablesNeeded`.
+
+For complete browser rendering configuration including Cloudflare, Browserless.io, and debugging options, see [BROWSER_RENDERING.md](./BROWSER_RENDERING.md).
 
 ## Logging Configuration
 
