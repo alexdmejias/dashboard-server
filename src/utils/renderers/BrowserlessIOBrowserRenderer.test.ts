@@ -18,6 +18,8 @@ describe("BrowserlessIOBrowserRenderer", () => {
     });
     originalFetch = global.fetch;
     (writeFile as Mock).mockResolvedValue(undefined);
+    // Clean up environment variables at the start of each test
+    delete process.env.BROWSER_WAIT_UNTIL;
   });
 
   afterEach(() => {
@@ -49,12 +51,12 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const result = await renderer.renderPage(options);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `${mockEndpoint}/screenshot`,
+      `https://production-sfo.browserless.io/screenshot?token=${mockToken}`,
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: `Bearer ${mockToken}`,
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
         }),
         body: expect.stringContaining("viewport"),
       }),
@@ -93,7 +95,7 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
-    expect(body.options.viewport).toEqual({
+    expect(body.viewport).toEqual({
       width: 1200,
       height: 825,
     });
@@ -123,6 +125,8 @@ describe("BrowserlessIOBrowserRenderer", () => {
 
     expect(body.options.fullPage).toBe(false);
     expect(body.options.type).toBe("png");
+    // Verify that networkidle2 is used by default for proper resource loading
+    expect(body.options.gotoOptions.waitUntil).toBe("networkidle2");
   });
 
   it("should throw error when API request fails", async () => {
@@ -141,5 +145,31 @@ describe("BrowserlessIOBrowserRenderer", () => {
     await expect(renderer.renderPage(options)).rejects.toThrow(
       "Browserless.io rendering failed",
     );
+  });
+
+  it("should respect BROWSER_WAIT_UNTIL environment variable", async () => {
+    process.env.BROWSER_WAIT_UNTIL = "domcontentloaded";
+
+    const mockBuffer = Buffer.from("test screenshot");
+    const mockArrayBuffer = mockBuffer.buffer.slice(
+      mockBuffer.byteOffset,
+      mockBuffer.byteOffset + mockBuffer.byteLength,
+    );
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+    });
+
+    const options = {
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    };
+
+    await renderer.renderPage(options);
+
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall[1].body);
+    expect(body.options.gotoOptions.waitUntil).toBe("domcontentloaded");
   });
 });
