@@ -67,6 +67,14 @@ class PuppeteerBrowserRenderer implements BrowserRenderer {
     
     await page.setContent(htmlContent, { waitUntil });
 
+    // Wait for all fonts to be fully loaded and rendered
+    try {
+      await page.evaluate(() => document.fonts.ready);
+      logger.debug("PuppeteerBrowserRenderer: Fonts ready");
+    } catch (error) {
+      logger.warn({ error }, "PuppeteerBrowserRenderer: Fonts ready check failed, proceeding with screenshot");
+    }
+
     const buffer = (await page.screenshot({ path: imagePath })) as Buffer;
 
     await browser.close();
