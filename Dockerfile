@@ -1,5 +1,27 @@
 # syntax=docker/dockerfile:1
 
+# Built in its own stage so it's cached independently of the rest of the
+# repo. The admin app reaches outside its own directory for a couple of
+# shared files (src/plugins/settingsSchema.ts, init-payload.schema.json),
+# so those are copied in explicitly rather than the whole repo — this
+# reruns when those, or admin/'s own deps/source, change, but not for
+# unrelated changes elsewhere (views/, data/, docs, etc).
+FROM node:25-bookworm-slim AS admin-builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY admin/package*.json ./admin/
+RUN cd admin && npm ci
+
+COPY src ./src
+COPY init-payload.schema.json ./
+COPY admin/ ./admin/
+RUN cd admin && npm run build
+
+# ---------------------------------------------------------------------------
+
 FROM node:25-bookworm-slim AS builder
 WORKDIR /app
 
@@ -7,10 +29,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-
-# Build the admin SPA first; its output (public/admin) is picked up by the
-# server build below (build:copy bundles whatever is already in public/).
-RUN cd admin && npm ci && npm run build
+COPY --from=admin-builder /app/public/admin ./public/admin
 
 RUN npm run build
 
