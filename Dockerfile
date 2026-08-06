@@ -1,63 +1,54 @@
-FROM node:25-bookworm
+# syntax=docker/dockerfile:1
 
-# Install Chromium and dependencies, then clean up apt cache to reduce image size
-RUN apt-get update && apt-get install -y \
-    chromium \
-    gconf-service \
-    libasound2 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgcc1 \
-    libgconf-2-4 \
-    libgdk-pixbuf2.0-0 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator1 \
-    libnss3 \
-    lsb-release \
-    xdg-utils \
-    wget && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /home/node/app
+FROM node:25-bookworm-slim AS builder
+WORKDIR /app
 
 COPY package*.json ./
-
-# Use npm ci if a lockfile exists, for clean and reproducible builds
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm ci
 
 COPY . .
 
+# Build the admin SPA first; its output (public/admin) is picked up by the
+# server build below (build:copy bundles whatever is already in public/).
+RUN cd admin && npm ci && npm run build
+
 RUN npm run build
 
-# Expose the port your app listens on (update if not 3000)
-EXPOSE 3000
+# ---------------------------------------------------------------------------
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+FROM node:25-bookworm-slim AS runtime
 
-CMD [ "node", "dist/index.js" ]
+# System Chromium for the puppeteer browser renderer (puppeteer's own bundled
+# download is skipped below in favor of this one, via CHROMIUM_BIN).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      chromium \
+      ca-certificates \
+      fonts-liberation \
+      curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production \
+    PORT=3333 \
+    CHROMIUM_BIN=/usr/bin/chromium \
+    PUPPETEER_SKIP_DOWNLOAD=true
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Templates/views/static assets are resolved relative to the project root at
+# runtime (see src/utils/projectRoot.ts), not relative to dist/, so they all
+# need to ship alongside the compiled output.
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/views ./views
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/data ./data
+
+EXPOSE 3333
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD sh -c 'curl -fsS "http://localhost:${PORT:-3333}/health" || exit 1'
+
+CMD ["node", "dist/index.js"]

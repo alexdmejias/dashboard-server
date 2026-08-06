@@ -1,0 +1,27 @@
+services:
+  dashboard-server:
+    build: .
+    container_name: dashboard-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3333}:${PORT:-3333}"
+    env_file:
+      - .env
+    environment:
+      # lowdb writes settings.json via a temp-file + rename; that rename
+      # fails with EBUSY if the target path is itself a bind-mount point,
+      # so it lives inside the data/ directory mount instead of being its
+      # own single-file mount.
+      - SETTINGS_FILE=/app/data/settings.json
+    volumes:
+      # Written to at runtime (Google OAuth refresh token persistence) —
+      # must be a real writable file, not baked into the image.
+      - ./.env:/app/.env
+      - ./init-payload.json:/app/init-payload.json
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${PORT:-3333}/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

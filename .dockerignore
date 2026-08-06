@@ -1,6 +1,8 @@
 node_modules
+admin/node_modules
 npm-debug.log
 Dockerfile
+docker-compose.yml
 .dockerignore
 .git
 .gitignore
@@ -9,3 +11,35 @@ test
 src/**/*.test.*
 src/**/*.spec.*
 biome.json
+.serena
+.nx
+.vscode
+.github
+bruno-collection
+help
+storybook-static
+
+# Build output (regenerated in the image)
+dist
+public/admin
+public/tailwind.css
+admin/dist
+admin/.solid
+admin/.output
+
+# Runtime state / secrets: never bake these into an image layer.
+# They're bind-mounted into the container instead (see docker-compose.yml).
+.env
+.env.*
+!.env.sample
+settings.json
+init-payload.json*
+.google-tokens.json
+db.sqlite
+dev.db
+*.sqlite
+*.db
+keys/*.json
+data/*.json
+!data/*.sample.json
+public/images
