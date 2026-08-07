@@ -1,0 +1,27 @@
+name: Build and Push Image
+
+on:
+  push:
+    branches:
+      - main  # Build + publish on every push to main
+  workflow_dispatch:  # Allows manual runs from GitHub UI
+
+permissions:
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses:  actions/checkout@v4
+
+      - name: Build image
+        run: docker compose build dashboard-server
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push image to GHCR
+        run: docker compose push dashboard-server

@@ -1,6 +1,7 @@
 services:
   dashboard-server:
     build: .
+    image: ghcr.io/alexdmejias/dashboard-server:latest
     container_name: dashboard-server
     restart: unless-stopped
     ports:
