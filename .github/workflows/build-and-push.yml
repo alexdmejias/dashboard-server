@@ -11,17 +11,33 @@ permissions:
 
 jobs:
   build-and-push:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses:  actions/checkout@v4
+        uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker compose build dashboard-server
+      - name: Set up QEMU (for cross-building linux/arm64)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push image to GHCR
-        run: docker compose push dashboard-server
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ghcr.io/alexdmejias/dashboard-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
