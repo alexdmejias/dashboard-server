@@ -6,7 +6,13 @@ services:
     # on the Pi itself). Portainer/compose just pulls this tag; it should
     # never build from source on the deploy host. To build locally for dev,
     # run `docker build .` directly rather than adding build: back here.
-    image: ghcr.io/alexdmejias/dashboard-server:latest
+    #
+    # IMAGE_TAG picks which of the two tags that workflow publishes to pull:
+    # "latest" (default, self-contained with puppeteer/Chromium) or "slim"
+    # (~700MB smaller, requires browserRenderer set to cloudflare/browserless
+    # in settings since it has no puppeteer). Set IMAGE_TAG=slim as a stack
+    # environment variable in Portainer to switch — no file edit needed.
+    image: ghcr.io/alexdmejias/dashboard-server:${IMAGE_TAG:-latest}
     container_name: dashboard-server
     restart: unless-stopped
     ports:
