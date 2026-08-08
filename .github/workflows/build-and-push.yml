@@ -13,6 +13,17 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        include:
+          # Self-contained image with puppeteer + system Chromium.
+          - include-puppeteer: with-puppeteer
+            tag: latest
+          # Slimmer image (~700MB smaller) for deployments using an external
+          # renderer only (cloudflare/browserless) — see Dockerfile.
+          - include-puppeteer: without-puppeteer
+            tag: slim
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,12 +43,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push image (${{ matrix.tag }})
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/alexdmejias/dashboard-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            INCLUDE_PUPPETEER=${{ matrix.include-puppeteer }}
+          tags: ghcr.io/alexdmejias/dashboard-server:${{ matrix.tag }}
+          # Scoped per matrix leg since the two legs build in parallel and
+          # share a GHA cache backend — see
+          # https://docs.docker.com/build/cache/backends/gha/#scope
+          cache-from: type=gha,scope=${{ matrix.include-puppeteer }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.include-puppeteer }}

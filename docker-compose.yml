@@ -1,14 +1,11 @@
 services:
   dashboard-server:
-    # Defaults to the self-contained image (puppeteer + system Chromium). For
-    # a ~700MB smaller image that relies solely on an external renderer
-    # (cloudflare/browserless), set INCLUDE_PUPPETEER=without-puppeteer as a
-    # stack environment variable in Portainer (Environment variables section
-    # when deploying/updating the stack) — no need to edit this file itself.
-    build:
-      context: .
-      args:
-        INCLUDE_PUPPETEER: ${INCLUDE_PUPPETEER:-with-puppeteer}
+    # No build: here on purpose — this image is built and pushed to GHCR by
+    # .github/workflows/build-and-push.yml on every push to main (GitHub's
+    # runners cross-build for linux/arm64 via QEMU, much faster than building
+    # on the Pi itself). Portainer/compose just pulls this tag; it should
+    # never build from source on the deploy host. To build locally for dev,
+    # run `docker build .` directly rather than adding build: back here.
     image: ghcr.io/alexdmejias/dashboard-server:latest
     container_name: dashboard-server
     restart: unless-stopped
