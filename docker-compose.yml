@@ -1,6 +1,14 @@
 services:
   dashboard-server:
-    build: .
+    # Defaults to the self-contained image (puppeteer + system Chromium). For
+    # a ~700MB smaller image that relies solely on an external renderer
+    # (cloudflare/browserless), set INCLUDE_PUPPETEER=without-puppeteer as a
+    # stack environment variable in Portainer (Environment variables section
+    # when deploying/updating the stack) — no need to edit this file itself.
+    build:
+      context: .
+      args:
+        INCLUDE_PUPPETEER: ${INCLUDE_PUPPETEER:-with-puppeteer}
     image: ghcr.io/alexdmejias/dashboard-server:latest
     container_name: dashboard-server
     restart: unless-stopped
