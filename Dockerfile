@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CHROMIUM_BIN=/usr/bin/chromium
 
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # ---------------------------------------------------------------------------
 # Slim image: omits puppeteer and system Chromium for deployments that only
@@ -98,7 +98,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 FROM runtime-base AS runtime-without-puppeteer
 
-RUN npm ci --omit=dev --omit=optional && npm cache clean --force
+RUN npm ci --omit=dev --omit=optional --ignore-scripts && npm cache clean --force
 
 # ---------------------------------------------------------------------------
 # Build with --build-arg INCLUDE_PUPPETEER=without-puppeteer to select the
