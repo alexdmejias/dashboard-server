@@ -50,9 +50,22 @@ services:
       # way `env_file:` does if the path doesn't exist. It's also written
       # to at runtime (Google OAuth refresh token persistence), so it
       # needs to be a real writable file, not baked into the image.
-      - ./.env:/app/.env
-      - ./init-payload.json:/app/init-payload.json
-      - ./data:/app/data
+      #
+      # The host-side source of each mount is parameterized below, defaulting
+      # to paths relative to this file so `docker compose up` still works
+      # out of the box for a plain git clone. For a Portainer Git-repo stack,
+      # set the *_HOST_PATH/_HOST_DIR variables as stack environment
+      # variables to real absolute paths on the host — relative paths there
+      # resolve against Portainer's internal clone directory, not any actual
+      # checkout on disk, which silently pointed these at empty/nonexistent
+      # files in the past (Docker auto-creates a directory for a missing
+      # bind-mount source rather than erroring). These variable names are
+      # deliberately distinct from the SETTINGS_FILE/INIT_PAYLOAD_FILE
+      # container env vars above — those control where *inside* the container
+      # the app looks; these control where *on the host* the mount reads from.
+      - ${ENV_HOST_PATH:-./.env}:/app/.env
+      - ${INIT_PAYLOAD_HOST_PATH:-./init-payload.json}:/app/init-payload.json
+      - ${DATA_HOST_DIR:-./data}:/app/data
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:${PORT:-3333}/health || exit 1"]
       interval: 30s
