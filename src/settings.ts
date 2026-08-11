@@ -36,6 +36,10 @@ export type AppSettings = {
   cloudflareApiToken?: string;
   browserlessIoToken?: string;
   logtailSourceToken?: string;
+  redditClientId?: string;
+  redditClientSecret?: string;
+  redditAccessToken?: string;
+  redditAccessTokenExpiresAt?: number;
 };
 
 const DEFAULTS: AppSettings = {
