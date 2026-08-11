@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import { Show } from "solid-js";
 import { ClientsList } from "../components/ClientsList";
-import { fetchClients } from "../lib/api";
+import { fetchClients, fetchVersion } from "../lib/api";
 import { createSSEConnection } from "../lib/sse";
 
 export default function Home() {
@@ -10,6 +10,11 @@ export default function Home() {
   const clientsQuery = createQuery(() => ({
     queryKey: ["clients"],
     queryFn: fetchClients,
+  }));
+
+  const versionQuery = createQuery(() => ({
+    queryKey: ["version"],
+    queryFn: fetchVersion,
   }));
 
   // Use SSE for real-time updates, starting with initial data from query
@@ -24,8 +29,13 @@ export default function Home() {
   return (
     <main class="min-h-screen bg-base-200">
       <div class="navbar bg-base-100 shadow-lg">
-        <div class="flex-1">
+        <div class="flex-1 gap-2 items-center">
           <a class="btn btn-ghost text-xl">Dashboard Server Admin</a>
+          <Show when={versionQuery.data}>
+            <A href="/changelog" class="badge badge-outline">
+              v{versionQuery.data?.version}
+            </A>
+          </Show>
         </div>
         <div class="flex-none gap-2">
           <A href="/settings" class="btn btn-outline btn-sm">
@@ -33,6 +43,9 @@ export default function Home() {
           </A>
           <A href="/logs" class="btn btn-outline btn-sm">
             Raw Logs
+          </A>
+          <A href="/changelog" class="btn btn-outline btn-sm">
+            Changelog
           </A>
           <div class="badge badge-lg">
             <Show

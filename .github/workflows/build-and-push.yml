@@ -1,9 +1,14 @@
 name: Build and Push Image
 
 on:
-  push:
-    branches:
-      - main  # Build + publish on every push to main
+  # Runs after the Release workflow finishes on main, rather than directly
+  # on push, so the image always builds from a tree where semantic-release's
+  # version-bump commit (package.json/CHANGELOG.md) has already landed —
+  # otherwise the image would ship with a stale pre-bump version.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:  # Allows manual runs from GitHub UI
 
 permissions:
@@ -12,6 +17,7 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       matrix:
@@ -25,6 +31,9 @@ jobs:
             tag: slim
 
     steps:
+      # No `ref` override: for a workflow_run trigger this defaults to main's
+      # current HEAD, which already includes the Release workflow's
+      # version-bump commit (if one was made).
       - name: Checkout code
         uses: actions/checkout@v4
 

@@ -17,6 +17,7 @@ import {
   isSupportedImageViewType,
   isSupportedViewType,
 } from "./utils/isSupportedViewTypes";
+import { getChangelogHtml, getVersion } from "./version";
 
 export const serverMessages = {
   healthGood: "ok",
@@ -107,6 +108,14 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
       possibleCallbacks: Object.keys(possibleCallbacks),
       clients: app.getClients(),
     });
+  });
+
+  app.get("/api/version", async (_req, res) => {
+    return res.send({ version: getVersion() });
+  });
+
+  app.get("/api/changelog", async (_req, res) => {
+    return res.send({ changelogHtml: getChangelogHtml() });
   });
 
   app.post<{

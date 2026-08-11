@@ -80,6 +80,22 @@ export async function fetchSettings(): Promise<Record<string, unknown>> {
   return response.json();
 }
 
+export async function fetchVersion(): Promise<{ version: string }> {
+  const response = await fetch("/api/version");
+  if (!response.ok) {
+    throw new Error("Failed to fetch version");
+  }
+  return response.json();
+}
+
+export async function fetchChangelog(): Promise<{ changelogHtml: string }> {
+  const response = await fetch("/api/changelog");
+  if (!response.ok) {
+    throw new Error("Failed to fetch changelog");
+  }
+  return response.json();
+}
+
 export async function saveSettings(
   patch: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {

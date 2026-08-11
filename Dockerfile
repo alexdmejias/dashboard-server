@@ -65,6 +65,7 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/views ./views
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/data ./data
+COPY --from=builder /app/CHANGELOG.md ./
 
 EXPOSE 3333
 
