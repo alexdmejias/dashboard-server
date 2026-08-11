@@ -50,20 +50,22 @@ const start = async () => {
 
     await app.listen({ port, host: "0.0.0.0" });
 
+    const initPayloadPath = process.env.INIT_PAYLOAD_FILE || "./init-payload.json";
+
     // A bind-mounted path that doesn't exist yet on the host (e.g. a fresh
     // Docker/Portainer deploy before the file has been created) gets
     // auto-vivified by Docker as an empty directory rather than a file, so
     // existsSync alone isn't enough — check isFile() too, otherwise readFile
     // throws EISDIR and crash-loops the container.
-    if (existsSync("./init-payload.json") && statSync("./init-payload.json").isFile()) {
-      const fileContents = await readFile("./init-payload.json", "utf-8");
+    if (existsSync(initPayloadPath) && statSync(initPayloadPath).isFile()) {
+      const fileContents = await readFile(initPayloadPath, "utf-8");
       const initPayload = JSON.parse(fileContents) as any[];
       initPayload.forEach(async (item) => {
         await app.inject(item);
       });
     } else {
       app.log.warn(
-        "No init-payload.json file found. Skipping initial payload injection.",
+        `No init-payload.json file found at ${initPayloadPath}. Skipping initial payload injection.`,
       );
     }
 

@@ -13,8 +13,22 @@ services:
     # in settings since it has no puppeteer). Set IMAGE_TAG=slim as a stack
     # environment variable in Portainer to switch — no file edit needed.
     image: ghcr.io/alexdmejias/dashboard-server:${IMAGE_TAG:-latest}
+    # Always check the registry for a newer digest under this tag before
+    # starting — without this, compose reuses whatever image is already
+    # cached locally even after a new build has been pushed under the same
+    # :latest/:slim tag (this bit us: a fixed image sat unused on the Pi for
+    # hours because the old one was never re-pulled).
+    pull_policy: always
     container_name: dashboard-server
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        # Docker's default json-file driver never rotates on its own, so a
+        # crash-loop (as seen during the init-payload.json incident) can
+        # otherwise fill the Pi's disk with log data.
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "${PORT:-3333}:${PORT:-3333}"
     environment:
@@ -23,6 +37,10 @@ services:
       # so it lives inside the data/ directory mount instead of being its
       # own single-file mount.
       - SETTINGS_FILE=/app/data/settings.json
+      # Explicit so it doesn't depend on the app's CWD-relative default
+      # ("./init-payload.json") matching this container's WORKDIR — same
+      # reasoning as SETTINGS_FILE above.
+      - INIT_PAYLOAD_FILE=/app/init-payload.json
     volumes:
       # No top-level env_file: here on purpose — the app loads this file
       # itself via dotenv at startup (src/index.ts), non-fatally if it's
