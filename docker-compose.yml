@@ -21,6 +21,7 @@ services:
     pull_policy: always
     container_name: dashboard-server
     restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
     logging:
       driver: json-file
       options:
