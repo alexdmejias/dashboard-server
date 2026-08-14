@@ -178,6 +178,29 @@ describe("CallbackCalendar", () => {
     });
   });
 
+  describe("formatTime", () => {
+    it("should display the event's time in the configured timezone, not the server's local timezone", () => {
+      const originalTZ = process.env.TZ;
+
+      try {
+        // Simulate a server running in UTC (e.g. a default Docker container),
+        // displaying an event scheduled for 2:00 PM Eastern time.
+        process.env.TZ = "UTC";
+
+        const formatTime = (callback as any).formatTime.bind(callback);
+        const eventDate = new Date("2026-01-20T14:00:00-05:00"); // 2:00 PM EST / 7:00 PM UTC
+
+        expect(formatTime(eventDate, "America/New_York")).toBe("2:00");
+      } finally {
+        if (originalTZ !== undefined) {
+          process.env.TZ = originalTZ;
+        } else {
+          delete process.env.TZ;
+        }
+      }
+    });
+  });
+
   describe("event categorization", () => {
     it("should categorize all-day events correctly", () => {
       const isAllDayEvent = (callback as any).isAllDayEvent.bind(callback);
