@@ -26,10 +26,11 @@ type Story = StoryObj<typeof meta>;
 
 export const YearProgressAndWeather: Story = {
   render: createLayoutStoryRenderer("2-col", [
-    { name: "year-progress", data: { data: yearProgressFixture } },
+    { name: "year-progress", data: yearProgressFixture },
     {
       name: "weather",
-      data: { runtimeConfig: { title: "wasdwasdwasd" }, data: weatherFixture },
+      data: weatherFixture,
+      runtimeConfig: { title: "wasdwasdwasd" },
     },
   ]),
   parameters: {
@@ -44,8 +45,8 @@ export const YearProgressAndWeather: Story = {
 
 export const WeatherComparison: Story = {
   render: createLayoutStoryRenderer("2-col", [
-    { name: "weather", data: { data: weatherFixtureSF } },
-    { name: "weather", data: { data: weatherFixtureNY } },
+    { name: "weather", data: weatherFixtureSF },
+    { name: "weather", data: weatherFixtureNY },
   ]),
   parameters: {
     docs: {
@@ -59,10 +60,11 @@ export const WeatherComparison: Story = {
 
 export const WeatherAndCalendar: Story = {
   render: createLayoutStoryRenderer("2-col", [
-    { name: "weather", data: { data: weatherFixture } },
+    { name: "weather", data: weatherFixture },
     {
       name: "calendar",
-      data: { runtimeConfig: { title: "wasd" }, data: calendarFixture },
+      data: calendarFixture,
+      runtimeConfig: { title: "wasd" },
     },
   ]),
   parameters: {
@@ -77,8 +79,8 @@ export const WeatherAndCalendar: Story = {
 
 export const DualYearProgress: Story = {
   render: createLayoutStoryRenderer("2-col", [
-    { name: "year-progress", data: { data: yearProgressFixture } },
-    { name: "year-progress", data: { data: yearProgressFixture } },
+    { name: "year-progress", data: yearProgressFixture },
+    { name: "year-progress", data: yearProgressFixture },
   ]),
   parameters: {
     docs: {

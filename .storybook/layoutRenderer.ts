@@ -39,11 +39,18 @@ const callbackTemplates: Record<string, Record<SupportedLayout, string>> = {
 /**
  * Render a single callback with its template and data
  * Returns just the callback content (no head/footer)
+ *
+ * Mirrors the production render contract used by `#renderAsHTML` in
+ * src/base-callbacks/base.ts, which always calls
+ * `renderLiquidFile(template, { data, runtimeConfig })`. Templates reference
+ * fields as `data.xxx` / `runtimeConfig.xxx`, so fixtures passed in here are
+ * raw (unwrapped) and get wrapped in the same shape production uses.
  */
 export function renderCallbackContent(
   callbackName: string,
   data: any,
   layout: SupportedLayout = "full",
+  runtimeConfig: any = {},
 ): string {
   const template =
     callbackTemplates[callbackName]?.[layout] ??
@@ -52,8 +59,7 @@ export function renderCallbackContent(
     throw new Error(`Template not found for callback: ${callbackName}`);
   }
 
-  // Render just the callback template with data
-  return engine.parseAndRenderSync(template, data);
+  return engine.parseAndRenderSync(template, { data, runtimeConfig });
 }
 
 /**
@@ -61,7 +67,7 @@ export function renderCallbackContent(
  */
 export function createLayoutStoryRenderer(
   layout: SupportedLayout,
-  callbacks: { name: string; data: any }[],
+  callbacks: { name: string; data: any; runtimeConfig?: any }[],
 ) {
   return () => {
     try {
@@ -73,6 +79,7 @@ export function createLayoutStoryRenderer(
           callbacks[0].name,
           callbacks[0].data,
           layout,
+          callbacks[0].runtimeConfig,
         );
         return engine.parseAndRenderSync(fullLayout, { content });
       }
@@ -84,11 +91,13 @@ export function createLayoutStoryRenderer(
         callbacks[0].name,
         callbacks[0].data,
         layout,
+        callbacks[0].runtimeConfig,
       );
       const content_right = renderCallbackContent(
         callbacks[1].name,
         callbacks[1].data,
         layout,
+        callbacks[1].runtimeConfig,
       );
 
       return engine.parseAndRenderSync(twoColLayout, {
