@@ -1,11 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/html-vite";
-import { createLiquidStory } from "../../../.storybook/liquidRenderer";
-
-import template from "./template.liquid?raw";
+import { createLayoutStoryRenderer } from "../../../.storybook/layoutRenderer";
 
 const meta = {
   title: "Reddit",
-  render: createLiquidStory(template),
 } satisfies Meta;
 
 export default meta;
@@ -59,31 +56,31 @@ const fixtures = {
 };
 
 export const Default: Story = {
-  args: {
-    data: fixtures.default,
-  },
+  render: createLayoutStoryRenderer("full", [
+    { name: "reddit", data: fixtures.default },
+  ]),
 };
 
 export const Empty: Story = {
-  args: {
-    data: fixtures.empty,
-  },
+  render: createLayoutStoryRenderer("full", [
+    { name: "reddit", data: fixtures.empty },
+  ]),
 };
 
 export const SinglePost: Story = {
-  args: {
-    data: fixtures.singlePost,
-  },
+  render: createLayoutStoryRenderer("full", [
+    { name: "reddit", data: fixtures.singlePost },
+  ]),
 };
 
 export const LongTitles: Story = {
-  args: {
-    data: fixtures.longTitles,
-  },
+  render: createLayoutStoryRenderer("full", [
+    { name: "reddit", data: fixtures.longTitles },
+  ]),
 };
 
 export const ManyPosts: Story = {
-  args: {
-    data: fixtures.manyPosts,
-  },
+  render: createLayoutStoryRenderer("full", [
+    { name: "reddit", data: fixtures.manyPosts },
+  ]),
 };

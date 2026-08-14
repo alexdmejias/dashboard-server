@@ -1,11 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/html-vite";
-import { createLiquidStory } from "../../../.storybook/liquidRenderer";
-
-import template from "./template.liquid?raw";
+import { createLayoutStoryRenderer } from "../../../.storybook/layoutRenderer";
 
 const meta = {
   title: "Todoist",
-  render: createLiquidStory(template),
 } satisfies Meta;
 
 export default meta;
@@ -130,14 +127,32 @@ const fixtures = {
   },
 };
 
-export const Default: Story = { args: { data: fixtures.default } };
-
-export const EmptyState: Story = { args: { data: fixtures.empty } };
-
-export const MultipleSections: Story = {
-  args: { data: fixtures.multipleSections },
+export const Default: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "todoist", data: fixtures.default },
+  ]),
 };
 
-export const LongTitles: Story = { args: { data: fixtures.longTitles } };
+export const EmptyState: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "todoist", data: fixtures.empty },
+  ]),
+};
 
-export const StressTest: Story = { args: { data: fixtures.stressTest } };
+export const MultipleSections: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "todoist", data: fixtures.multipleSections },
+  ]),
+};
+
+export const LongTitles: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "todoist", data: fixtures.longTitles },
+  ]),
+};
+
+export const StressTest: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "todoist", data: fixtures.stressTest },
+  ]),
+};

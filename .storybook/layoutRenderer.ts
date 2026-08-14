@@ -1,10 +1,15 @@
 import { Liquid } from "liquidjs";
 import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
+import redditTemplate from "../src/callbacks/reddit/template.liquid?raw";
+import todoistTemplate from "../src/callbacks/todoist/template.liquid?raw";
 import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
 import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2-col.liquid?raw";
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
 import type { SupportedLayout } from "../src/types";
-// Import callback templates
+// Import the compiled Tailwind CSS the same way production reads it from disk
+// (see getTailwindCss() in src/utils/getRenderedTemplate.ts) so head.liquid's
+// `{% if tailwindCss != blank %}<style>...{% endif %}` block matches prod.
+import tailwindCss from "../public/tailwind.css?raw";
 // Import layout templates
 import twoColLayout from "../views/layouts/2-col.liquid?raw";
 import fullLayout from "../views/layouts/full.liquid?raw";
@@ -34,6 +39,8 @@ const callbackTemplates: Record<string, Record<SupportedLayout, string>> = {
   },
   weather: { full: weatherTemplate, "2-col": weatherTemplate },
   calendar: { full: calendarTemplate, "2-col": calendarTemplate },
+  todoist: { full: todoistTemplate, "2-col": todoistTemplate },
+  reddit: { full: redditTemplate, "2-col": redditTemplate },
 };
 
 /**
@@ -81,7 +88,7 @@ export function createLayoutStoryRenderer(
           layout,
           callbacks[0].runtimeConfig,
         );
-        return engine.parseAndRenderSync(fullLayout, { content });
+        return engine.parseAndRenderSync(fullLayout, { content, tailwindCss });
       }
       // 2-col layout
       if (callbacks.length !== 2) {
@@ -103,6 +110,7 @@ export function createLayoutStoryRenderer(
       return engine.parseAndRenderSync(twoColLayout, {
         content_left,
         content_right,
+        tailwindCss,
       });
     } catch (error) {
       console.error("Error rendering layout:", error);

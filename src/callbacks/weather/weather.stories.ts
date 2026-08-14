@@ -1,11 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/html-vite";
-import { createLiquidStory } from "../../../.storybook/liquidRenderer";
-
-import template from "./template.liquid?raw";
+import { createLayoutStoryRenderer } from "../../../.storybook/layoutRenderer";
 
 const meta = {
   title: "Weather",
-  render: createLiquidStory(template),
 } satisfies Meta;
 
 export default meta;
@@ -46,4 +43,8 @@ const fixtures = {
   },
 };
 
-export const Default: Story = { args: { data: fixtures.default } };
+export const Default: Story = {
+  render: createLayoutStoryRenderer("full", [
+    { name: "weather", data: fixtures.default },
+  ]),
+};
