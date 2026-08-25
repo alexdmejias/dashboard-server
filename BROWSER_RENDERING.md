@@ -232,6 +232,12 @@ Make sure you've set both required environment variables in your `.env` file.
 - Check your usage limits and quota
 - Verify network connectivity to the endpoint
 
+### Fonts Not Rendering Correctly in Screenshots
+
+Third-party fonts (such as those from `https://usetrmnl.com/css/latest/plugins.css`) are fetched and cached server-side at render time and injected as inline `<style>` blocks in the HTML. This eliminates the network race condition where the browser might take a screenshot before remote fonts are fully decoded and applied.
+
+Additionally, the Puppeteer renderer explicitly waits for `document.fonts.ready` after `setContent` — a browser API that only resolves once all fonts used on the page have been fully loaded and are ready to paint. This guarantees text renders with the correct font before the screenshot is taken.
+
 ### Resources Not Loading in Screenshots
 
 If you notice that images, fonts, or other resources are not appearing in screenshots, this is likely due to the page timing strategy. By default, all renderers now use `networkidle2` which waits until there are no more than 2 active network connections for at least 500ms. This ensures that dynamically loaded content and resources are fully loaded before the screenshot is taken.
