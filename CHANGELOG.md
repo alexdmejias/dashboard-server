@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/alexdmejias/dashboard-server/compare/v1.0.1...v1.0.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* surfacing and logging error messages when errors are in slots ([0d0053b](https://github.com/alexdmejias/dashboard-server/commit/0d0053b1c0fa5425cdae6571f7e30f05575f8221))
+
 ## [1.0.1](https://github.com/alexdmejias/dashboard-server/compare/v1.0.0...v1.0.1) (2026-08-14)
 
 
