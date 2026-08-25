@@ -148,6 +148,20 @@ class StateMachine {
 
         if (htmlForCallback?.viewType === "html") {
           layoutSlotsOutputs[layoutSlotName] = htmlForCallback.html;
+        } else if (htmlForCallback?.viewType === "error") {
+          logger.error(
+            {
+              playlistItemId: playlistItem.id,
+              layoutSlotName,
+              callback: cb.name,
+              error: htmlForCallback.error,
+            },
+            `callback failed to render, showing error state for slot "${layoutSlotName}"`,
+          );
+          layoutSlotsOutputs[layoutSlotName] = await renderLiquidFile(
+            path.join(PROJECT_ROOT, "views/partials/callback-error.liquid"),
+            { name: cb.name, error: htmlForCallback.error },
+          );
         }
       }
     }
