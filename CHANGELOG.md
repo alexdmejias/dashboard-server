@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/alexdmejias/dashboard-server/compare/v1.1.0...v1.2.0) (2026-08-26)
+
+
+### Features
+
+* migrating to terminal 3.2.0 css framework ([bfa983d](https://github.com/alexdmejias/dashboard-server/commit/bfa983de7df951c22895068244c8c1642a0a09ee))
+
 # [1.1.0](https://github.com/alexdmejias/dashboard-server/compare/v1.0.2...v1.1.0) (2026-08-26)
 
 
