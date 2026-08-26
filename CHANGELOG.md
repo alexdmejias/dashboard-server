@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/alexdmejias/dashboard-server/compare/v1.0.2...v1.1.0) (2026-08-26)
+
+
+### Features
+
+* adding a raw logs tab ([ea9b9b6](https://github.com/alexdmejias/dashboard-server/commit/ea9b9b614100d1dd40f772590abd4714cad47adf))
+
 ## [1.0.2](https://github.com/alexdmejias/dashboard-server/compare/v1.0.1...v1.0.2) (2026-08-25)
 
 
