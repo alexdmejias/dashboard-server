@@ -1,0 +1,172 @@
+name: PR Screenshots
+
+# Renders the Storybook stories affected by a PR before and after the change,
+# and posts them as a single (self-updating) PR comment.
+#
+# GitHub's API can't attach images to comments, so the PNGs are committed to a
+# separate `pr-screenshots` branch (no shared history with main) and linked by
+# that commit's SHA. Linking by SHA keeps the images working after the PR's
+# folder is removed from the branch tip on close.
+#
+# Story selection lives in scripts/pr-screenshots/select.ts: a changed
+# callback (src/callbacks/<name>) selects its own stories plus layout stories
+# named after it; changes to views/ or src/styles/ select everything.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write # push to the pr-screenshots branch
+  pull-requests: write # create/update the comment
+
+concurrency:
+  group: pr-screenshots-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SCREENSHOTS_BRANCH: pr-screenshots
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
+
+jobs:
+  capture:
+    # Fork PRs get a read-only token, so they can't push or comment.
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: List changed files
+        run: |
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" | tee "$RUNNER_TEMP/changed-files.txt"
+
+      - name: Build Storybook (after)
+        run: npm run build-storybook -- --output-dir "$RUNNER_TEMP/storybook-after" --quiet
+
+      - name: Capture after
+        id: after
+        run: >-
+          npx tsx scripts/pr-screenshots/capture.ts
+          --storybook "$RUNNER_TEMP/storybook-after"
+          --out "$RUNNER_TEMP/shots/after"
+          --changed-files "$RUNNER_TEMP/changed-files.txt"
+
+      # Swap in the base branch's render inputs (templates, views, styles) but
+      # keep this PR's Storybook setup and stories, so both runs capture the
+      # same story IDs. Stories the base can't render are reported as new.
+      - name: Build Storybook (before)
+        id: before-build
+        if: steps.after.outputs.count != '0'
+        continue-on-error: true
+        run: |
+          git checkout "$BASE_SHA" -- src/callbacks views src/styles
+          npm run build-storybook -- --output-dir "$RUNNER_TEMP/storybook-before" --quiet
+
+      - name: Capture before
+        if: steps.after.outputs.count != '0' && steps.before-build.outcome == 'success'
+        continue-on-error: true
+        run: >-
+          npx tsx scripts/pr-screenshots/capture.ts
+          --storybook "$RUNNER_TEMP/storybook-before"
+          --out "$RUNNER_TEMP/shots/before"
+          --stories "$RUNNER_TEMP/shots/after/manifest.json"
+
+      - name: Restore PR files
+        if: steps.after.outputs.count != '0'
+        run: git reset -q --hard "$HEAD_SHA"
+
+      - name: Publish screenshots
+        id: publish
+        if: steps.after.outputs.count != '0'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          dir="$RUNNER_TEMP/screenshots-branch"
+          if git fetch --depth 1 origin "$SCREENSHOTS_BRANCH"; then
+            git worktree add "$dir" FETCH_HEAD
+            git -C "$dir" switch -c "$SCREENSHOTS_BRANCH"
+          else
+            git worktree add --orphan -b "$SCREENSHOTS_BRANCH" "$dir"
+          fi
+
+          # Only keep the latest run per PR at the branch tip.
+          rm -rf "$dir/pr-$PR_NUMBER"
+          mkdir -p "$dir/pr-$PR_NUMBER"
+          cp -r "$RUNNER_TEMP/shots/." "$dir/pr-$PR_NUMBER/"
+          git -C "$dir" add -A
+          git -C "$dir" commit -qm "Screenshots for #$PR_NUMBER @ ${HEAD_SHA::7}"
+
+          # Other PRs may push concurrently; rebase and retry.
+          for attempt in 1 2 3 4 5; do
+            if git -C "$dir" push origin "HEAD:$SCREENSHOTS_BRANCH"; then break; fi
+            [ "$attempt" = 5 ] && exit 1
+            git -C "$dir" pull --rebase origin "$SCREENSHOTS_BRANCH"
+          done
+          echo "sha=$(git -C "$dir" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Post comment
+        if: steps.after.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          npx tsx scripts/pr-screenshots/comment.ts \
+            --after "$RUNNER_TEMP/shots/after" \
+            --before "$RUNNER_TEMP/shots/before" \
+            --image-base "https://raw.githubusercontent.com/$REPO/${{ steps.publish.outputs.sha }}/pr-$PR_NUMBER" \
+            --head-sha "$HEAD_SHA" \
+            --base-ref "$BASE_REF" \
+            --out "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
+
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- pr-screenshots -->"))) | .id' | head -n1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/comment.md"
+          fi
+
+  cleanup:
+    # Drops the PR's folder from the branch tip. Comment images keep working
+    # because they're linked by commit SHA, not branch name.
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove screenshots for this PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          url="https://x-access-token:$GH_TOKEN@github.com/$REPO.git"
+          git clone -q --depth 1 --branch "$SCREENSHOTS_BRANCH" "$url" branch || exit 0
+          cd branch
+          [ -d "pr-$PR_NUMBER" ] || exit 0
+          git rm -rq "pr-$PR_NUMBER"
+          git commit -qm "Remove screenshots for #$PR_NUMBER (closed)"
+          for attempt in 1 2 3 4 5; do
+            if git push -q origin "HEAD:$SCREENSHOTS_BRANCH"; then break; fi
+            [ "$attempt" = 5 ] && exit 1
+            git pull -q --rebase origin "$SCREENSHOTS_BRANCH"
+          done
