@@ -111,14 +111,22 @@ jobs:
           mkdir -p "$dir/pr-$PR_NUMBER"
           cp -r "$RUNNER_TEMP/shots/." "$dir/pr-$PR_NUMBER/"
           git -C "$dir" add -A
-          git -C "$dir" commit -qm "Screenshots for #$PR_NUMBER @ ${HEAD_SHA::7}"
 
-          # Other PRs may push concurrently; rebase and retry.
-          for attempt in 1 2 3 4 5; do
-            if git -C "$dir" push origin "HEAD:$SCREENSHOTS_BRANCH"; then break; fi
-            [ "$attempt" = 5 ] && exit 1
-            git -C "$dir" pull --rebase origin "$SCREENSHOTS_BRANCH"
-          done
+          # Identical screenshots to the last run (e.g. a push that doesn't
+          # change rendering): the branch tip already has them, so reuse it
+          # and still refresh the comment for the new head SHA.
+          if git -C "$dir" diff --cached --quiet; then
+            echo "Screenshots unchanged since the last run"
+          else
+            git -C "$dir" commit -qm "Screenshots for #$PR_NUMBER @ ${HEAD_SHA::7}"
+
+            # Other PRs may push concurrently; rebase and retry.
+            for attempt in 1 2 3 4 5; do
+              if git -C "$dir" push origin "HEAD:$SCREENSHOTS_BRANCH"; then break; fi
+              [ "$attempt" = 5 ] && exit 1
+              git -C "$dir" pull --rebase origin "$SCREENSHOTS_BRANCH"
+            done
+          fi
           echo "sha=$(git -C "$dir" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Post comment
