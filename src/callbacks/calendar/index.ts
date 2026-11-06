@@ -307,12 +307,41 @@ class CallbackCalendar extends CallbackBase<
   }
 
   /**
-   * Format time as "9:00 AM"
+   * Get the hour (0-23) and minute of a Date as they read in the given
+   * IANA timezone, regardless of the server process's local timezone.
    */
-  private formatTime(date: Date): string {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    hours = hours % 12;
+  private getHourAndMinuteInTimezone(
+    date: Date,
+    timezone: string,
+  ): { hours: number; minutes: number } {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      hourCycle: "h23",
+    });
+
+    const parts = formatter.formatToParts(date);
+    const hours = Number.parseInt(
+      parts.find((p) => p.type === "hour")!.value,
+      10,
+    );
+    const minutes = Number.parseInt(
+      parts.find((p) => p.type === "minute")!.value,
+      10,
+    );
+    return { hours, minutes };
+  }
+
+  /**
+   * Format time as "9:00" in the given timezone
+   */
+  private formatTime(date: Date, timezone: string): string {
+    const { hours: hours24, minutes } = this.getHourAndMinuteInTimezone(
+      date,
+      timezone,
+    );
+    let hours = hours24 % 12;
     hours = hours ? hours : 12; // 0 should be 12
     const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
     return `${hours}:${minutesStr}`;
@@ -370,13 +399,17 @@ class CallbackCalendar extends CallbackBase<
   private categorizeEventByTime(
     event: GoogleCalendarEvent,
     isAllDay: boolean,
+    timezone: string,
   ): CalendarEvent["category"] {
     if (isAllDay) {
       return "allDay";
     }
 
     const startDate = this.getEventStart(event);
-    const hour = startDate.getHours();
+    const { hours: hour } = this.getHourAndMinuteInTimezone(
+      startDate,
+      timezone,
+    );
 
     if (hour >= 5 && hour < 12) {
       return "morning";
@@ -447,8 +480,8 @@ class CallbackCalendar extends CallbackBase<
         startFormatted = this.formatDate(startDate);
         endFormatted = this.formatDate(inclusiveEndDate);
       } else {
-        startFormatted = this.formatTime(startDate);
-        endFormatted = this.formatTime(endDate);
+        startFormatted = this.formatTime(startDate, config.timezone);
+        endFormatted = this.formatTime(endDate, config.timezone);
       }
 
       const calendarEvent: CalendarEvent = {
@@ -456,7 +489,7 @@ class CallbackCalendar extends CallbackBase<
         start: startFormatted,
         end: endFormatted,
         allDay: isAllDay,
-        category: this.categorizeEventByTime(event, isAllDay),
+        category: this.categorizeEventByTime(event, isAllDay, config.timezone),
       };
 
       if (isAllDay) {

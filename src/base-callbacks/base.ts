@@ -249,10 +249,11 @@ class CallbackBase<
       runtimeConfig as unknown as Record<string, unknown>,
     );
 
-    let templateOverride: string | undefined;
-
     if ("error" in data) {
-      templateOverride = "error";
+      this.logger.error(
+        { callback: this.name, error: data.error },
+        `getData failed for callback: ${this.name}`,
+      );
       return {
         viewType: "error",
         error: data.error,
@@ -274,7 +275,6 @@ class CallbackBase<
         viewType,
         html: await this.#renderAsHTML({
           data,
-          template: templateOverride,
           runtimeConfig: runtimeConfig as ExpectedConfig,
           templateToUse,
         }),

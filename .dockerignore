@@ -7,6 +7,7 @@ docker-compose.yml
 .git
 .gitignore
 *.md
+!CHANGELOG.md
 test
 src/**/*.test.*
 src/**/*.spec.*

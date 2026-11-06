@@ -2,6 +2,7 @@ import { Route, Router, useNavigate } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { createEffect, createSignal, onMount, Show } from "solid-js";
 import ClientDetail from "./routes/[clientName]";
+import Changelog from "./routes/changelog";
 import Home from "./routes/index";
 import Login from "./routes/login";
 import RawLogs from "./routes/raw-logs";
@@ -113,6 +114,14 @@ export default function App() {
           component={() => (
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/changelog"
+          component={() => (
+            <ProtectedRoute>
+              <Changelog />
             </ProtectedRoute>
           )}
         />

@@ -17,6 +17,7 @@ import { readFile } from "node:fs/promises";
 import getApp from "./app";
 import { getSettings, initSettings } from "./settings";
 import type { PossibleCallbacks } from "./types";
+import { getVersion } from "./version";
 
 const start = async () => {
   // Initialise the settings store before any other module reads settings
@@ -69,7 +70,7 @@ const start = async () => {
       );
     }
 
-    app.log.info(`Server running on port ${port}`);
+    app.log.info(`Server version ${getVersion()} running on port ${port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

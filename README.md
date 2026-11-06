@@ -247,6 +247,10 @@ This flow shows the happy-path: a client request triggers the server's callback 
 - **GET /health** — Health check endpoint
   - Returns server status, available callbacks, and connected clients
 
+- **GET /api/version** — Current running server version (from `package.json`)
+
+- **GET /api/changelog** — Changelog rendered to HTML (from `CHANGELOG.md`)
+
 - **GET /api/clients** — Get current state of all clients (JSON)
   - Returns full client data including playlists and callback configurations
 
@@ -301,6 +305,16 @@ Run unit tests with:
 ```bash
 npm test
 ```
+
+## Releases & Versioning
+
+Versioning is handled by [semantic-release](https://github.com/semantic-release/semantic-release), driven by [Conventional Commits](https://www.conventionalcommits.org/) on `main`:
+
+- Commit messages must follow `type(scope?): subject`, e.g. `feat: add changelog page`, `fix(calendar): handle token rotation`, `chore: bump deps`. This is enforced locally by a `commit-msg` git hook (commitlint) — non-conforming commits are rejected. Run `npm install` once to have `husky` wire up the hook (via the `prepare` script).
+- `feat:` → minor bump, `fix:` → patch bump, `feat!:`/`BREAKING CHANGE:` footer → major bump. Other types (`chore`, `docs`, `refactor`, `test`, `ci`) don't trigger a release.
+- On every push to `main`, `.github/workflows/release.yml` runs semantic-release, which bumps `package.json`'s version, updates `CHANGELOG.md`, tags the commit, and publishes a GitHub Release. It does **not** publish to npm.
+- The running server exposes its version at `GET /api/version` and logs it on startup; the admin UI shows it in the navbar (linking to `/changelog`, which renders `CHANGELOG.md`).
+- To trigger a release manually/locally: `npm run release` (requires a `GITHUB_TOKEN` env var).
 
 ## Development notes & TODOs
 

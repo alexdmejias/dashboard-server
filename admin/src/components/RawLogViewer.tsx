@@ -116,6 +116,7 @@ interface RawLogViewerProps {
 }
 
 export function RawLogViewer(props: RawLogViewerProps) {
+  const [activeTab, setActiveTab] = createSignal<"parsed" | "raw">("parsed");
   const [levelFilter, setLevelFilter] = createSignal<string>("all");
   const [clientFilter, setClientFilter] = createSignal<string>(
     props.initialClientName ?? "all",
@@ -225,206 +226,258 @@ export function RawLogViewer(props: RawLogViewerProps) {
         </div>
       </div>
 
-      {/* Filters */}
-      <div class="card bg-base-100 shadow mb-4">
-        <div class="card-body py-3">
-          <div class="flex flex-col sm:flex-row gap-3 items-end">
-            <div class="form-control flex-1">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-semibold uppercase tracking-wide">
-                  Search
-                </span>
-              </label>
-              <input
-                type="text"
-                placeholder="message, request ID, URL…"
-                class="input input-bordered input-sm"
-                value={search()}
-                onInput={(e) => setSearch(e.currentTarget.value)}
-              />
-            </div>
-
-            <div class="form-control w-48">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-semibold uppercase tracking-wide">
-                  Client
-                </span>
-              </label>
-              <select
-                class="select select-bordered select-sm"
-                value={clientFilter()}
-                onChange={(e) => setClientFilter(e.currentTarget.value)}
-              >
-                <option value="all">All clients</option>
-                <For each={knownClients()}>
-                  {(name) => <option value={name}>{name}</option>}
-                </For>
-              </select>
-            </div>
-
-            <div class="form-control w-40">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-semibold uppercase tracking-wide">
-                  Log level
-                </span>
-              </label>
-              <select
-                class="select select-bordered select-sm"
-                value={levelFilter()}
-                onChange={(e) => setLevelFilter(e.currentTarget.value)}
-              >
-                <option value="all">All levels</option>
-                <option value="10">Trace</option>
-                <option value="20">Debug</option>
-                <option value="30">Info</option>
-                <option value="40">Warn</option>
-                <option value="50">Error</option>
-                <option value="60">Fatal</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 mt-2">
-            <input
-              id="hide-admin-requests"
-              type="checkbox"
-              class="checkbox checkbox-sm"
-              checked={hideAdminRequests()}
-              onChange={(e) => setHideAdminRequests(e.currentTarget.checked)}
-            />
-            <label
-              for="hide-admin-requests"
-              class="label-text text-xs cursor-pointer select-none"
-            >
-              Hide admin dashboard requests
-            </label>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div role="tablist" class="tabs tabs-boxed mb-4 w-fit">
+        <button
+          role="tab"
+          class="tab"
+          classList={{ "tab-active": activeTab() === "parsed" }}
+          onClick={() => setActiveTab("parsed")}
+        >
+          Parsed
+        </button>
+        <button
+          role="tab"
+          class="tab"
+          classList={{ "tab-active": activeTab() === "raw" }}
+          onClick={() => setActiveTab("raw")}
+        >
+          Raw
+        </button>
       </div>
 
-      {/* Log list */}
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body p-0">
-          <Show when={lines().length === 0 && connected()}>
-            <div class="flex justify-center items-center py-16">
-              <span class="loading loading-spinner loading-lg" />
+      <Show when={activeTab() === "parsed"}>
+        {/* Filters */}
+        <div class="card bg-base-100 shadow mb-4">
+          <div class="card-body py-3">
+            <div class="flex flex-col sm:flex-row gap-3 items-end">
+              <div class="form-control flex-1">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-semibold uppercase tracking-wide">
+                    Search
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="message, request ID, URL…"
+                  class="input input-bordered input-sm"
+                  value={search()}
+                  onInput={(e) => setSearch(e.currentTarget.value)}
+                />
+              </div>
+
+              <div class="form-control w-48">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-semibold uppercase tracking-wide">
+                    Client
+                  </span>
+                </label>
+                <select
+                  class="select select-bordered select-sm"
+                  value={clientFilter()}
+                  onChange={(e) => setClientFilter(e.currentTarget.value)}
+                >
+                  <option value="all">All clients</option>
+                  <For each={knownClients()}>
+                    {(name) => <option value={name}>{name}</option>}
+                  </For>
+                </select>
+              </div>
+
+              <div class="form-control w-40">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-semibold uppercase tracking-wide">
+                    Log level
+                  </span>
+                </label>
+                <select
+                  class="select select-bordered select-sm"
+                  value={levelFilter()}
+                  onChange={(e) => setLevelFilter(e.currentTarget.value)}
+                >
+                  <option value="all">All levels</option>
+                  <option value="10">Trace</option>
+                  <option value="20">Debug</option>
+                  <option value="30">Info</option>
+                  <option value="40">Warn</option>
+                  <option value="50">Error</option>
+                  <option value="60">Fatal</option>
+                </select>
+              </div>
             </div>
-          </Show>
 
-          <Show when={lines().length > 0 || !connected()}>
-            <div class="overflow-x-auto">
-              <table class="table table-sm w-full">
-                <thead>
-                  <tr>
-                    <th class="w-40">Time</th>
-                    <th class="w-20">Level</th>
-                    <th class="w-32">Client</th>
-                    <th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <For
-                    each={filteredLines()}
-                    fallback={
-                      <tr>
-                        <td
-                          colSpan="4"
-                          class="text-center py-12 text-base-content/50"
-                        >
-                          No log lines match the current filters
-                        </td>
-                      </tr>
-                    }
-                  >
-                    {(entry) => {
-                      const isOpen = () => expanded().has(entry.key);
-                      const hasDetails = () =>
-                        entry.parsed !== null &&
-                        Object.keys(entry.parsed).some(
-                          (k) =>
-                            ![
-                              "level",
-                              "time",
-                              "pid",
-                              "hostname",
-                              "msg",
-                            ].includes(k),
-                        );
+            <div class="flex items-center gap-2 mt-2">
+              <input
+                id="hide-admin-requests"
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                checked={hideAdminRequests()}
+                onChange={(e) => setHideAdminRequests(e.currentTarget.checked)}
+              />
+              <label
+                for="hide-admin-requests"
+                class="label-text text-xs cursor-pointer select-none"
+              >
+                Hide admin dashboard requests
+              </label>
+            </div>
+          </div>
+        </div>
 
-                      return (
-                        <>
-                          <tr
-                            class="hover cursor-pointer select-none"
-                            classList={{
-                              "bg-error/5": entry.level >= 50,
-                              "bg-warning/5":
-                                entry.level >= 40 && entry.level < 50,
-                              "bg-base-200": isOpen(),
-                            }}
-                            onClick={() => toggleExpanded(entry.key)}
+        {/* Log list */}
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body p-0">
+            <Show when={lines().length === 0 && connected()}>
+              <div class="flex justify-center items-center py-16">
+                <span class="loading loading-spinner loading-lg" />
+              </div>
+            </Show>
+
+            <Show when={lines().length > 0 || !connected()}>
+              <div class="overflow-x-auto">
+                <table class="table table-sm w-full">
+                  <thead>
+                    <tr>
+                      <th class="w-40">Time</th>
+                      <th class="w-20">Level</th>
+                      <th class="w-32">Client</th>
+                      <th>Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <For
+                      each={filteredLines()}
+                      fallback={
+                        <tr>
+                          <td
+                            colSpan="4"
+                            class="text-center py-12 text-base-content/50"
                           >
-                            <td class="font-mono text-xs whitespace-nowrap opacity-70">
-                              {formatTime(entry.time)}
-                            </td>
-                            <td>
-                              <span
-                                class={`badge badge-xs ${levelBadgeClass(entry.level)}`}
-                              >
-                                {levelName(entry.level)}
-                              </span>
-                            </td>
-                            <td class="font-mono text-xs opacity-70 truncate max-w-[8rem]">
-                              {entry.clientName ?? "—"}
-                            </td>
-                            <td class="font-mono text-xs">
-                              <div class="flex items-start gap-2">
-                                <span class="flex-1 break-all">
-                                  {entry.msg}
-                                </span>
-                                <Show when={entry.imageFileName}>
-                                  <a
-                                    href={`/api/images/${entry.imageFileName}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="badge badge-sm badge-outline shrink-0"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="View rendered image"
-                                  >
-                                    🖼️ image
-                                  </a>
-                                </Show>
-                                <Show when={hasDetails()}>
-                                  <span class="text-base-content/40 text-xs shrink-0 mt-0.5">
-                                    {isOpen() ? "▲" : "▼"}
-                                  </span>
-                                </Show>
-                              </div>
-                            </td>
-                          </tr>
+                            No log lines match the current filters
+                          </td>
+                        </tr>
+                      }
+                    >
+                      {(entry) => {
+                        const isOpen = () => expanded().has(entry.key);
+                        const hasDetails = () =>
+                          entry.parsed !== null &&
+                          Object.keys(entry.parsed).some(
+                            (k) =>
+                              ![
+                                "level",
+                                "time",
+                                "pid",
+                                "hostname",
+                                "msg",
+                              ].includes(k),
+                          );
 
-                          <Show when={isOpen() && entry.parsed !== null}>
-                            <tr>
-                              <td colSpan="4" class="bg-base-200 p-0">
-                                <pre class="font-mono text-xs p-4 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                                  {formatDetails(entry.parsed!)}
-                                </pre>
+                        return (
+                          <>
+                            <tr
+                              class="hover cursor-pointer select-none"
+                              classList={{
+                                "bg-error/5": entry.level >= 50,
+                                "bg-warning/5":
+                                  entry.level >= 40 && entry.level < 50,
+                                "bg-base-200": isOpen(),
+                              }}
+                              onClick={() => toggleExpanded(entry.key)}
+                            >
+                              <td class="font-mono text-xs whitespace-nowrap opacity-70">
+                                {formatTime(entry.time)}
+                              </td>
+                              <td>
+                                <span
+                                  class={`badge badge-xs ${levelBadgeClass(entry.level)}`}
+                                >
+                                  {levelName(entry.level)}
+                                </span>
+                              </td>
+                              <td class="font-mono text-xs opacity-70 truncate max-w-[8rem]">
+                                {entry.clientName ?? "—"}
+                              </td>
+                              <td class="font-mono text-xs">
+                                <div class="flex items-start gap-2">
+                                  <span class="flex-1 break-all">
+                                    {entry.msg}
+                                  </span>
+                                  <Show when={entry.imageFileName}>
+                                    <a
+                                      href={`/api/images/${entry.imageFileName}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      class="badge badge-sm badge-outline shrink-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="View rendered image"
+                                    >
+                                      🖼️ image
+                                    </a>
+                                  </Show>
+                                  <Show when={hasDetails()}>
+                                    <span class="text-base-content/40 text-xs shrink-0 mt-0.5">
+                                      {isOpen() ? "▲" : "▼"}
+                                    </span>
+                                  </Show>
+                                </div>
                               </td>
                             </tr>
-                          </Show>
-                        </>
-                      );
-                    }}
-                  </For>
-                </tbody>
-              </table>
-            </div>
 
-            <div class="text-xs text-base-content/50 p-3 border-t border-base-200">
-              Showing {filteredLines().length} of {lines().length} lines
-            </div>
-          </Show>
+                            <Show when={isOpen() && entry.parsed !== null}>
+                              <tr>
+                                <td colSpan="4" class="bg-base-200 p-0">
+                                  <pre class="font-mono text-xs p-4 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
+                                    {formatDetails(entry.parsed!)}
+                                  </pre>
+                                </td>
+                              </tr>
+                            </Show>
+                          </>
+                        );
+                      }}
+                    </For>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="text-xs text-base-content/50 p-3 border-t border-base-200">
+                Showing {filteredLines().length} of {lines().length} lines
+              </div>
+            </Show>
+          </div>
         </div>
-      </div>
+      </Show>
+
+      <Show when={activeTab() === "raw"}>
+        {/* Unfiltered raw log lines, exactly as received, newest first */}
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body p-0">
+            <Show when={lines().length === 0 && connected()}>
+              <div class="flex justify-center items-center py-16">
+                <span class="loading loading-spinner loading-lg" />
+              </div>
+            </Show>
+
+            <Show when={lines().length > 0 || !connected()}>
+              <pre class="font-mono text-xs p-4 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed max-h-[80vh]">
+                <For
+                  each={lines()}
+                  fallback={
+                    <span class="text-base-content/50">No log lines</span>
+                  }
+                >
+                  {(entry) => <div>{entry.raw}</div>}
+                </For>
+              </pre>
+
+              <div class="text-xs text-base-content/50 p-3 border-t border-base-200">
+                Showing {lines().length} unfiltered lines
+              </div>
+            </Show>
+          </div>
+        </div>
+      </Show>
     </div>
   );
 }
