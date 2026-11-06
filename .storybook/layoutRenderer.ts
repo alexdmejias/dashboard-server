@@ -1,5 +1,6 @@
 import { Liquid } from "liquidjs";
 import calendarTemplate from "../src/callbacks/calendar/template.liquid?raw";
+import redditTemplate from "../src/callbacks/reddit/template.liquid?raw";
 import weatherTemplate from "../src/callbacks/weather/template.liquid?raw";
 import yearProgressTemplate2Col from "../src/callbacks/year-progress/template.2-col.liquid?raw";
 import yearProgressTemplate from "../src/callbacks/year-progress/template.liquid?raw";
@@ -34,6 +35,7 @@ const callbackTemplates: Record<string, Record<SupportedLayout, string>> = {
   },
   weather: { full: weatherTemplate, "2-col": weatherTemplate },
   calendar: { full: calendarTemplate, "2-col": calendarTemplate },
+  reddit: { full: redditTemplate, "2-col": redditTemplate },
 };
 
 /**

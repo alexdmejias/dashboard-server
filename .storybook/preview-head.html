@@ -1,5 +1,10 @@
-<link rel="stylesheet" href="https://usetrmnl.com/css/3.2.0/plugins.css">
+<!--
+  Tailwind must load before the TRMNL stylesheet, same as views/partials/head.liquid.
+  Cascade layers rank by first declaration, so if Tailwind's layers come later
+  its preflight (`padding: 0`) overrides TRMNL's p--* / m--* utilities.
+-->
 <link rel="stylesheet" href="/tailwind.css">
+<link rel="stylesheet" href="https://usetrmnl.com/css/3.2.0/plugins.css">
 <style>
   .trmnl .screen--inkplate_10 {
     --screen-w: 1200px;
