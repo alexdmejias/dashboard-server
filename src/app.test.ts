@@ -102,6 +102,43 @@ describe("app", () => {
         serverMessages.duplicateClientName(clientName),
       );
     });
+
+    it("should store a valid statusBar config and keep it across playlist updates", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
+      const clientName = "statusClient";
+      const statusBar = { zipcode: "10001", timezone: "America/Chicago" };
+
+      const output = await app.inject({
+        method: "POST",
+        path: `/register/${clientName}`,
+        payload: { playlist: VALID_PLAYLIST, statusBar },
+      });
+      expect(output.statusCode).toBe(200);
+      expect(app.getClient(clientName).getConfig().statusBar).toEqual(
+        statusBar,
+      );
+
+      await app.updateClientPlaylist(clientName, VALID_PLAYLIST);
+      expect(app.getClient(clientName).getConfig().statusBar).toEqual(
+        statusBar,
+      );
+    });
+
+    it("should 500 on an invalid statusBar timezone", async () => {
+      const app = await getApp(POSSIBLE_CALLBACKS);
+
+      const output = await app.inject({
+        method: "POST",
+        path: "/register/badTz",
+        payload: {
+          playlist: VALID_PLAYLIST,
+          statusBar: { timezone: "Mars/Olympus" },
+        },
+      });
+
+      expect(output.statusCode).toBe(500);
+      expect(output.json().message).toContain("Invalid IANA timezone");
+    });
   });
 
   describe("/display/:clientName/:viewType", () => {

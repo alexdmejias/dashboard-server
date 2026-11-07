@@ -61,10 +61,20 @@ export type FullCallbacks = {
 
 export type PlaylistItem = {
   id: string;
+  /** Human-friendly name shown in the status bar; falls back to the callback name(s) */
+  title?: string;
   layout: SupportedLayout;
   callbacks: TwoColCallbacks | FullCallbacks;
 };
 export type Playlist = PlaylistItem[];
+
+/** Per-client configuration for the top/bottom status bars */
+export type StatusBarConfig = {
+  /** Location for the weather section (anything weatherapi.com accepts as `q`). Omit to hide weather. */
+  zipcode?: string;
+  /** IANA timezone used for the date and "updated" time. Defaults to America/New_York. */
+  timezone?: string;
+};
 
 export type ValidCallback = {
   instance: CallbackBase;

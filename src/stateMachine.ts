@@ -2,9 +2,12 @@ import path from "node:path";
 import type CallbackBase from "./base-callbacks/base";
 import type { RenderResponse } from "./base-callbacks/base";
 import logger from "./logger";
+import { buildStatus } from "./status/buildStatus";
+import { getStatusWeather } from "./status/weather";
 import type {
   Playlist,
   PlaylistItem,
+  StatusBarConfig,
   SupportedViewType,
   ValidCallback,
 } from "./types";
@@ -19,19 +22,21 @@ export type Config = {
   message: string;
   currCallbackIndex: number;
   playlist: Playlist;
+  statusBar: StatusBarConfig;
 };
 
 class StateMachine {
   callbacks: Record<string, { name: string; instance: CallbackBase }>;
   #config: Config;
 
-  constructor(playlist: Playlist = []) {
+  constructor(playlist: Playlist = [], statusBar: StatusBarConfig = {}) {
     this.callbacks = {};
     this.#config = {
       message: "",
       rotation: [],
       currCallbackIndex: 0,
       playlist,
+      statusBar,
     };
   }
 
@@ -101,7 +106,10 @@ class StateMachine {
     playlistItemId: string,
     viewType: SupportedViewType,
   ): Promise<RenderResponse> {
-    const playlistItem = this.getPlaylistItemById(playlistItemId);
+    const index = this.#config.playlist.findIndex(
+      (item) => item.id === playlistItemId,
+    );
+    const playlistItem = this.#config.playlist[index];
 
     if (!playlistItem) {
       logger.error(`playlist item not found: ${playlistItemId}`);
@@ -111,7 +119,7 @@ class StateMachine {
       };
     }
 
-    return this.renderPlaylistItem(playlistItem, viewType);
+    return this.renderPlaylistItem(playlistItem, index, viewType);
   }
 
   resolveLayoutForCallback(parentLayout: string, childSlotName: string) {
@@ -129,8 +137,13 @@ class StateMachine {
    */
   private async renderPlaylistItem(
     playlistItem: PlaylistItem,
+    index: number,
     viewType: SupportedViewType,
   ): Promise<RenderResponse> {
+    const { statusBar, playlist } = this.#config;
+    // Start the (cached) weather lookup alongside the callback renders
+    const weatherPromise = getStatusWeather(statusBar.zipcode);
+
     const layoutSlotsOutputs: Record<string, string> = {};
     for (const [layoutSlotName, cb] of Object.entries(playlistItem.callbacks)) {
       if (this.hasCallback(cb.name)) {
@@ -170,7 +183,16 @@ class StateMachine {
       PROJECT_ROOT,
       `views/layouts/${playlistItem.layout}.liquid`,
     );
-    const contents = await renderLiquidFile(layoutPath, layoutSlotsOutputs);
+    const status = buildStatus({
+      playlist,
+      index,
+      timezone: statusBar.timezone,
+      weather: await weatherPromise,
+    });
+    const contents = await renderLiquidFile(layoutPath, {
+      ...layoutSlotsOutputs,
+      status,
+    });
 
     if (viewType === "html") {
       return {
@@ -208,7 +230,8 @@ class StateMachine {
   }
 
   async tick(viewType: SupportedViewType): Promise<RenderResponse> {
-    const playlistItem = this.#config.playlist[this.#config.currCallbackIndex];
+    const index = this.#config.currCallbackIndex;
+    const playlistItem = this.#config.playlist[index];
 
     if (!playlistItem) {
       logger.error("no playlist item found for current index");
@@ -220,7 +243,7 @@ class StateMachine {
 
     this.advanceCallbackIndex();
 
-    return this.renderPlaylistItem(playlistItem, viewType);
+    return this.renderPlaylistItem(playlistItem, index, viewType);
   }
 
   advanceCallbackIndex() {

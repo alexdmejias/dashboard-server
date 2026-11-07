@@ -43,6 +43,12 @@ export interface Forecastday {
   date: string;
   date_epoch: number;
   day: Day;
+  astro?: Astro;
+}
+
+export interface Astro {
+  sunrise: string;
+  sunset: string;
 }
 
 export interface Day {

@@ -1,0 +1,24 @@
+{% if status %}
+<div class="status-bar status-bar--top">
+  <div class="status-bar__start">
+    {% if status.weather %}
+      <img class="status-bar__icon" src="{{ status.weather.icon }}" alt="">
+      <span class="status-bar__strong">{{ status.weather.tempF }}&#176;</span>
+      <span class="status-bar__text">{{ status.weather.condition }}</span>
+    {% endif %}
+  </div>
+  <div class="status-bar__center">
+    <span class="status-bar__strong">{{ status.date }}</span>
+  </div>
+  <div class="status-bar__end">
+    {% if status.weather %}
+      {% if status.weather.hiF != nil %}
+        <span class="status-bar__text">H {{ status.weather.hiF }}&#176; L {{ status.weather.loF }}&#176;</span>
+      {% endif %}
+      {% if status.weather.sunset %}
+        <span class="status-bar__text">Sunset {{ status.weather.sunset }}</span>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}

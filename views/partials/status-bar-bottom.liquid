@@ -1,0 +1,14 @@
+{% if status %}
+<div class="status-bar status-bar--bottom">
+  <div class="status-bar__start">
+    {% if status.previous %}<span class="status-bar__text">&#8592; {{ status.previous.title }}</span>{% endif %}
+  </div>
+  <div class="status-bar__center">
+    <span class="status-bar__strong">{{ status.position }}</span>
+  </div>
+  <div class="status-bar__end">
+    {% if status.next %}<span class="status-bar__text">{{ status.next.title }} &#8594;</span>{% endif %}
+    <span class="status-bar__updated">Updated {{ status.renderedAt }}</span>
+  </div>
+</div>
+{% endif %}
