@@ -12,6 +12,7 @@ import fullLayout from "../views/layouts/full.liquid?raw";
 // Import partials
 import footerPartial from "../views/partials/footer.liquid?raw";
 import headPartial from "../views/partials/head.liquid?raw";
+import { localizeTrmnlAssets } from "./trmnlAssets";
 
 // Configure liquidjs engine with templates using parseFileSync approach
 const engine = new Liquid({
@@ -19,7 +20,7 @@ const engine = new Liquid({
     existsSync: () => true,
     readFileSync: (file: string) => {
       // Return partials when requested
-      if (file.includes("head.liquid")) return headPartial;
+      if (file.includes("head.liquid")) return localizeTrmnlAssets(headPartial);
       if (file.includes("footer.liquid")) return footerPartial;
       return "";
     },

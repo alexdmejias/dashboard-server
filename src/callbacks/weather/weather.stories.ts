@@ -20,7 +20,7 @@ const fixtures = {
       current: 21.9,
       condition: {
         text: "Partly cloudy",
-        image: "https://cdn.weatherapi.com/weather/64x64/night/116.png",
+        image: "/weather-icons/night-116.svg",
       },
     },
     forecast: [
@@ -30,7 +30,7 @@ const fixtures = {
         date: "Tue Jan 27",
         condition: {
           text: "Sunny",
-          image: "https://cdn.weatherapi.com/weather/64x64/day/113.png",
+          image: "/weather-icons/day-113.svg",
         },
       },
       {
@@ -39,7 +39,7 @@ const fixtures = {
         date: "Wed Jan 28",
         condition: {
           text: "Partly Cloudy ",
-          image: "https://cdn.weatherapi.com/weather/64x64/day/116.png",
+          image: "/weather-icons/day-116.svg",
         },
       },
     ],
