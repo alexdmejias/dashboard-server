@@ -68,6 +68,7 @@
     "@semantic-release/github": "^12.0.9",
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.1",
+    "@storybook/addon-vitest": "^10.2.6",
     "@storybook/html-vite": "^10.1.11",
     "@tailwindcss/cli": "^4.2.1",
     "@types/cheerio": "^0.22.31",
@@ -75,14 +76,17 @@
     "@types/node": "^22.10.2",
     "@types/object-hash": "^3.0.6",
     "@types/showdown": "^2.0.6",
-    "@vitest/ui": "^2.1.8",
+    "@vitest/browser": "^4.1.12",
+    "@vitest/browser-playwright": "^4.1.12",
+    "@vitest/ui": "^4.1.12",
     "concurrently": "^9.2.1",
     "husky": "^9.1.7",
+    "playwright": "1.63.0",
     "semantic-release": "^25.0.9",
     "storybook": "^10.1.11",
     "tailwindcss": "^4.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.4",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.12"
   }
 }

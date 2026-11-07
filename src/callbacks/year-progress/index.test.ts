@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock, vitest } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CallbackYearProgress from "./index";
 
 describe("CallbackYearProgress", () => {
@@ -6,6 +6,10 @@ describe("CallbackYearProgress", () => {
 
   beforeEach(() => {
     callback = new CallbackYearProgress();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should return data with date and days array", async () => {
@@ -21,8 +25,8 @@ describe("CallbackYearProgress", () => {
   it("should use America/New_York timezone for date calculation", async () => {
     // Mock Date to simulate a time when UTC and EST dates differ
     // Jan 13, 2026 at 4:00 AM UTC = Jan 12, 2026 at 11:00 PM EST
-    const mockDate = new Date("2026-01-13T04:00:00.000Z");
-    vi.spyOn(global, "Date").mockImplementation(() => mockDate as any);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-13T04:00:00.000Z"));
 
     const result = await callback.getData();
 
@@ -35,8 +39,6 @@ describe("CallbackYearProgress", () => {
     // January is month 0, so days[0] should have 12 days completed
     expect(result.days[0][0]).toBe(12); // 12 days completed
     expect(result.days[0][1]).toBe(19); // 19 days remaining (31 - 12)
-
-    vitest.restoreAllMocks();
   });
 
   it("should format date with weekday, month, day, and year", async () => {
