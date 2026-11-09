@@ -293,6 +293,34 @@ class CallbackFoo extends CallbackBase<TemplateShape, typeof expectedConfig> {
 export default CallbackFoo;
 ```
 
+## Data file callbacks (word, fact, joke, quote)
+
+These show one item from a JSON array in `data/`. Put your own list in
+`data/<name>.json` (git-ignored); without it the committed
+`data/<name>.sample.json` is used. The file is re-read on every render, so
+edits show up without a restart. A file with the wrong shape renders an error
+naming the bad entry.
+
+| Callback | File | Item shape |
+| --- | --- | --- |
+| `word` | `words.json` | `{ "word", "definitions": [], "sentences": [], "partOfSpeech"?, "pronunciation"? }` |
+| `fact` | `facts.json` | `"text"` or `{ "content", "source"? }` |
+| `joke` | `jokes.json` | `"one-liner"` or `["setup", ..., "punchline"]` |
+| `quote` | `quotes.json` | `{ "content", "author"? }` |
+
+Options (all optional):
+
+- `mode`: `"random"` picks a new item on every render; `"daily"` keeps one item
+  for the whole day and steps through the file in order. `word` defaults to
+  `"daily"`, the rest to `"random"`.
+- `timezone`: when a "day" starts for `daily` mode (default `America/New_York`).
+- `title`: heading shown above the item (`word` defaults to "Word of the Day",
+  `fact` to "Did you know?").
+
+New callbacks of this kind can extend `DataFileCallback` in
+`src/base-callbacks/data-file.ts` and only supply an item schema and a
+`transform`.
+
 ## Debugging templates
 
 - If a template renders nothing, inspect the shape of the `data` passed to `getRenderedTemplate` — Liquid receives `{ data, runtimeConfig }`.

@@ -1,20 +1,36 @@
-import CallbackBase from "../../base-callbacks/base";
+import { z } from "zod/v4";
+import DataFileCallback, {
+  type DataFileConfig,
+  dataFileConfig,
+} from "../../base-callbacks/data-file";
 
-type Fact = { id: string; content: string };
+// Accept either a bare string or an object with an optional source.
+const itemSchema = z.union([
+  z.string(),
+  z.object({ content: z.string(), source: z.string().optional() }),
+]);
 
-class CallbackFact extends CallbackBase<Fact> {
-  constructor() {
+export type FactData = { content: string; source?: string };
+
+export const expectedConfig = dataFileConfig;
+
+class CallbackFact extends DataFileCallback<typeof itemSchema, FactData> {
+  static defaultOptions: Partial<DataFileConfig> = {
+    title: "Did you know?",
+  };
+
+  constructor(options = {}) {
     super({
       name: "fact",
-      template: "generic",
+      dataFileName: "facts",
+      itemSchema,
+      receivedConfig: options,
     });
   }
 
-  // get migration() {
-  //   return `CREATE TABLE IF NOT EXISTS ${this.dataFile} (
-  //     id INTEGER PRIMARY KEY,
-  //     content TEXT NOT NULL)`;
-  // }
+  transform(item: z.infer<typeof itemSchema>): FactData {
+    return typeof item === "string" ? { content: item } : item;
+  }
 }
 
 export default CallbackFact;

@@ -1,10 +1,32 @@
-import CallbackBase from "../../base-callbacks/base";
+import { z } from "zod/v4";
+import DataFileCallback, {
+  type DataFileConfig,
+  dataFileConfig,
+} from "../../base-callbacks/data-file";
 
-type Quote = { author: string; content: string; id: string };
+const itemSchema = z.object({
+  content: z.string(),
+  author: z.string().optional(),
+});
 
-class CallbackQuote extends CallbackBase<Quote> {
-  constructor() {
-    super({ name: "quote" });
+export type QuoteData = z.infer<typeof itemSchema>;
+
+export const expectedConfig = dataFileConfig;
+
+class CallbackQuote extends DataFileCallback<typeof itemSchema, QuoteData> {
+  static defaultOptions: Partial<DataFileConfig> = {};
+
+  constructor(options = {}) {
+    super({
+      name: "quote",
+      dataFileName: "quotes",
+      itemSchema,
+      receivedConfig: options,
+    });
+  }
+
+  transform(item: QuoteData): QuoteData {
+    return item;
   }
 }
 

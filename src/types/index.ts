@@ -11,8 +11,6 @@ export const supportedViewTypes = [
 export type SupportedViewType = (typeof supportedViewTypes)[number];
 export type SupportedImageViewType = (typeof supportedImageViewTypes)[number];
 
-export type SupportedDBCallbacks = "jokes" | "words" | "facts" | "quotes";
-
 export type ScreenshotSizeOption = {
   width: number;
   height: number;

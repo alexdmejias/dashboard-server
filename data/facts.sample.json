@@ -1,1 +1,10 @@
-["2 + 2 = fish"]
+[
+  "Octopuses have three hearts and blue blood.",
+  "Honey found in ancient Egyptian tombs was still edible.",
+  "A day on Venus is longer than a year on Venus.",
+  "Bananas are berries, but strawberries are not.",
+  {
+    "content": "Wombat droppings are cube-shaped.",
+    "source": "National Geographic"
+  }
+]

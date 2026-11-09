@@ -1,0 +1,13 @@
+{% comment %}
+  Tailwind only (see reddit/template.liquid for why gaps are `!important`).
+  Sized for a half column by default; `in-[.view--full]:` scales it up.
+{% endcomment %}
+<div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4! overflow-hidden p-6 text-center font-['Inter_Variable',Inter] in-[.view--full]:gap-6! in-[.view--full]:p-12">
+  {% if runtimeConfig.title %}
+    <span class="block text-[20px] font-semibold uppercase tracking-[0.15em] in-[.view--full]:text-[24px]">{{ runtimeConfig.title }}</span>
+  {% endif %}
+  <p class="text-[34px] font-medium leading-[1.25] in-[.view--full]:text-[48px]">{{ data.content }}</p>
+  {% if data.source %}
+    <span class="block text-[18px] italic in-[.view--full]:text-[22px]">Source: {{ data.source }}</span>
+  {% endif %}
+</div>

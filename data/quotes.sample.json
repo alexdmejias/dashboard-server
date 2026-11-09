@@ -1,6 +1,19 @@
 [
+  { "content": "Bet on me? Bet I will.", "author": "Lizzo" },
   {
-    "content": "Bet on me? Bet I will.",
-    "author": "Lizzo"
+    "content": "The best way out is always through.",
+    "author": "Robert Frost"
+  },
+  {
+    "content": "Simplicity is prerequisite for reliability.",
+    "author": "Edsger W. Dijkstra"
+  },
+  {
+    "content": "Well done is better than well said.",
+    "author": "Benjamin Franklin"
+  },
+  {
+    "content": "Make it work, make it right, make it fast.",
+    "author": "Kent Beck"
   }
 ]

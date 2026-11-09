@@ -1,0 +1,17 @@
+{% comment %}
+  Tailwind only (see reddit/template.liquid for why gaps are `!important`).
+  Sized for a half column by default; `in-[.view--full]:` scales it up.
+  Setup lines first, then the punchline set apart and bold.
+{% endcomment %}
+<div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-5! overflow-hidden p-6 text-center font-['Inter_Variable',Inter] in-[.view--full]:gap-8! in-[.view--full]:p-12">
+  {% if runtimeConfig.title %}
+    <span class="block text-[20px] font-semibold uppercase tracking-[0.15em] in-[.view--full]:text-[24px]">{{ runtimeConfig.title }}</span>
+  {% endif %}
+  {% for line in data.setup %}
+    <p class="text-[32px] leading-[1.25] in-[.view--full]:text-[44px]">{{ line }}</p>
+  {% endfor %}
+  {% if data.setup.size > 0 %}
+    <div class="h-[3px] w-24 shrink-0 rounded-full bg-black"></div>
+  {% endif %}
+  <p class="text-[36px] font-bold leading-[1.25] in-[.view--full]:text-[50px]">{{ data.punchline }}</p>
+</div>

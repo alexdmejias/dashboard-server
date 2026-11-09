@@ -1,10 +1,45 @@
 [
   {
     "word": "sentiment",
-    "definitions": ["n. opinion", "n. a tender or moving gesture"],
+    "partOfSpeech": "noun",
+    "pronunciation": "/ˈsen·tə·mənt/",
+    "definitions": ["an opinion or view", "a tender or moving gesture"],
     "sentences": [
       "I am of the sentiment that you should never give out your passwords to anyone.",
       "Even though I'm not a big fan of porcelain dolls, I appreciated the sentiment."
     ]
+  },
+  {
+    "word": "petrichor",
+    "partOfSpeech": "noun",
+    "pronunciation": "/ˈpe·trə·kôr/",
+    "definitions": [
+      "the pleasant, earthy smell after rain falls on dry ground"
+    ],
+    "sentences": ["The petrichor drifted in through the open window."]
+  },
+  {
+    "word": "ebullient",
+    "partOfSpeech": "adjective",
+    "pronunciation": "/əˈbʊl·yənt/",
+    "definitions": ["cheerful and full of energy"],
+    "sentences": ["She was in an ebullient mood after the race."]
+  },
+  {
+    "word": "sonder",
+    "partOfSpeech": "noun",
+    "definitions": [
+      "the realization that each passerby has a life as vivid and complex as your own"
+    ],
+    "sentences": [
+      "Watching the crowd at the station, he was hit by a wave of sonder."
+    ]
+  },
+  {
+    "word": "laconic",
+    "partOfSpeech": "adjective",
+    "pronunciation": "/ləˈkä·nik/",
+    "definitions": ["using very few words"],
+    "sentences": ["His laconic reply was simply \"No.\""]
   }
 ]
