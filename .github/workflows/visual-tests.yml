@@ -1,0 +1,100 @@
+name: Visual tests
+
+# Screenshots every Storybook story and compares it with the reference image in
+# the story's __screenshots__ folder (see vitest.config.ts, project "visual").
+#
+# Add the `update-visual-references` label to a PR to regenerate the references
+# in this same environment and commit them to the PR branch.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: visual-tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  UPDATE_LABEL: update-visual-references
+
+jobs:
+  visual:
+    if: github.event.action != 'labeled' || github.event.label.name == 'update-visual-references'
+    runs-on: ubuntu-latest
+    # Must match the `playwright` version in package.json. References are only
+    # reproducible in this image (fonts and rasterization differ elsewhere).
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Decide mode
+        id: mode
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$SAME_REPO" = "true" ] && echo "$LABELS" | grep -q "\"$UPDATE_LABEL\""; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          # Updating commits to the PR branch, so check out its head, not the merge ref.
+          ref: ${{ steps.mode.outputs.update == 'true' && github.event.pull_request.head.ref || '' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tailwind CSS
+        run: npm run build:css
+
+      - name: Run visual tests
+        if: steps.mode.outputs.update != 'true'
+        run: npx vitest run --project visual
+
+      - name: Upload diffs
+        if: failure() && steps.mode.outputs.update != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-test-diffs
+          path: .vitest-attachments/
+          if-no-files-found: ignore
+
+      - name: Update references
+        if: steps.mode.outputs.update == 'true'
+        run: npx vitest run --project visual --update
+
+      - name: Commit references
+        if: steps.mode.outputs.update == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- ':(glob)src/**/__screenshots__/**'
+          if git diff --cached --quiet; then
+            echo "References already up to date"
+          else
+            git commit -qm "test(visual): update reference screenshots"
+            git push origin "HEAD:$HEAD_REF"
+          fi
+          # Commits pushed with the workflow token don't trigger new runs, so
+          # this job's passing --update run stands in for the check.
+          # (The Playwright image has curl but not the gh CLI.)
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/$UPDATE_LABEL"

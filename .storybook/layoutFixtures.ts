@@ -33,7 +33,7 @@ export const weatherFixture = {
       date: "Wed Feb 5",
       condition: {
         text: "Sunny",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/113.png",
+        image: "/weather-icons/day-113.svg",
       },
     },
     {
@@ -42,7 +42,7 @@ export const weatherFixture = {
       date: "Thu Feb 6",
       condition: {
         text: "Partly Cloudy",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/116.png",
+        image: "/weather-icons/day-116.svg",
       },
     },
     {
@@ -51,7 +51,7 @@ export const weatherFixture = {
       date: "Fri Feb 7",
       condition: {
         text: "Overcast",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/122.png",
+        image: "/weather-icons/day-122.svg",
       },
     },
   ],
@@ -69,7 +69,7 @@ export const weatherFixtureSF = {
       date: "Wed Feb 5",
       condition: {
         text: "Partly cloudy",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/116.png",
+        image: "/weather-icons/day-116.svg",
       },
     },
     {
@@ -78,7 +78,7 @@ export const weatherFixtureSF = {
       date: "Thu Feb 6",
       condition: {
         text: "Cloudy",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/119.png",
+        image: "/weather-icons/day-119.svg",
       },
     },
   ],
@@ -95,7 +95,7 @@ export const weatherFixtureNY = {
       date: "Wed Feb 5",
       condition: {
         text: "Sunny",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/113.png",
+        image: "/weather-icons/day-113.svg",
       },
     },
     {
@@ -104,7 +104,7 @@ export const weatherFixtureNY = {
       date: "Thu Feb 6",
       condition: {
         text: "Partly Cloudy",
-        image: "https://cdn.weatherapi.com/weather/64x64/day/116.png",
+        image: "/weather-icons/day-116.svg",
       },
     },
   ],

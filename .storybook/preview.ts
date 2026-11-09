@@ -1,21 +1,5 @@
-import type { StorybookConfig } from "@storybook/html-vite";
+import type { Preview } from "@storybook/html-vite";
 
-const config: StorybookConfig = {
-  stories: [
-    "../src/callbacks/**/story.ts",
-    "../src/callbacks/**/*.stories.ts",
-    "../src/layouts/**/*.stories.ts",
-  ],
-  addons: [
-    /* "@storybook/addon-essentials", */ "@storybook/addon-interactions",
-  ],
-  framework: {
-    name: "@storybook/html-vite",
-    options: {},
-  },
-  docs: {
-    autodocs: "tag",
-  },
-};
+const preview: Preview = {};
 
-export default config;
+export default preview;

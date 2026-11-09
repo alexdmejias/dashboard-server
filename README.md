@@ -306,6 +306,19 @@ Run unit tests with:
 npm test
 ```
 
+### Visual regression tests
+
+Every Storybook story is also a visual test: Vitest renders it in Chromium, screenshots its 1200×825 `.screen` frame, and compares that with a reference image committed next to the story (`src/**/__screenshots__/`). A test fails if more than 0.1% of pixels differ, and writes the actual and diff images to `.vitest-attachments/`.
+
+References only match pixel for pixel in the Playwright Docker image that CI uses, so generate them there:
+
+- `npm run test:visual:docker` checks the stories in that image (needs Docker; slower on Apple Silicon or a Raspberry Pi, which emulate x86_64).
+- `npm run test:visual:update` regenerates references after an intended change. Review the new images before committing them.
+- Or add the `update-visual-references` label to a PR: CI regenerates the references and commits them to the PR branch.
+- `npm run test:visual` runs on your own machine. That's quick for iterating, but expect small font differences against the references.
+
+Stories load a local copy of TRMNL's stylesheet, its Inter font and the fixture weather icons from `.storybook/static/`, so test runs don't depend on the network.
+
 ## Releases & Versioning
 
 Versioning is handled by [semantic-release](https://github.com/semantic-release/semantic-release), driven by [Conventional Commits](https://www.conventionalcommits.org/) on `main`:
@@ -320,4 +333,4 @@ Versioning is handled by [semantic-release](https://github.com/semantic-release/
 
 - Callbacks and templates are intentionally lightweight — add more unit tests and a CI pipeline.
 - Consider moving Puppeteer into a Docker image for reproducible rendering environments.
-- Possible improvements: switch to Vitest, add end-to-end tests for rendering, add a configurable image storage backend.
+- Possible improvements: add end-to-end tests for rendering, add a configurable image storage backend.
