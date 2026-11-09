@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/alexdmejias/dashboard-server/compare/v1.2.0...v1.3.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **status-bar:** use TRMNL's Inter font in the status bars ([0dfc9d6](https://github.com/alexdmejias/dashboard-server/commit/0dfc9d6aaca862f95cc0812c3f88e3b0ead9f2a1))
+
+
+### Features
+
+* top and bottom status bars with weather and playlist navigation ([a56191c](https://github.com/alexdmejias/dashboard-server/commit/a56191c65f5ce3f381c5b8271e5c674c8fff0728))
+
 # [1.2.0](https://github.com/alexdmejias/dashboard-server/compare/v1.1.0...v1.2.0) (2026-08-26)
 
 
