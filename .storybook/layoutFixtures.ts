@@ -230,7 +230,7 @@ export const statusFixture: Status = {
   weather: {
     tempF: 52,
     condition: "Partly cloudy",
-    icon: "https://cdn.weatherapi.com/weather/64x64/day/116.png",
+    icon: "/weather-icons/day-116.svg",
     hiF: 58,
     loF: 41,
     sunset: "4:52 PM",
