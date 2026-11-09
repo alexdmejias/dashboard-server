@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/html-vite";
 import {
   calendarFixture,
+  redditFixture,
   weatherFixture,
   weatherFixtureNY,
   weatherFixtureSF,
@@ -85,6 +86,44 @@ export const DualYearProgress: Story = {
       description: {
         story:
           "2-col layout with two year progress callbacks - useful for comparing different time periods or tracking systems",
+      },
+    },
+  },
+};
+
+export const RedditAndWeather: Story = {
+  render: createLayoutStoryRenderer("2-col", [
+    {
+      name: "reddit",
+      data: { runtimeConfig: { title: "r/pets" }, data: redditFixture },
+    },
+    { name: "weather", data: { data: weatherFixture } },
+  ]),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "2-col layout with reddit posts next to the weather forecast - checks the reddit card uses the full column width",
+      },
+    },
+  },
+};
+
+export const DualReddit: Story = {
+  render: createLayoutStoryRenderer("2-col", [
+    {
+      name: "reddit",
+      data: { runtimeConfig: { title: "r/pets" }, data: redditFixture },
+    },
+    {
+      name: "reddit",
+      data: { runtimeConfig: { title: "r/aww" }, data: redditFixture },
+    },
+  ]),
+  parameters: {
+    docs: {
+      description: {
+        story: "2-col layout with a reddit callback in each column",
       },
     },
   },

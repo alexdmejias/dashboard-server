@@ -1,13 +1,21 @@
-<div class="layout layout--row">
-  <div class="flex flex--col flex--center bg--white p--2.5 rounded--small text--center w-75">
+{% comment %}
+  Tailwind only (no TRMNL classes). The TRMNL stylesheet is still loaded for
+  other callbacks, and its `.trmnl .flex` rule (in a cascade layer declared
+  after Tailwind's) adds `gap: var(--gap)`, so the gaps here are `!important`.
+  Font: "Inter Variable" comes from TRMNL's @font-face until the app ships its own.
+  The outer box stands in for TRMNL's `.layout`: padded in a half column,
+  unpadded with a bottom margin in a full view.
+{% endcomment %}
+<div class="flex min-h-0 flex-1 flex-row items-center justify-center gap-2.5! overflow-hidden p-2.5 in-[.view--full]:mb-2.5 in-[.view--full]:p-0">
+  <div class="flex w-full flex-col items-center justify-center gap-2.5! overflow-hidden rounded-[7px] bg-white p-2.5 text-center">
     {% assign items = data.data | default: data %}
-    <span class="title">{{ data.title | default: runtimeConfig.title }}</span>
+    <span class="block font-['Inter_Variable',Inter] text-[30px] leading-[36px]">{{ data.title | default: runtimeConfig.title }}</span>
     {% if items and items.size > 0 %}
       {% for item in items %}
-        <div class="item">
-          <div class="meta"></div>
-          <div class="content text--left">
-            <span class="title">{{ item.title }}</span>
+        <div class="flex w-full flex-row items-stretch gap-0.5! leading-0">
+          <div class="mr-[7px] w-2.5 shrink-0 rounded-[3px] bg-black"></div>
+          <div class="flex flex-col items-start justify-end overflow-hidden text-left">
+            <span class="block font-['Inter_Variable',Inter] text-[30px] leading-[36px]">{{ item.title }}</span>
           </div>
         </div>
       {% endfor %}

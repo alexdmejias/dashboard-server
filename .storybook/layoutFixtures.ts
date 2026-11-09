@@ -203,3 +203,17 @@ export const calendarEmptyFixture = {
     },
   ],
 };
+
+export const redditFixture = [
+  { title: "TIL octopuses have three hearts and blue blood" },
+  {
+    title:
+      "My cat has figured out how to open the fridge and I don't know what to do anymore",
+  },
+  { title: "Adopted this senior greyhound last week. Meet Biscuit!" },
+  {
+    title:
+      "PSA: lilies are extremely toxic to cats, even the pollen. Please check your bouquets",
+  },
+  { title: "Finally got both dogs to sit for a photo" },
+];
