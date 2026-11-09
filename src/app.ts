@@ -9,6 +9,7 @@ import clientsPlugin from "./plugins/clients";
 import type {
   PlaylistItem,
   PossibleCallbacks,
+  StatusBarConfig,
   SupportedViewType,
 } from "./types";
 import { getBrowserRendererType } from "./utils/getBrowserRendererType";
@@ -124,10 +125,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     };
     Body: {
       playlist?: PlaylistItem[];
+      statusBar?: StatusBarConfig;
     };
   }>("/register/:clientName", async (req, res) => {
     const { clientName } = req.params;
-    const { playlist = [] } = req.body;
+    const { playlist = [], statusBar } = req.body;
 
     const client = app.getClient(clientName);
 
@@ -143,7 +145,11 @@ async function getApp(possibleCallbacks: PossibleCallbacks = {}) {
     );
 
     if (!client) {
-      const clientRes = await app.registerClient(clientName, playlist);
+      const clientRes = await app.registerClient(
+        clientName,
+        playlist,
+        statusBar,
+      );
 
       if ("error" in clientRes) {
         app.log.error(

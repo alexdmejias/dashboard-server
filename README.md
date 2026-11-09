@@ -230,7 +230,9 @@ This flow shows the happy-path: a client request triggers the server's callback 
 ### Client Management
 
 - **POST /register/:clientName** — Register a new client with a callback playlist
-  - Body: `{ playlist: [{ id, callbackName, options? }] }`
+  - Body: `{ playlist: [{ id, title?, layout, callbacks }], statusBar?: { zipcode?, timezone? } }`
+  - `title` is the name shown in the status bar; it defaults to the callback name(s)
+  - `statusBar` is optional; see [Status bars](#status-bars). It is kept when the playlist is updated.
   - Returns client configuration
 
 - **GET /display/:clientName/:viewType/:callback?** — Render and display a callback or layout
@@ -264,6 +266,27 @@ This flow shows the happy-path: a client request triggers the server's callback 
 - **POST /test-template** — Test a template with custom data
   - Body: `{ templateType, template, templateData?, screenDetails }`
   - Useful for developing and debugging templates
+
+## Status bars
+
+Every layout gets a 40px status bar at the top and bottom of the screen
+(`views/partials/status-bar-top.liquid` / `status-bar-bottom.liquid`, styles in `views/partials/head.liquid`):
+
+- **Top:** current weather icon, temperature and condition · date · today's high/low and sunset
+- **Bottom:** ← previous item · position (e.g. `3 / 7`) · next item → · `Updated 9:41 AM`
+
+The "Updated" time is when the image was rendered, so a frozen screen is easy to spot.
+
+Configure it per client with `statusBar` when registering:
+
+```json
+{ "playlist": [...], "statusBar": { "zipcode": "10001", "timezone": "America/New_York" } }
+```
+
+- `zipcode` — enables the weather section (needs the `weatherApiKey` setting). Results are cached in memory for 20 minutes per location, requests time out after 3s, and on failure the last good reading is shown (or the weather section is hidden).
+- `timezone` — IANA zone for the date and "Updated" time. Defaults to `America/New_York`.
+
+Layouts receive the data as `status` (built by `src/status/buildStatus.ts`).
 
 ## Templates
 

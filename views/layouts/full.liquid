@@ -1,9 +1,9 @@
 {% include 'head.liquid' %}
+{% include 'status-bar-top.liquid' %}
   <div class="view view--full">
     {{ content }}
-    <div class="title_bar">
-      <span class="title">Title</span>
-      <span class="instance">Instance</span>
-    </div>
+    {% comment %} Empty title_bar keeps the framework's spacing; the status bar overlays this band {% endcomment %}
+    <div class="title_bar status-bar__spacer"></div>
   </div>
+{% include 'status-bar-bottom.liquid' %}
 {% include 'footer.liquid' %}

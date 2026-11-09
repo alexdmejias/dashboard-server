@@ -13,6 +13,9 @@ import fullLayout from "../views/layouts/full.liquid?raw";
 import footerPartial from "../views/partials/footer.liquid?raw";
 import headPartial from "../views/partials/head.liquid?raw";
 import { localizeTrmnlAssets } from "./trmnlAssets";
+import statusBarBottomPartial from "../views/partials/status-bar-bottom.liquid?raw";
+import statusBarTopPartial from "../views/partials/status-bar-top.liquid?raw";
+import { statusFixture } from "./layoutFixtures";
 
 // Configure liquidjs engine with templates using parseFileSync approach
 const engine = new Liquid({
@@ -22,6 +25,9 @@ const engine = new Liquid({
       // Return partials when requested
       if (file.includes("head.liquid")) return localizeTrmnlAssets(headPartial);
       if (file.includes("footer.liquid")) return footerPartial;
+      if (file.includes("status-bar-top.liquid")) return statusBarTopPartial;
+      if (file.includes("status-bar-bottom.liquid"))
+        return statusBarBottomPartial;
       return "";
     },
     resolve: (root: string, file: string, ext: string) => file,
@@ -77,7 +83,10 @@ export function createLayoutStoryRenderer(
           callbacks[0].data,
           layout,
         );
-        return engine.parseAndRenderSync(fullLayout, { content });
+        return engine.parseAndRenderSync(fullLayout, {
+          content,
+          status: statusFixture,
+        });
       }
       // 2-col layout
       if (callbacks.length !== 2) {
@@ -97,6 +106,7 @@ export function createLayoutStoryRenderer(
       return engine.parseAndRenderSync(twoColLayout, {
         content_left,
         content_right,
+        status: statusFixture,
       });
     } catch (error) {
       console.error("Error rendering layout:", error);

@@ -3,7 +3,13 @@ import fp from "fastify-plugin";
 import { ZodError, z } from "zod/v4";
 import type CallbackBase from "../base-callbacks/base";
 import StateMachine from "../stateMachine";
-import type { Playlist, PossibleCallbacks, ValidCallback } from "../types";
+import { isValidTimezone } from "../status/buildStatus";
+import type {
+  Playlist,
+  PossibleCallbacks,
+  StatusBarConfig,
+  ValidCallback,
+} from "../types";
 import { supportedLayouts } from "../types";
 
 declare module "fastify" {
@@ -13,6 +19,7 @@ declare module "fastify" {
     registerClient(
       clientName: string,
       playlist: Playlist,
+      statusBar?: StatusBarConfig,
     ): Promise<StateMachine | { error: string }>;
     updateClientPlaylist(
       clientName: string,
@@ -34,6 +41,7 @@ function validatePlaylist(
     .array(
       z.object({
         id: z.string().min(1, "ID must be a non-empty string"),
+        title: z.string().optional(),
         layout: z.enum(supportedLayouts, {
           message: `Layout must be one of: ${supportedLayouts.join(", ")}`,
         }),
@@ -159,12 +167,32 @@ function validatePlaylist(
   return validPlaylist.safeParse(playlist);
 }
 
+const statusBarSchema = z
+  .object({
+    zipcode: z.string().min(1).optional(),
+    timezone: z
+      .string()
+      .refine(isValidTimezone, { message: "Invalid IANA timezone" })
+      .optional(),
+  })
+  .strict();
+
 async function createClientFromPlaylist(
   fastify: FastifyInstance,
   clientName: string,
   playlist: Playlist,
   possibleCallbacks: PossibleCallbacks,
+  statusBar: StatusBarConfig = {},
 ): Promise<StateMachine | { error: string }> {
+  const statusBarResult = statusBarSchema.safeParse(statusBar);
+  if (!statusBarResult.success) {
+    return {
+      error: `Error while validating statusBar object, ${z.prettifyError(
+        statusBarResult.error,
+      )} `,
+    };
+  }
+
   fastify.log.info("validating playlist");
   const result = validatePlaylist(fastify, playlist, possibleCallbacks);
   if (!result.success) {
@@ -215,7 +243,7 @@ async function createClientFromPlaylist(
     return { error: errors };
   }
 
-  const client = new StateMachine(playlist);
+  const client = new StateMachine(playlist, statusBarResult.data);
   await client.addCallbacks(validCallbacks);
   return client;
 }
@@ -269,7 +297,11 @@ function clientsPlugin(
 
   fastify.decorate(
     "registerClient",
-    async (clientName: string, playlist: Playlist) => {
+    async (
+      clientName: string,
+      playlist: Playlist,
+      statusBar: StatusBarConfig = {},
+    ) => {
       fastify.log.info(`registering client: ${clientName}...`);
 
       const client = await createClientFromPlaylist(
@@ -277,6 +309,7 @@ function clientsPlugin(
         clientName,
         playlist,
         possibleCallbacks,
+        statusBar,
       );
 
       if ("error" in client) {
@@ -302,6 +335,8 @@ function clientsPlugin(
         clientName,
         playlist,
         possibleCallbacks,
+        // keep the client's status bar settings across playlist updates
+        _clients[clientName]?.getConfig().statusBar,
       );
 
       if ("error" in client) {

@@ -1,18 +1,15 @@
 {% include 'head.liquid' %}
+{% include 'status-bar-top.liquid' %}
 <div class="mashup mashup--1Lx1R">
   <div class="view view--half_vertical">
     {{ content_left }}
-    <div class="title_bar">
-      <span class="title">Title</span>
-      <span class="instance">Instance</span>
-    </div>
+    {% comment %} Empty title_bars keep the framework's spacing; one shared status bar overlays this band {% endcomment %}
+    <div class="title_bar status-bar__spacer"></div>
   </div>
   <div class="view view--half_vertical">
     {{ content_right }}
-    <div class="title_bar">
-      <span class="title">Title</span>
-      <span class="instance">Instance</span>
-    </div>
+    <div class="title_bar status-bar__spacer"></div>
   </div>
 </div>
+{% include 'status-bar-bottom.liquid' %}
 {% include 'footer.liquid' %}

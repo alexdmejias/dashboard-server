@@ -1,3 +1,4 @@
+import type { Status } from "../src/status/buildStatus";
 /**
  * Fixture data for callbacks to use in layout stories
  * This mirrors the data structure that callbacks return from their getData() methods
@@ -217,3 +218,21 @@ export const redditFixture = [
   },
   { title: "Finally got both dogs to sit for a photo" },
 ];
+
+// Status bar data passed to the layouts (see src/status/buildStatus.ts)
+export const statusFixture: Status = {
+  date: "Sat, Nov 7",
+  renderedAt: "9:41 AM",
+  position: "2 / 5",
+  current: { id: "weather", title: "Weather" },
+  previous: { id: "calendar", title: "Calendar" },
+  next: { id: "reddit", title: "Reddit" },
+  weather: {
+    tempF: 52,
+    condition: "Partly cloudy",
+    icon: "/weather-icons/day-116.svg",
+    hiF: 58,
+    loF: 41,
+    sunset: "4:52 PM",
+  },
+};

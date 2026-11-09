@@ -18,6 +18,10 @@
           "minLength": 1,
           "description": "Unique identifier for this playlist item"
         },
+        "title": {
+          "type": "string",
+          "description": "Optional display name shown in the status bar (previous/next). Defaults to the callback name(s)."
+        },
         "layout": {
           "type": "string",
           "enum": ["2-col", "full"],

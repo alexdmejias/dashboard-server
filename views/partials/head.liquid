@@ -23,6 +23,84 @@
     .screen {
       border: 1px solid tomato;
     }
+
+    /* ── Status bars: fixed 40px bands at the top and bottom of the screen ── */
+    .trmnl .screen {
+      position: relative;
+      --status-bar-h: 40px;
+    }
+
+    .status-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      height: var(--status-bar-h);
+      box-sizing: border-box;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #fff;
+      color: #000;
+      font-family: "Inter Variable", "Inter", sans-serif;
+      font-size: 20px;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .status-bar--top {
+      top: 0;
+      border-bottom: 2px solid #000;
+    }
+
+    .status-bar--bottom {
+      bottom: 0;
+      border-top: 2px solid #000;
+    }
+
+    .status-bar__start,
+    .status-bar__end {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-bar__end {
+      justify-content: flex-end;
+    }
+
+    .status-bar__center {
+      flex: 0 0 auto;
+    }
+
+    .status-bar__text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-bar__strong {
+      font-weight: 700;
+    }
+
+    .status-bar__icon {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+    }
+
+    .status-bar__updated {
+      flex: 0 0 auto;
+      padding-left: 12px;
+      border-left: 2px solid #000;
+    }
+
+    .status-bar__spacer {
+      visibility: hidden;
+    }
   </style>
   <title>Document</title>
 </head>
