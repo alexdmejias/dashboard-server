@@ -6,6 +6,7 @@ import type {
   RenderResult,
 } from "../../types/browser-renderer";
 import logger from "../../logger";
+import { FONTS_READY_SELECTOR, FONTS_READY_TIMEOUT_MS } from "./fontsReady";
 
 export interface BrowserlessIOConfig {
   token: string;
@@ -72,12 +73,18 @@ class BrowserlessIOBrowserRenderer implements BrowserRenderer {
       },
       body: JSON.stringify({
         html: htmlContent,
+        // Top-level per the Browserless API: `options` only takes Puppeteer
+        // screenshot options.
+        gotoOptions: {
+          waitUntil,
+        },
+        waitForSelector: {
+          selector: FONTS_READY_SELECTOR,
+          timeout: FONTS_READY_TIMEOUT_MS,
+        },
         options: {
           fullPage: false,
           type: "png",
-          gotoOptions: {
-            waitUntil,
-          },
         },
         viewport: {
           width: size.width,

@@ -232,6 +232,17 @@ Make sure you've set both required environment variables in your `.env` file.
 - Check your usage limits and quota
 - Verify network connectivity to the endpoint
 
+### Text or Layout Missing in Screenshots
+
+`networkidle2` tolerates two open requests, so it can return while TRMNL's 18MB stylesheet or a web font is still downloading. Chromium paints nothing until that stylesheet loads, so the screenshot comes out blank or without text.
+
+Every renderer therefore waits for stylesheets and fonts after the page loads, for up to 10 seconds, then takes the screenshot anyway:
+
+- **Puppeteer** waits for the stylesheets to load and for `document.fonts.ready`. It logs a warning when it gives up or a font fails to load.
+- **Cloudflare and Browserless.io** can't await a promise in the page, so `views/partials/head.liquid` sets `<html data-fonts-ready>` once fonts have loaded, and the request waits for it with `waitForSelector`.
+
+The selector and timeouts are in `src/utils/renderers/fontsReady.ts`.
+
 ### Resources Not Loading in Screenshots
 
 If you notice that images, fonts, or other resources are not appearing in screenshots, this is likely due to the page timing strategy. By default, all renderers now use `networkidle2` which waits until there are no more than 2 active network connections for at least 500ms. This ensures that dynamically loaded content and resources are fully loaded before the screenshot is taken.

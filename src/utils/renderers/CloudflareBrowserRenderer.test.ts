@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import CloudflareBrowserRenderer from "./CloudflareBrowserRenderer";
+import { FONTS_READY_SELECTOR, FONTS_READY_TIMEOUT_MS } from "./fontsReady";
 import { writeFile } from "node:fs/promises";
 
 vi.mock("node:fs/promises");
@@ -67,6 +68,11 @@ describe("CloudflareBrowserRenderer", () => {
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.gotoOptions.waitUntil).toBe("networkidle2");
+    // Waits for head.liquid to mark the fonts as loaded
+    expect(body.waitForSelector).toEqual({
+      selector: FONTS_READY_SELECTOR,
+      timeout: FONTS_READY_TIMEOUT_MS,
+    });
 
     expect(writeFile).toHaveBeenCalledWith(
       options.imagePath,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { writeFile } from "node:fs/promises";
 import BrowserlessIOBrowserRenderer from "./BrowserlessIOBrowserRenderer";
+import { FONTS_READY_SELECTOR, FONTS_READY_TIMEOUT_MS } from "./fontsReady";
 
 vi.mock("node:fs/promises");
 
@@ -123,10 +124,34 @@ describe("BrowserlessIOBrowserRenderer", () => {
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
 
-    expect(body.options.fullPage).toBe(false);
-    expect(body.options.type).toBe("png");
+    expect(body.options).toEqual({ fullPage: false, type: "png" });
     // Verify that networkidle2 is used by default for proper resource loading
-    expect(body.options.gotoOptions.waitUntil).toBe("networkidle2");
+    expect(body.gotoOptions.waitUntil).toBe("networkidle2");
+  });
+
+  it("should wait for the fonts-ready marker before the screenshot", async () => {
+    const mockBuffer = Buffer.from("test screenshot");
+    const mockArrayBuffer = mockBuffer.buffer.slice(
+      mockBuffer.byteOffset,
+      mockBuffer.byteOffset + mockBuffer.byteLength,
+    );
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+    });
+
+    await renderer.renderPage({
+      htmlContent: "<html><body>Test</body></html>",
+      imagePath: "/path/to/image.png",
+    });
+
+    const fetchCall = (global.fetch as Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall[1].body);
+    expect(body.waitForSelector).toEqual({
+      selector: FONTS_READY_SELECTOR,
+      timeout: FONTS_READY_TIMEOUT_MS,
+    });
   });
 
   it("should throw error when API request fails", async () => {
@@ -170,6 +195,6 @@ describe("BrowserlessIOBrowserRenderer", () => {
 
     const fetchCall = (global.fetch as Mock).mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
-    expect(body.options.gotoOptions.waitUntil).toBe("domcontentloaded");
+    expect(body.gotoOptions.waitUntil).toBe("domcontentloaded");
   });
 });

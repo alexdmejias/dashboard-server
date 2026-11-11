@@ -5,6 +5,23 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Sets <html data-fonts-ready> once stylesheets and web fonts have loaded.
+    // The remote renderers wait for it before the screenshot, see
+    // src/utils/renderers/fontsReady.ts. Runs before the stylesheet link so the
+    // fallback timer (FONTS_READY_FALLBACK_MS) starts even if a request hangs.
+    (function () {
+      function markFontsReady() {
+        document.documentElement.setAttribute("data-fonts-ready", "");
+      }
+      setTimeout(markFontsReady, 10000);
+      window.addEventListener("load", function () {
+        // Fonts only start loading once text using them is laid out.
+        document.body.getBoundingClientRect();
+        document.fonts.ready.then(markFontsReady, markFontsReady);
+      });
+    })();
+  </script>
   {% if tailwindCss != blank %}<style>{{ tailwindCss }}</style>{% endif %}
   <link rel="stylesheet" href="https://usetrmnl.com/css/3.2.0/plugins.css">
 
