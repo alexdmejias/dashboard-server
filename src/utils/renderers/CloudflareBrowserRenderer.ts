@@ -6,6 +6,7 @@ import type {
   RenderResult,
 } from "../../types/browser-renderer";
 import logger from "../../logger";
+import { FONTS_READY_SELECTOR, FONTS_READY_TIMEOUT_MS } from "./fontsReady";
 
 export interface CloudflareConfig {
   accountId: string;
@@ -77,6 +78,10 @@ class CloudflareBrowserRenderer implements BrowserRenderer {
         html: htmlContent,
         gotoOptions: {
           waitUntil,
+        },
+        waitForSelector: {
+          selector: FONTS_READY_SELECTOR,
+          timeout: FONTS_READY_TIMEOUT_MS,
         },
         viewport: {
           width: size.width,
