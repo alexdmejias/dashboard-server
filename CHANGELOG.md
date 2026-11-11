@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/alexdmejias/dashboard-server/compare/v1.3.0...v1.3.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **renderers:** wait for stylesheets and fonts before screenshots ([104a42c](https://github.com/alexdmejias/dashboard-server/commit/104a42c3b0811d623a098edb92851236b76fe1e7))
+
 # [1.3.0](https://github.com/alexdmejias/dashboard-server/compare/v1.2.0...v1.3.0) (2026-11-09)
 
 
